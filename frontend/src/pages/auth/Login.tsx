@@ -1,0 +1,156 @@
+import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import {
+  Box,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  InputAdornment,
+  IconButton,
+  CircularProgress,
+} from '@mui/material'
+import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material'
+import { useAuth } from '../../contexts/AuthContext'
+
+const Login = () => {
+  const [rut, setRut] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/portal'
+
+  const formatRut = (value: string) => {
+    // Eliminar todo excepto números y k/K
+    let cleaned = value.replace(/[^0-9kK]/g, '')
+
+    // Limitar a 9 caracteres
+    if (cleaned.length > 9) {
+      cleaned = cleaned.slice(0, 9)
+    }
+
+    // Agregar guión antes del dígito verificador
+    if (cleaned.length > 1) {
+      const dv = cleaned.slice(-1)
+      const body = cleaned.slice(0, -1)
+      return `${body}-${dv.toUpperCase()}`
+    }
+
+    return cleaned
+  }
+
+  const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRut(formatRut(e.target.value))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      await login(rut, password)
+      navigate(from, { replace: true })
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorMessage = (err as any)?.response?.data?.message || 'Error al iniciar sesión'
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        p: 2,
+      }}
+    >
+      <Card sx={{ maxWidth: 400, width: '100%' }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Typography variant="h4" fontWeight="bold" color="primary">
+              Bienvenido
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sistema Unificado de Correspondencia
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Municipalidad de Cabo de Hornos
+            </Typography>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="RUT"
+              value={rut}
+              onChange={handleRutChange}
+              placeholder="12345678-9"
+              sx={{ mb: 2 }}
+              disabled={loading}
+              autoComplete="username"
+            />
+
+            <TextField
+              fullWidth
+              label="Contraseña"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              sx={{ mb: 3 }}
+              disabled={loading}
+              autoComplete="current-password"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading || !rut || !password}
+              startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
+            >
+              {loading ? 'Ingresando...' : 'Ingresar'}
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button variant="text" onClick={() => navigate('/')} size="small">
+              Volver al inicio
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
+  )
+}
+
+export default Login
