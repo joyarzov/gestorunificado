@@ -112,12 +112,31 @@ class DerivacionController extends Controller
             ]);
         } else {
             $nuevoEstado = 'en_proceso';
+
+            // Check if derivation is to the alcalde (by user or department)
+            $esDerivacionAAlcalde = false;
+
             if ($request->usuario_destino_id) {
                 $destinatario = User::find($request->usuario_destino_id);
                 if ($destinatario && $destinatario->isAlcalde()) {
-                    $nuevoEstado = 'derivada_alcaldia';
+                    $esDerivacionAAlcalde = true;
                 }
             }
+
+            // Also check if destination department has an alcalde user
+            if (!$esDerivacionAAlcalde) {
+                $alcaldeEnDestino = User::where('departamento_id', $request->departamento_destino_id)
+                    ->whereJsonContains('roles', 'alcalde')
+                    ->exists();
+                if ($alcaldeEnDestino) {
+                    $esDerivacionAAlcalde = true;
+                }
+            }
+
+            if ($esDerivacionAAlcalde) {
+                $nuevoEstado = 'derivada_alcaldia';
+            }
+
             $correspondencia->update(['estado' => $nuevoEstado]);
         }
 

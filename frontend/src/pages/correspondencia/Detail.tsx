@@ -62,7 +62,7 @@ const estadoLabels: Record<string, string> = {
 const CorrespondenciaDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, canDerivarCorrespondence, isAdmin, isOficial, isAlcalde } = useAuth()
+  const { user, isAdmin, isOficial, isAlcalde } = useAuth()
   const [correspondencia, setCorrespondencia] = useState<Correspondencia | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
