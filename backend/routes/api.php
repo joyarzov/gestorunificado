@@ -68,11 +68,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // MÓDULO CORRESPONDENCIA
     // =====================================================
     Route::prefix('correspondencia')->group(function () {
+        Route::get('/alcalde-info', [CorrespondenciaController::class, 'getAlcaldeInfo']);
         Route::get('/estadisticas', [CorrespondenciaController::class, 'estadisticas']);
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
+        Route::get('/{correspondencia}/providencia', [CorrespondenciaController::class, 'descargarProvidencia']);
     });
-    Route::apiResource('correspondencia', CorrespondenciaController::class);
+    Route::apiResource('correspondencia', CorrespondenciaController::class)
+        ->parameters(['correspondencia' => 'correspondencia']);
 
     // Derivaciones
     Route::prefix('derivaciones')->group(function () {

@@ -22,14 +22,17 @@ import {
   Visibility as ViewIcon,
   CheckCircle as RecibirIcon,
   Archive as ArchivarIcon,
+  Send as DerivarIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Derivacion } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useAuth } from '../../contexts/AuthContext'
 
 const BandejaEntrada = () => {
   const navigate = useNavigate()
+  const { isAlcalde } = useAuth()
   const [derivaciones, setDerivaciones] = useState<Derivacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -171,6 +174,16 @@ const BandejaEntrada = () => {
                           title="Marcar como recibido"
                         >
                           <RecibirIcon />
+                        </IconButton>
+                      )}
+                      {der.estado === 'recibido' && isAlcalde() && (
+                        <IconButton
+                          size="small"
+                          color="secondary"
+                          onClick={() => navigate(`/correspondencia/${der.correspondencia_id}`)}
+                          title="Derivar a funcionario"
+                        >
+                          <DerivarIcon />
                         </IconButton>
                       )}
                       {der.estado === 'recibido' && (

@@ -14,6 +14,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Badge as OficialIcon,
   Person as UsuarioIcon,
+  AccountBalance as AlcaldeIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -22,6 +23,11 @@ const roleConfig: Record<string, { label: string; icon: React.ReactNode; descrip
     label: 'Administrador',
     icon: <AdminIcon color="primary" />,
     description: 'Acceso completo al sistema',
+  },
+  alcalde: {
+    label: 'Alcalde',
+    icon: <AlcaldeIcon color="primary" />,
+    description: 'Recepción y derivación de correspondencia',
   },
   oficial: {
     label: 'Oficial de Partes',

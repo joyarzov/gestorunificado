@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Correspondencia;
 use App\Models\Derivacion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class CorrespondenciaController extends Controller
 {
@@ -97,7 +99,7 @@ class CorrespondenciaController extends Controller
             'fecha_documento' => 'nullable|date',
             'descripcion' => 'nullable|string',
             'departamento_id' => 'nullable|exists:departamentos,id',
-            'estado' => 'sometimes|in:pendiente,en_proceso,archivado',
+            'estado' => 'sometimes|in:pendiente,derivada_alcaldia,en_proceso,derivada_funcionario,completada,archivado',
         ]);
 
         $correspondencia->update($request->only([
@@ -146,7 +148,10 @@ class CorrespondenciaController extends Controller
         $stats = [
             'total' => Correspondencia::count(),
             'pendientes' => Correspondencia::where('estado', 'pendiente')->count(),
+            'derivada_alcaldia' => Correspondencia::where('estado', 'derivada_alcaldia')->count(),
             'en_proceso' => Correspondencia::where('estado', 'en_proceso')->count(),
+            'derivada_funcionario' => Correspondencia::where('estado', 'derivada_funcionario')->count(),
+            'completada' => Correspondencia::where('estado', 'completada')->count(),
             'archivadas' => Correspondencia::where('estado', 'archivado')->count(),
         ];
 
@@ -156,5 +161,41 @@ class CorrespondenciaController extends Controller
     public function search(Request $request)
     {
         return $this->index($request);
+    }
+
+    public function getAlcaldeInfo()
+    {
+        $alcalde = User::where('activo', true)
+            ->whereJsonContains('roles', 'alcalde')
+            ->with('departamento')
+            ->first();
+
+        if (!$alcalde) {
+            return $this->errorResponse('No se encontró un usuario con rol Alcalde activo', 404);
+        }
+
+        return $this->successResponse([
+            'user_id' => $alcalde->id,
+            'nombre' => $alcalde->nombre,
+            'departamento_id' => $alcalde->departamento_id,
+            'departamento_nombre' => $alcalde->departamento?->nombre,
+        ]);
+    }
+
+    public function descargarProvidencia(Correspondencia $correspondencia)
+    {
+        if (!$correspondencia->providencia_generada || !$correspondencia->providencia_pdf) {
+            return $this->errorResponse('Esta correspondencia no tiene providencia generada', 404);
+        }
+
+        $path = 'public/' . $correspondencia->providencia_pdf;
+
+        if (!Storage::exists($path)) {
+            return $this->errorResponse('Archivo de providencia no encontrado', 404);
+        }
+
+        return Storage::download($path, 'providencia_' . $correspondencia->id . '.pdf', [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 }

@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Derivacion;
 use App\Models\Correspondencia;
 use App\Models\Notificacion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class DerivacionController extends Controller
 {
@@ -36,26 +39,87 @@ class DerivacionController extends Controller
             'departamento_destino_id' => 'required|exists:departamentos,id',
             'usuario_destino_id' => 'nullable|exists:users,id',
             'observaciones' => 'nullable|string',
+            'acciones_para' => 'nullable|array',
+            'acciones_para.*' => 'string',
         ]);
 
         $user = Auth::user();
+        $correspondencia = Correspondencia::find($request->correspondencia_id);
+        $esAlcaldeDerivando = $user->isAlcalde() && $correspondencia->estado === 'derivada_alcaldia';
 
-        $derivacion = Derivacion::create([
+        $derivacionData = [
             'correspondencia_id' => $request->correspondencia_id,
             'departamento_origen_id' => $user->departamento_id,
             'departamento_destino_id' => $request->departamento_destino_id,
             'usuario_origen_id' => $user->id,
             'usuario_destino_id' => $request->usuario_destino_id,
             'observaciones' => $request->observaciones,
+            'acciones_para' => $request->acciones_para,
             'estado' => 'pendiente',
-        ]);
+        ];
+
+        // Si es alcalde derivando a funcionario, generar providencia PDF
+        if ($esAlcaldeDerivando) {
+            $folio = $this->generarFolioProvidencia();
+            $derivacionData['folio'] = $folio;
+
+            // Cargar relaciones necesarias para el PDF
+            $correspondencia->load(['departamento']);
+            $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
+            $usuarioDestino = $request->usuario_destino_id ? User::find($request->usuario_destino_id) : null;
+
+            // Embeber logo en base64 para dompdf
+            $logoPath = storage_path('app/public/logo.png');
+            $logoBase64 = '';
+            if (file_exists($logoPath)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            }
+
+            $pdfData = [
+                'folio' => $folio,
+                'fecha' => now()->format('d \d\e ') . $this->mesEnEspanol(now()->month) . now()->format(' \d\e Y'),
+                'remitente' => $correspondencia->remitente,
+                'numero_documento' => $correspondencia->numero_documento,
+                'fecha_recepcion' => $correspondencia->fecha_recibo ? $correspondencia->fecha_recibo->format('d/m/Y') : 'No especificada',
+                'descripcion' => $correspondencia->descripcion,
+                'usuario_origen' => $user->nombre,
+                'departamento_origen' => $user->departamento?->nombre ?? 'Alcaldía',
+                'departamento_destino' => $deptoDestino?->nombre ?? '',
+                'usuario_destino' => $usuarioDestino?->nombre ?? '',
+                'acciones_para' => $request->acciones_para ?? [],
+                'observaciones' => $request->observaciones,
+                'logo_base64' => $logoBase64,
+            ];
+
+            $pdf = Pdf::loadView('pdf.providencia', $pdfData);
+            $pdf->setPaper('letter');
+
+            $filename = 'providencia_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
+            $path = 'public/providencias/' . $filename;
+            Storage::put($path, $pdf->output());
+
+            $derivacionData['pdf_ruta'] = 'providencias/' . $filename;
+        }
+
+        $derivacion = Derivacion::create($derivacionData);
 
         // Actualizar estado de la correspondencia
-        $correspondencia = Correspondencia::find($request->correspondencia_id);
-        $correspondencia->update(['estado' => 'en_proceso']);
-
-        // Crear notificación para el departamento destino
-        // TODO: Implementar notificaciones
+        if ($esAlcaldeDerivando) {
+            $correspondencia->update([
+                'estado' => 'derivada_funcionario',
+                'providencia_pdf' => $derivacionData['pdf_ruta'],
+                'providencia_generada' => true,
+            ]);
+        } else {
+            $nuevoEstado = 'en_proceso';
+            if ($request->usuario_destino_id) {
+                $destinatario = User::find($request->usuario_destino_id);
+                if ($destinatario && $destinatario->isAlcalde()) {
+                    $nuevoEstado = 'derivada_alcaldia';
+                }
+            }
+            $correspondencia->update(['estado' => $nuevoEstado]);
+        }
 
         $derivacion->load([
             'correspondencia',
@@ -63,7 +127,38 @@ class DerivacionController extends Controller
             'departamentoDestino',
         ]);
 
-        return $this->successResponse($derivacion, 'Derivación creada correctamente', 201);
+        $message = $esAlcaldeDerivando
+            ? 'Derivación creada con providencia generada'
+            : 'Derivación creada correctamente';
+
+        return $this->successResponse($derivacion, $message, 201);
+    }
+
+    private function generarFolioProvidencia(): string
+    {
+        $anio = now()->year;
+        $ultimaDerivacion = Derivacion::where('folio', 'like', "PROV-{$anio}-%")
+            ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
+            ->first();
+
+        if ($ultimaDerivacion) {
+            $ultimoNumero = (int) substr($ultimaDerivacion->folio, strrpos($ultimaDerivacion->folio, '-') + 1);
+            $siguiente = $ultimoNumero + 1;
+        } else {
+            $siguiente = 1;
+        }
+
+        return sprintf('PROV-%d-%05d', $anio, $siguiente);
+    }
+
+    private function mesEnEspanol(int $mes): string
+    {
+        $meses = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        ];
+        return $meses[$mes] ?? '';
     }
 
     public function show(Derivacion $derivacion)
@@ -109,6 +204,12 @@ class DerivacionController extends Controller
             'usuario_destino_id' => $user->id,
             'fecha_recepcion' => now(),
         ]);
+
+        // Actualizar correspondencia a completada
+        $correspondencia = $derivacion->correspondencia;
+        if ($correspondencia && $correspondencia->estado === 'derivada_funcionario') {
+            $correspondencia->update(['estado' => 'completada']);
+        }
 
         return $this->successResponse($derivacion, 'Derivación recibida');
     }

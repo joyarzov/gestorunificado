@@ -40,7 +40,9 @@ export interface Correspondencia {
   departamento?: Departamento
   usuario_id?: number
   usuario?: User
-  estado: 'pendiente' | 'en_proceso' | 'archivado'
+  estado: 'pendiente' | 'derivada_alcaldia' | 'en_proceso' | 'derivada_funcionario' | 'completada' | 'archivado'
+  providencia_pdf?: string
+  providencia_generada?: boolean
   adjuntos?: Adjunto[]
   derivaciones?: Derivacion[]
   created_at: string
@@ -68,6 +70,8 @@ export interface Derivacion {
   usuario_destino?: User
   pdf_ruta?: string
   observaciones?: string
+  acciones_para?: string[]
+  folio?: string
   estado: 'pendiente' | 'recibido' | 'archivado'
   fecha_recepcion?: string
   created_at: string

@@ -29,10 +29,22 @@ import { Correspondencia } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const estadoColors: Record<string, 'warning' | 'info' | 'success'> = {
+const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
   pendiente: 'warning',
+  derivada_alcaldia: 'secondary',
   en_proceso: 'info',
+  derivada_funcionario: 'info',
+  completada: 'success',
   archivado: 'success',
+}
+
+const estadoLabels: Record<string, string> = {
+  pendiente: 'Pendiente',
+  derivada_alcaldia: 'Derivada a Alcaldía',
+  en_proceso: 'En Proceso',
+  derivada_funcionario: 'Derivada a Funcionario',
+  completada: 'Completada',
+  archivado: 'Archivado',
 }
 
 const CorrespondenciaSearch = () => {
@@ -100,7 +112,10 @@ const CorrespondenciaSearch = () => {
               >
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="pendiente">Pendiente</MenuItem>
+                <MenuItem value="derivada_alcaldia">Derivada a Alcaldía</MenuItem>
                 <MenuItem value="en_proceso">En Proceso</MenuItem>
+                <MenuItem value="derivada_funcionario">Derivada a Funcionario</MenuItem>
+                <MenuItem value="completada">Completada</MenuItem>
                 <MenuItem value="archivado">Archivado</MenuItem>
               </TextField>
             </Grid>
@@ -178,7 +193,7 @@ const CorrespondenciaSearch = () => {
                       <TableCell>{item.departamento?.nombre || '-'}</TableCell>
                       <TableCell>
                         <Chip
-                          label={item.estado}
+                          label={estadoLabels[item.estado] || item.estado}
                           color={estadoColors[item.estado] || 'default'}
                           size="small"
                         />

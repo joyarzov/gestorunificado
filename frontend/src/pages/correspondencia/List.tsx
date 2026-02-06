@@ -27,15 +27,29 @@ import { correspondenciaAPI } from '../../api/correspondencia'
 import { Correspondencia } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useAuth } from '../../contexts/AuthContext'
 
-const estadoColors: Record<string, 'warning' | 'info' | 'success'> = {
+const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
   pendiente: 'warning',
+  derivada_alcaldia: 'secondary',
   en_proceso: 'info',
+  derivada_funcionario: 'info',
+  completada: 'success',
   archivado: 'success',
+}
+
+const estadoLabels: Record<string, string> = {
+  pendiente: 'Pendiente',
+  derivada_alcaldia: 'Derivada a Alcaldía',
+  en_proceso: 'En Proceso',
+  derivada_funcionario: 'Derivada a Funcionario',
+  completada: 'Completada',
+  archivado: 'Archivado',
 }
 
 const CorrespondenciaList = () => {
   const navigate = useNavigate()
+  const { isAdmin, isOficial } = useAuth()
   const [correspondencias, setCorrespondencias] = useState<Correspondencia[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -76,13 +90,15 @@ const CorrespondenciaList = () => {
         <Typography variant="h4" fontWeight="bold">
           Correspondencia
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/ingresar')}
-        >
-          Nueva Correspondencia
-        </Button>
+        {(isAdmin() || isOficial()) && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/ingresar')}
+          >
+            Nueva Correspondencia
+          </Button>
+        )}
       </Box>
 
       <Card sx={{ mb: 3, p: 2 }}>
@@ -146,7 +162,7 @@ const CorrespondenciaList = () => {
                     <TableCell>{item.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={item.estado}
+                        label={estadoLabels[item.estado] || item.estado}
                         color={estadoColors[item.estado] || 'default'}
                         size="small"
                       />

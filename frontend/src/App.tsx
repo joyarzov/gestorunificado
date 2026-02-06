@@ -63,6 +63,7 @@ function App() {
             <Route path="/bandeja" element={<BandejaEntrada />} />
             <Route path="/ingresar" element={<CorrespondenciaCreate />} />
             <Route path="/correspondencia/:id" element={<CorrespondenciaDetail />} />
+            <Route path="/correspondencia/:id/editar" element={<CorrespondenciaCreate />} />
             <Route path="/buscar" element={<CorrespondenciaSearch />} />
 
             {/* OIRS Admin */}

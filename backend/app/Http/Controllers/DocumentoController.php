@@ -337,7 +337,7 @@ class DocumentoController extends Controller
                     });
             })
             ->whereDoesntHave('firmas', function ($q) use ($user) {
-                $q->where('firmante_id', $user->id)
+                $q->where('usuario_id', $user->id)
                     ->where('estado', 'firmado');
             })
             ->with(['expediente', 'creador', 'tipoDocumental'])
@@ -435,13 +435,10 @@ class DocumentoController extends Controller
         try {
             DocumentoFirma::create([
                 'documento_id' => $documento->id,
-                'firmante_id' => $user->id,
-                'nombre_cargo' => $user->cargo ?? $user->nombre,
-                'run' => $user->rut,
+                'usuario_id' => $user->id,
                 'fecha_firma' => now(),
                 'observacion' => $request->motivo,
                 'estado' => 'rechazado',
-                'es_simulada' => true,
             ]);
 
             $documento->update([

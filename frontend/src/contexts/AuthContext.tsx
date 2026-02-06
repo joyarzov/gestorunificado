@@ -15,6 +15,7 @@ interface AuthContextType {
   checkAuth: () => Promise<void>
   isAdmin: () => boolean
   isOficial: () => boolean
+  isAlcalde: () => boolean
   hasRole: (role: string) => boolean
   hasAplicacion: (app: string) => boolean
   canViewAllCorrespondence: () => boolean
@@ -123,6 +124,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return selectedRole === 'oficial' || user?.roles?.includes('oficial') || false
   }
 
+  const isAlcalde = () => {
+    return selectedRole === 'alcalde'
+  }
+
   const hasRole = (role: string) => {
     return selectedRole === role || user?.roles?.includes(role) || false
   }
@@ -135,11 +140,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const canViewAllCorrespondence = () => {
-    return selectedRole === 'admin' || selectedRole === 'oficial'
+    return selectedRole === 'admin' || selectedRole === 'oficial' || selectedRole === 'alcalde'
   }
 
   const canDerivarCorrespondence = () => {
-    return selectedRole === 'admin' || selectedRole === 'oficial'
+    return selectedRole === 'admin' || selectedRole === 'oficial' || selectedRole === 'alcalde'
   }
 
   const isAuthenticated = () => {
@@ -160,6 +165,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         checkAuth,
         isAdmin,
         isOficial,
+        isAlcalde,
         hasRole,
         hasAplicacion,
         canViewAllCorrespondence,

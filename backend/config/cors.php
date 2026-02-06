@@ -6,7 +6,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'http://localhost:3000'],
+    'allowed_origins' => ['http://localhost:5173', 'http://localhost:3000', 'https://doc.australbyte.cl:8888', 'http://doc.australbyte.cl:8888'],
 
     'allowed_origins_patterns' => [],
 

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -11,18 +11,31 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Chip,
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  ArrowBack as BackIcon,
+  UploadFile as UploadIcon,
+} from '@mui/icons-material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { departamentosAPI } from '../../api/common'
 import { Departamento } from '../../types'
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+
 const CorrespondenciaCreate = () => {
   const navigate = useNavigate()
+  const { id } = useParams()
+  const isEditMode = Boolean(id)
   const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(false)
   const [error, setError] = useState('')
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
+  const [adjunto, setAdjunto] = useState<File | null>(null)
+  const [adjuntoError, setAdjuntoError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
     numero_documento: '',
@@ -35,7 +48,11 @@ const CorrespondenciaCreate = () => {
 
   useEffect(() => {
     loadDepartamentos()
-  }, [])
+    if (isEditMode && id) {
+      loadCorrespondencia(parseInt(id))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const loadDepartamentos = async () => {
     try {
@@ -46,8 +63,45 @@ const CorrespondenciaCreate = () => {
     }
   }
 
+  const loadCorrespondencia = async (correspondenciaId: number) => {
+    setLoadingData(true)
+    try {
+      const response = await correspondenciaAPI.obtener(correspondenciaId)
+      const data = response.data
+      setFormData({
+        numero_documento: data.numero_documento || '',
+        remitente: data.remitente || '',
+        fecha_documento: data.fecha_documento ? new Date(data.fecha_documento) : null,
+        fecha_recibo: data.fecha_recibo ? new Date(data.fecha_recibo) : new Date(),
+        descripcion: data.descripcion || '',
+        departamento_id: data.departamento_id ? String(data.departamento_id) : '',
+      })
+    } catch (err) {
+      setError('Error al cargar la correspondencia')
+      console.error(err)
+    } finally {
+      setLoadingData(false)
+    }
+  }
+
   const handleChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAdjuntoError('')
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      setAdjuntoError('Solo se permiten archivos PDF')
+      return
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setAdjuntoError('El archivo no debe superar los 10 MB')
+      return
+    }
+    setAdjunto(file)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,14 +117,40 @@ const CorrespondenciaCreate = () => {
         departamento_id: formData.departamento_id ? Number(formData.departamento_id) : undefined,
       }
 
-      const response = await correspondenciaAPI.crear(data)
-      navigate(`/correspondencia/${response.data.id}`)
+      if (isEditMode && id) {
+        await correspondenciaAPI.actualizar(parseInt(id), data)
+        navigate(`/correspondencia/${id}`)
+      } else {
+        const response = await correspondenciaAPI.crear(data)
+        const correspondenciaId = response.data.id
+
+        // Subir adjunto si se seleccionó
+        if (adjunto) {
+          try {
+            await correspondenciaAPI.subirAdjunto(correspondenciaId, adjunto)
+          } catch (err) {
+            console.error('Error al subir adjunto:', err)
+            navigate(`/correspondencia/${correspondenciaId}`)
+            return
+          }
+        }
+
+        navigate(`/correspondencia/${correspondenciaId}`)
+      }
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setError((err as any)?.response?.data?.message || 'Error al crear correspondencia')
+      setError((err as any)?.response?.data?.message || (isEditMode ? 'Error al actualizar correspondencia' : 'Error al crear correspondencia'))
     } finally {
       setLoading(false)
     }
+  }
+
+  if (loadingData) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (
@@ -80,7 +160,7 @@ const CorrespondenciaCreate = () => {
           Volver
         </Button>
         <Typography variant="h4" fontWeight="bold">
-          Nueva Correspondencia
+          {isEditMode ? 'Editar Correspondencia' : 'Nueva Correspondencia'}
         </Typography>
       </Box>
 
@@ -150,6 +230,43 @@ const CorrespondenciaCreate = () => {
                 </TextField>
               </Grid>
 
+              {!isEditMode && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    Documento adjunto (PDF, máx. 10 MB)
+                  </Typography>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    style={{ display: 'none' }}
+                    onChange={handleFileSelect}
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<UploadIcon />}
+                      onClick={() => fileInputRef.current?.click()}
+                      size="small"
+                    >
+                      Seleccionar PDF
+                    </Button>
+                    {adjunto && (
+                      <Chip
+                        label={adjunto.name}
+                        onDelete={() => { setAdjunto(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                        size="small"
+                      />
+                    )}
+                  </Box>
+                  {adjuntoError && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                      {adjuntoError}
+                    </Typography>
+                  )}
+                </Grid>
+              )}
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -173,7 +290,7 @@ const CorrespondenciaCreate = () => {
                     startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
                     disabled={loading || !formData.remitente}
                   >
-                    {loading ? 'Guardando...' : 'Guardar'}
+                    {loading ? 'Guardando...' : (isEditMode ? 'Actualizar' : 'Guardar')}
                   </Button>
                 </Box>
               </Grid>

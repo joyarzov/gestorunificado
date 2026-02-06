@@ -14,16 +14,19 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Snackbar,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
   Edit as EditIcon,
   Send as EnviarIcon,
   Create as FirmarIcon,
-  Person as PersonIcon,
+  CheckCircle as FirmadoIcon,
+  HourglassEmpty as PendienteIcon,
+  Cancel as RechazadoIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
-import { Documento } from '../../types'
+import { Documento, DocumentoFirma, User } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -36,6 +39,14 @@ const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error'> 
   anulado: 'error',
 }
 
+const estadoLabels: Record<string, string> = {
+  borrador: 'Borrador',
+  pendiente_firma: 'Pendiente de Firma',
+  firmado: 'Firmado',
+  rechazado: 'Rechazado',
+  anulado: 'Anulado',
+}
+
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -44,6 +55,11 @@ const DocumentoDetail = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
 
   useEffect(() => {
     if (id) {
@@ -69,9 +85,11 @@ const DocumentoDetail = () => {
     setActionLoading(true)
     try {
       await documentosAPI.enviarAFirma(parseInt(id))
+      setSnackbar({ open: true, message: 'Documento enviado a firma', severity: 'success' })
       loadDocumento(parseInt(id))
-    } catch (err) {
-      console.error('Error al enviar a firma:', err)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al enviar a firma'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
     } finally {
       setActionLoading(false)
     }
@@ -82,17 +100,84 @@ const DocumentoDetail = () => {
     setActionLoading(true)
     try {
       await documentosAPI.firmar(parseInt(id))
+      setSnackbar({ open: true, message: 'Documento firmado exitosamente', severity: 'success' })
       loadDocumento(parseInt(id))
-    } catch (err) {
-      console.error('Error al firmar:', err)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al firmar'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
     } finally {
       setActionLoading(false)
     }
   }
 
-  const puedeEnviarAFirma = documento?.estado === 'borrador'
-  const puedeFirmar = documento?.estado === 'pendiente_firma' &&
-    documento?.firmas?.some(f => f.usuario_id === user?.id && f.estado === 'pendiente')
+  const handleRechazar = async () => {
+    if (!id) return
+    const motivo = prompt('Ingrese el motivo del rechazo:')
+    if (!motivo) return
+    setActionLoading(true)
+    try {
+      await documentosAPI.rechazarFirma(parseInt(id), motivo)
+      setSnackbar({ open: true, message: 'Firma rechazada', severity: 'success' })
+      loadDocumento(parseInt(id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al rechazar firma'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Determinar si el usuario actual puede firmar:
+  // - Documento en estado pendiente_firma
+  // - Usuario está en firmantes_asignados O es firmante_asignado_id
+  // - Usuario no ha firmado ya (no tiene firma con estado 'firmado')
+  const getFirmaDelUsuario = (firmas: DocumentoFirma[], userId: number) => {
+    return firmas?.find(f => (f.usuario_id === userId || f.firmante_id === userId) && f.estado === 'firmado')
+  }
+
+  const esAsignado = documento?.firmantes_asignados?.some(u => u.id === user?.id) ||
+    documento?.firmante_asignado_id === user?.id
+
+  const yaFirmo = user ? !!getFirmaDelUsuario(documento?.firmas || [], user.id) : false
+
+  const puedeEnviarAFirma = documento?.estado === 'borrador' &&
+    ((documento?.firmantes_asignados && documento.firmantes_asignados.length > 0) || documento?.firmante_asignado_id)
+
+  const puedeFirmar = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo
+
+  // Build the list of firmantes with their status
+  const getFirmantesConEstado = () => {
+    if (!documento) return []
+
+    const firmantes: Array<{ user: User; estado: 'pendiente' | 'firmado' | 'rechazado'; fecha?: string; observacion?: string }> = []
+
+    const asignados = documento.firmantes_asignados || []
+    // If no firmantes_asignados but there's firmante_asignado, use that
+    if (asignados.length === 0 && documento.firmante_asignado) {
+      const firma = documento.firmas?.find(f => f.usuario_id === documento.firmante_asignado_id || f.firmante_id === documento.firmante_asignado_id)
+      firmantes.push({
+        user: documento.firmante_asignado,
+        estado: firma?.estado || 'pendiente',
+        fecha: firma?.fecha_firma,
+        observacion: firma?.observacion || firma?.observaciones,
+      })
+      return firmantes
+    }
+
+    for (const asignado of asignados) {
+      const firma = documento.firmas?.find(f => f.usuario_id === asignado.id || f.firmante_id === asignado.id)
+      firmantes.push({
+        user: asignado,
+        estado: firma?.estado || 'pendiente',
+        fecha: firma?.fecha_firma,
+        observacion: firma?.observacion || firma?.observaciones,
+      })
+    }
+
+    return firmantes
+  }
+
+  const firmantesConEstado = documento ? getFirmantesConEstado() : []
 
   if (loading) {
     return (
@@ -121,10 +206,10 @@ const DocumentoDetail = () => {
             Volver
           </Button>
           <Typography variant="h4" fontWeight="bold">
-            {documento.numero || 'Documento'}
+            {documento.numero || documento.identificador}
           </Typography>
           <Chip
-            label={documento.estado.replace('_', ' ')}
+            label={estadoLabels[documento.estado] || documento.estado}
             color={estadoColors[documento.estado]}
           />
         </Box>
@@ -140,15 +225,25 @@ const DocumentoDetail = () => {
             </Button>
           )}
           {puedeFirmar && (
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={actionLoading ? <CircularProgress size={20} /> : <FirmarIcon />}
-              onClick={handleFirmar}
-              disabled={actionLoading}
-            >
-              Firmar
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={actionLoading ? <CircularProgress size={20} /> : <FirmarIcon />}
+                onClick={handleFirmar}
+                disabled={actionLoading}
+              >
+                Firmar
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleRechazar}
+                disabled={actionLoading}
+              >
+                Rechazar
+              </Button>
+            </>
           )}
           {documento.estado === 'borrador' && (
             <Button
@@ -243,33 +338,59 @@ const DocumentoDetail = () => {
           {/* Firmas */}
           <Card sx={{ mb: 2 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Firmas
-              </Typography>
-              {documento.firmas && documento.firmas.length > 0 ? (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6">
+                  Firmas
+                </Typography>
+                {documento.firmas_requeridas && (
+                  <Chip
+                    label={`${documento.firmas?.filter(f => f.estado === 'firmado').length || 0} / ${documento.firmas_requeridas} requeridas`}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+              {firmantesConEstado.length > 0 ? (
                 <List dense>
-                  {documento.firmas.map((firma) => (
-                    <ListItem key={firma.id}>
+                  {firmantesConEstado.map((item) => (
+                    <ListItem key={item.user.id}>
                       <ListItemIcon>
-                        <PersonIcon
-                          color={firma.estado === 'firmado' ? 'success' : 'disabled'}
-                        />
+                        {item.estado === 'firmado' ? (
+                          <FirmadoIcon color="success" />
+                        ) : item.estado === 'rechazado' ? (
+                          <RechazadoIcon color="error" />
+                        ) : (
+                          <PendienteIcon color="disabled" />
+                        )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={firma.usuario?.nombre}
-                        secondary={firma.estado}
+                        primary={item.user.nombre}
+                        secondary={
+                          item.estado === 'firmado' && item.fecha
+                            ? `Firmado el ${format(new Date(item.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}`
+                            : item.estado === 'rechazado'
+                              ? `Rechazado${item.observacion ? ': ' + item.observacion : ''}`
+                              : 'Pendiente de firma'
+                        }
                       />
-                      {firma.estado === 'firmado' && firma.fecha_firma && (
-                        <Typography variant="caption" color="text.secondary">
-                          {format(new Date(firma.fecha_firma), 'dd/MM/yyyy', { locale: es })}
-                        </Typography>
-                      )}
+                      <Chip
+                        label={item.estado === 'firmado' ? 'Firmado' : item.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                        size="small"
+                        color={item.estado === 'firmado' ? 'success' : item.estado === 'rechazado' ? 'error' : 'default'}
+                        variant="outlined"
+                      />
                     </ListItem>
                   ))}
                 </List>
+              ) : documento.estado === 'borrador' ? (
+                <Typography variant="body2" color="text.secondary">
+                  {(documento.firmantes_asignados?.length || documento.firmante_asignado_id)
+                    ? 'Las firmas se activarán al enviar el documento a firma'
+                    : 'No hay firmantes asignados'}
+                </Typography>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Sin firmas asignadas
+                  No hay firmantes asignados
                 </Typography>
               )}
             </CardContent>
@@ -305,6 +426,22 @@ const DocumentoDetail = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

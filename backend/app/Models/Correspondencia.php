@@ -22,6 +22,8 @@ class Correspondencia extends Model
         'fecha_envio',
         'usuario_id',
         'estado',
+        'providencia_pdf',
+        'providencia_generada',
     ];
 
     protected $casts = [
@@ -29,6 +31,7 @@ class Correspondencia extends Model
         'fecha_recibo' => 'date',
         'fecha_revision' => 'date',
         'fecha_envio' => 'date',
+        'providencia_generada' => 'boolean',
     ];
 
     public function departamento()

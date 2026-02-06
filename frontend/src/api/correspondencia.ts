@@ -25,6 +25,14 @@ export interface CreateDerivacionData {
   departamento_destino_id: number
   usuario_destino_id?: number
   observaciones?: string
+  acciones_para?: string[]
+}
+
+export interface AlcaldeInfo {
+  user_id: number
+  nombre: string
+  departamento_id: number
+  departamento_nombre: string
 }
 
 export const correspondenciaAPI = {
@@ -56,6 +64,11 @@ export const correspondenciaAPI = {
 
   bandeja: async (params?: CorrespondenciaFilters) => {
     const response = await api.get<ApiResponse<PaginatedResponse<Derivacion>>>('/correspondencia/bandeja', { params })
+    return response.data
+  },
+
+  obtenerAlcaldeInfo: async () => {
+    const response = await api.get<ApiResponse<AlcaldeInfo>>('/correspondencia/alcalde-info')
     return response.data
   },
 
@@ -120,6 +133,14 @@ export const correspondenciaAPI = {
 
   descargarAdjunto: async (id: number) => {
     const response = await api.get(`/adjuntos/${id}/descargar`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  // Providencia
+  descargarProvidencia: async (correspondenciaId: number) => {
+    const response = await api.get(`/correspondencia/${correspondenciaId}/providencia`, {
       responseType: 'blob',
     })
     return response.data

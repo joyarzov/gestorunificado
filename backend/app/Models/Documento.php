@@ -198,24 +198,21 @@ class Documento extends Model
 
         // Verificar que no haya firmado ya
         $yaFirmo = $this->firmas()
-            ->where('firmante_id', $user->id)
+            ->where('usuario_id', $user->id)
             ->whereIn('estado', ['firmado'])
             ->exists();
 
         return !$yaFirmo;
     }
 
-    public function registrarFirma(User $user, ?string $observacion = null, array $metadataFirma = []): DocumentoFirma
+    public function registrarFirma(User $user, ?string $observacion = null): DocumentoFirma
     {
         $firma = DocumentoFirma::create([
             'documento_id' => $this->id,
-            'firmante_id' => $user->id,
-            'nombre_cargo' => $user->cargo ?? $user->nombre,
-            'run' => $user->rut,
+            'usuario_id' => $user->id,
             'fecha_firma' => now(),
             'observacion' => $observacion,
-            'es_simulada' => true,
-            'metadata_firma' => $metadataFirma,
+            'estado' => 'firmado',
         ]);
 
         // Verificar si todos han firmado

@@ -19,12 +19,15 @@ class Derivacion extends Model
         'usuario_destino_id',
         'pdf_ruta',
         'observaciones',
+        'acciones_para',
+        'folio',
         'estado',
         'fecha_recepcion',
     ];
 
     protected $casts = [
         'fecha_recepcion' => 'datetime',
+        'acciones_para' => 'array',
     ];
 
     public function correspondencia()

@@ -65,6 +65,8 @@ const AppLayout = () => {
     switch (selectedRole) {
       case 'admin':
         return 'Administrador'
+      case 'alcalde':
+        return 'Alcalde'
       case 'oficial':
         return 'Oficial de Partes'
       default:
@@ -82,7 +84,7 @@ const AppLayout = () => {
     {
       text: 'Correspondencia',
       icon: <MailIcon />,
-      path: selectedRole === 'usuario' ? '/bandeja' : '/correspondencia',
+      path: selectedRole === 'usuario' || selectedRole === 'alcalde' ? '/bandeja' : '/correspondencia',
       show: hasAplicacion('correspondencia'),
     },
     {

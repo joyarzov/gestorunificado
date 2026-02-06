@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('152015'),
             'nombre' => 'Administrador Sistema',
             'email' => 'admin@municipalidad.cl',
-            'roles' => ['admin'],
+            'roles' => ['admin', 'alcalde'],
             'departamento_id' => 1,
             'activo' => true,
             'visador' => true,

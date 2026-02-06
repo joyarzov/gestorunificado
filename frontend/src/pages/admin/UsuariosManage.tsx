@@ -35,6 +35,7 @@ import { User, Departamento } from '../../types'
 
 const rolesOptions = [
   { value: 'admin', label: 'Administrador' },
+  { value: 'alcalde', label: 'Alcalde' },
   { value: 'oficial', label: 'Oficial de Partes' },
   { value: 'oirs', label: 'Administrador OIRS' },
   { value: 'usuario', label: 'Usuario' },

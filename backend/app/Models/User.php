@@ -103,6 +103,11 @@ class User extends Authenticatable
         return $this->hasRole('oficial');
     }
 
+    public function isAlcalde(): bool
+    {
+        return $this->hasRole('alcalde');
+    }
+
     public function isVisador(): bool
     {
         return $this->visador;
