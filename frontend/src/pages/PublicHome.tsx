@@ -13,6 +13,7 @@ import {
   Forum as OirsIcon,
   Search as SearchIcon,
   Login as LoginIcon,
+  VerifiedUser as VerifyIcon,
 } from '@mui/icons-material'
 
 const PublicHome = () => {
@@ -32,6 +33,13 @@ const PublicHome = () => {
       icono: <SearchIcon sx={{ fontSize: 48 }} />,
       color: '#4299e1',
       ruta: '/oirs/consultar',
+    },
+    {
+      titulo: 'Verificar Documento',
+      descripcion: 'Verifique la autenticidad de un documento municipal con su código de verificación',
+      icono: <VerifyIcon sx={{ fontSize: 48 }} />,
+      color: '#38a169',
+      ruta: '/verificar',
     },
   ]
 

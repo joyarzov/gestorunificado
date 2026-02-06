@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Derivacion;
 use App\Models\Correspondencia;
+use App\Models\Documento;
 use App\Models\Notificacion;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DerivacionController extends Controller
 {
@@ -63,6 +66,10 @@ class DerivacionController extends Controller
             $folio = $this->generarFolioProvidencia();
             $derivacionData['folio'] = $folio;
 
+            // Generar código de verificación
+            $codigoVerificacion = Documento::generarCodigoVerificacion();
+            $derivacionData['codigo_verificacion'] = $codigoVerificacion;
+
             // Cargar relaciones necesarias para el PDF
             $correspondencia->load(['departamento']);
             $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
@@ -73,6 +80,16 @@ class DerivacionController extends Controller
             $logoBase64 = '';
             if (file_exists($logoPath)) {
                 $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            }
+
+            // Generar QR SVG
+            $appUrl = rtrim(config('app.url'), '/');
+            $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
+            $qrSvg = '';
+            try {
+                $qrSvg = (string) QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
+            } catch (\Exception $e) {
+                Log::warning('No se pudo generar QR para providencia: ' . $e->getMessage());
             }
 
             $pdfData = [
@@ -89,6 +106,9 @@ class DerivacionController extends Controller
                 'acciones_para' => $request->acciones_para ?? [],
                 'observaciones' => $request->observaciones,
                 'logo_base64' => $logoBase64,
+                'codigo_verificacion' => $codigoVerificacion,
+                'qr_svg' => $qrSvg,
+                'verificar_url' => $verificarUrl,
             ];
 
             $pdf = Pdf::loadView('pdf.providencia', $pdfData);

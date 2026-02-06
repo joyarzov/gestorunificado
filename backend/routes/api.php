@@ -5,6 +5,7 @@ use App\Http\Controllers\CorrespondenciaController;
 use App\Http\Controllers\DerivacionController;
 use App\Http\Controllers\AdjuntoController;
 use App\Http\Controllers\DepartamentoController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PlantillaController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ExpedienteController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\CorrelativoController;
 use App\Http\Controllers\TipoDocumentalController;
+use App\Http\Controllers\VerificacionDocumentoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,6 +37,9 @@ Route::prefix('oirs-publico')->group(function () {
     Route::post('/adjuntar', [OirsPublicoController::class, 'adjuntar']);
 });
 
+// Verificación pública de documentos
+Route::get('/verificar-documento/{codigo}', [VerificacionDocumentoController::class, 'verificar']);
+
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -44,6 +49,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
+
+    // Dashboard
+    Route::get('/dashboard/resumen', [DashboardController::class, 'resumen']);
 
     // Departamentos
     Route::apiResource('departamentos', DepartamentoController::class);
@@ -147,6 +155,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{expediente}/actividades', [ExpedienteController::class, 'actividades']);
         Route::post('/{expediente}/asociar-documento', [ExpedienteController::class, 'asociarDocumento']);
         Route::post('/{expediente}/subir-documento', [ExpedienteController::class, 'subirDocumento']);
+        Route::put('/{expediente}/reordenar-documentos', [ExpedienteController::class, 'reordenarDocumentos']);
     });
     Route::apiResource('expedientes', ExpedienteController::class);
 

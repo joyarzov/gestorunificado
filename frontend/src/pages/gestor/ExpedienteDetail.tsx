@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -35,7 +35,25 @@ import {
   NoteAdd as NoteAddIcon,
   Link as LinkIcon,
   UploadFile as UploadIcon,
+  DragIndicator as DragIcon,
 } from '@mui/icons-material'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { expedientesAPI, documentosAPI } from '../../api/gestor'
 import { Expediente, Documento } from '../../types'
 import { format } from 'date-fns'
@@ -60,6 +78,57 @@ const nivelAccesoLabels: Record<number, string> = {
   2: 'Restringido',
   3: 'Reservado',
   4: 'Secreto',
+}
+
+interface SortableDocItemProps {
+  doc: any
+  onClick: () => void
+}
+
+const SortableDocItem = ({ doc, onClick }: SortableDocItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: doc.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <ListItem
+      ref={setNodeRef}
+      style={style}
+      sx={{ cursor: 'pointer' }}
+    >
+      <ListItemIcon
+        {...attributes}
+        {...listeners}
+        sx={{ cursor: 'grab', minWidth: 32 }}
+      >
+        <DragIcon fontSize="small" color="action" />
+      </ListItemIcon>
+      <ListItemIcon onClick={onClick}>
+        <DocIcon />
+      </ListItemIcon>
+      <ListItemText
+        onClick={onClick}
+        primary={doc.titulo}
+        secondary={format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: es })}
+      />
+      <Chip
+        label={doc.estado || 'pendiente'}
+        size="small"
+        color={doc.estado === 'firmado' ? 'success' : 'default'}
+      />
+    </ListItem>
+  )
 }
 
 const ExpedienteDetail = () => {
@@ -87,12 +156,51 @@ const ExpedienteDetail = () => {
   const [subirLoading, setSubirLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Documentos ordenados localmente
+  const [orderedDocs, setOrderedDocs] = useState<any[]>([])
+
   // Snackbar
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success',
   })
+
+  // Sync orderedDocs when expediente changes
+  useEffect(() => {
+    if (expediente?.documentos) {
+      setOrderedDocs(expediente.documentos)
+    }
+  }, [expediente?.documentos])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const docIds = useMemo(() => orderedDocs.map((d: any) => d.id), [orderedDocs])
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id || !id) return
+
+    const oldIndex = orderedDocs.findIndex((d: any) => d.id === active.id)
+    const newIndex = orderedDocs.findIndex((d: any) => d.id === over.id)
+    const newOrder = arrayMove(orderedDocs, oldIndex, newIndex)
+    setOrderedDocs(newOrder)
+
+    try {
+      await expedientesAPI.reordenarDocumentos(
+        parseInt(id),
+        newOrder.map((d: any, i: number) => ({ id: d.id, orden: i + 1 })),
+      )
+    } catch (err) {
+      console.error('Error al reordenar:', err)
+      setSnackbar({ open: true, message: 'Error al guardar el orden', severity: 'error' })
+      // Revert on error
+      if (expediente?.documentos) setOrderedDocs(expediente.documentos)
+    }
+  }
 
   useEffect(() => {
     if (id) {
@@ -392,29 +500,24 @@ const ExpedienteDetail = () => {
                   </MenuItem>
                 </Menu>
               </Box>
-              {expediente.documentos && expediente.documentos.length > 0 ? (
-                <List>
-                  {expediente.documentos.map((doc: any) => (
-                    <ListItem
-                      key={doc.id}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/documentos/${doc.id}`)}
-                    >
-                      <ListItemIcon>
-                        <DocIcon />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={doc.titulo}
-                        secondary={format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: es })}
-                      />
-                      <Chip
-                        label={doc.estado || 'pendiente'}
-                        size="small"
-                        color={doc.estado === 'firmado' ? 'success' : 'default'}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+              {orderedDocs.length > 0 ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={docIds} strategy={verticalListSortingStrategy}>
+                    <List>
+                      {orderedDocs.map((doc: any) => (
+                        <SortableDocItem
+                          key={doc.id}
+                          doc={doc}
+                          onClick={() => navigate(`/documentos/${doc.id}`)}
+                        />
+                      ))}
+                    </List>
+                  </SortableContext>
+                </DndContext>
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   No hay documentos asociados

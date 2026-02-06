@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class Documento extends Model
 {
@@ -30,6 +33,7 @@ class Documento extends Model
 
     protected $fillable = [
         'identificador',
+        'codigo_verificacion',
         'numero',
         'titulo',
         'descripcion',
@@ -77,6 +81,9 @@ class Documento extends Model
         static::creating(function ($documento) {
             if (empty($documento->identificador)) {
                 $documento->identificador = self::generarIdentificador();
+            }
+            if (empty($documento->codigo_verificacion)) {
+                $documento->codigo_verificacion = self::generarCodigoVerificacion();
             }
             if (empty($documento->fecha_creacion)) {
                 $documento->fecha_creacion = now();
@@ -179,6 +186,53 @@ class Documento extends Model
         ];
     }
 
+    public static function generarCodigoVerificacion(): string
+    {
+        // Caracteres sin ambigüedad (sin 0,O,I,L,1)
+        $chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        $maxAttempts = 10;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $codigo = '';
+            for ($i = 0; $i < 8; $i++) {
+                $codigo .= $chars[random_int(0, strlen($chars) - 1)];
+            }
+
+            // Verificar unicidad en documentos y derivaciones
+            $existeEnDocumentos = self::where('codigo_verificacion', $codigo)->exists();
+            $existeEnDerivaciones = DB::table('derivaciones')->where('codigo_verificacion', $codigo)->exists();
+
+            if (!$existeEnDocumentos && !$existeEnDerivaciones) {
+                return $codigo;
+            }
+        }
+
+        // Fallback: agregar timestamp para garantizar unicidad
+        $codigo = '';
+        $chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        for ($i = 0; $i < 8; $i++) {
+            $codigo .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+        return $codigo;
+    }
+
+    public function generarPdfFinal(): void
+    {
+        if (empty($this->contenido_html)) {
+            return;
+        }
+
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;font-size:12px;}</style></head><body>' . $this->contenido_html . '</body></html>';
+
+        $pdf = Pdf::loadHTML($html);
+        $pdf->setPaper('letter');
+
+        $filename = 'documentos/' . $this->identificador . '_' . time() . '.pdf';
+        Storage::disk('public')->put($filename, $pdf->output());
+
+        $this->update(['archivo_pdf' => $filename]);
+    }
+
     // Verificaciones
     public function puedeSerFirmadoPor(User $user): bool
     {
@@ -249,6 +303,12 @@ class Documento extends Model
             'completado' => true,
             'actualizado_por' => $user->id,
         ]);
+
+        try {
+            $this->generarPdfFinal();
+        } catch (\Exception $e) {
+            Log::error('Error al generar PDF del documento firmado: ' . $e->getMessage());
+        }
     }
 
     public function puedeSerFirmado(): bool

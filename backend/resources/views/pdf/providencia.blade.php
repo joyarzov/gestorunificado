@@ -234,7 +234,22 @@
         {{-- Pie de página --}}
         <div class="footer">
             Documento generado autom&aacute;ticamente por el Sistema de Correspondencia Municipal &mdash; {{ $folio }} &mdash; {{ $fecha }}
+            @if(!empty($codigo_verificacion))
+                <br/>Verifique en: <strong>{{ $verificar_url ?? '' }}</strong>
+            @endif
         </div>
+
+        {{-- QR fijo en esquina inferior derecha (no afecta flujo del documento) --}}
+        @if(!empty($codigo_verificacion))
+        <div style="position:fixed;bottom:30px;right:40px;text-align:center;">
+            @if(!empty($qr_svg))
+                <div style="width:70px;height:70px;">{!! $qr_svg !!}</div>
+            @endif
+            <div style="font-size:6px;color:#666;margin-top:1px;">
+                C&oacute;d: {{ $codigo_verificacion }}
+            </div>
+        </div>
+        @endif
     </div>
 </body>
 </html>

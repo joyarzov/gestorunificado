@@ -11,6 +11,7 @@ import {
   People as UsersIcon,
   Business as DeptosIcon,
   Settings as ConfigIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material'
 
 const Administracion = () => {
@@ -39,6 +40,13 @@ const Administracion = () => {
       ruta: '#',
       disabled: true,
     },
+    {
+      titulo: 'Repositorio Documental',
+      descripcion: 'Archivo de documentos firmados',
+      icono: <ArchiveIcon sx={{ fontSize: 48 }} />,
+      color: '#9f7aea',
+      ruta: '/repositorio-documental',
+    },
   ]
 
   return (
@@ -52,7 +60,7 @@ const Administracion = () => {
 
       <Grid container spacing={3}>
         {modulos.map((modulo) => (
-          <Grid item xs={12} sm={6} md={4} key={modulo.titulo}>
+          <Grid item xs={12} sm={6} md={3} key={modulo.titulo}>
             <Card
               sx={{
                 height: '100%',

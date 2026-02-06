@@ -205,6 +205,7 @@ export interface DocumentoPlantilla {
 export interface Documento {
   id: number
   identificador: string
+  codigo_verificacion?: string
   numero?: string
   titulo: string
   descripcion?: string

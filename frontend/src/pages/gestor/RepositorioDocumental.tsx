@@ -5,6 +5,7 @@ import {
   Typography,
   Button,
   Card,
+  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -12,7 +13,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Chip,
   IconButton,
   TextField,
   InputAdornment,
@@ -25,34 +25,21 @@ import {
   Tooltip,
 } from '@mui/material'
 import {
-  Add as AddIcon,
   Visibility as ViewIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
   Clear as ClearIcon,
+  Download as DownloadIcon,
+  Description as DocIcon,
+  CalendarMonth as CalendarIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material'
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import { Documento, TipoDocumental } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
-  borrador: 'default',
-  pendiente_firma: 'warning',
-  firmado: 'success',
-  rechazado: 'error',
-  anulado: 'error',
-}
-
-const estadoLabels: Record<string, string> = {
-  borrador: 'Borrador',
-  pendiente_firma: 'Pendiente firma',
-  firmado: 'Firmado',
-  rechazado: 'Rechazado',
-  anulado: 'Anulado',
-}
-
-const DocumentosList = () => {
+const RepositorioDocumental = () => {
   const navigate = useNavigate()
   const [documentos, setDocumentos] = useState<Documento[]>([])
   const [tiposDocumentales, setTiposDocumentales] = useState<TipoDocumental[]>([])
@@ -61,9 +48,16 @@ const DocumentosList = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [total, setTotal] = useState(0)
 
+  // Estadísticas
+  const [estadisticas, setEstadisticas] = useState<{
+    total: number
+    por_estado: Record<string, number>
+    por_tipo: Record<string, number>
+    creados_este_mes: number
+  } | null>(null)
+
   // Filtros
   const [search, setSearch] = useState('')
-  const [estado, setEstado] = useState('')
   const [tipoDocumentalId, setTipoDocumentalId] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -71,6 +65,10 @@ const DocumentosList = () => {
   useEffect(() => {
     tiposDocumentalesAPI.listar().then((res) => {
       if (res.success) setTiposDocumentales(res.data)
+    }).catch(() => {})
+
+    documentosAPI.estadisticas().then((res) => {
+      if (res.success) setEstadisticas(res.data)
     }).catch(() => {})
   }, [])
 
@@ -85,8 +83,8 @@ const DocumentosList = () => {
       const response = await documentosAPI.listar({
         page: page + 1,
         per_page: rowsPerPage,
+        estado: 'firmado',
         search: search || undefined,
-        estado: estado || undefined,
         tipo_documental_id: tipoDocumentalId ? Number(tipoDocumentalId) : undefined,
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
@@ -107,31 +105,90 @@ const DocumentosList = () => {
 
   const handleLimpiar = () => {
     setSearch('')
-    setEstado('')
     setTipoDocumentalId('')
     setFechaDesde('')
     setFechaHasta('')
     setPage(0)
-    // Cargar sin filtros
     setTimeout(() => loadDocumentos(), 0)
   }
 
-  const hayFiltrosActivos = search || estado || tipoDocumentalId || fechaDesde || fechaHasta
+  const handleDescargar = async (id: number, numero?: string | null) => {
+    try {
+      const blob = await documentosAPI.descargar(id)
+      const url = window.URL.createObjectURL(new Blob([blob]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `${numero || `documento-${id}`}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error descargando documento:', error)
+    }
+  }
+
+  const hayFiltrosActivos = search || tipoDocumentalId || fechaDesde || fechaHasta
+
+  const totalFirmados = estadisticas?.por_estado?.firmado || 0
+  const firmadosEsteMes = estadisticas?.creados_este_mes || 0
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      {/* Cabecera */}
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight="bold">
-          Documentos
+          Repositorio Documental
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/documentos/nuevo')}
-        >
-          Nuevo Documento
-        </Button>
+        <Typography variant="body1" color="text.secondary">
+          Archivo de documentos firmados de la municipalidad
+        </Typography>
       </Box>
+
+      {/* Tarjetas de resumen */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#9f7aea20', color: '#9f7aea' }}>
+                <ArchiveIcon fontSize="large" />
+              </Box>
+              <Box>
+                <Typography variant="h4" fontWeight="bold">{totalFirmados}</Typography>
+                <Typography variant="body2" color="text.secondary">Total firmados</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4299e120', color: '#4299e1' }}>
+                <DocIcon fontSize="large" />
+              </Box>
+              <Box>
+                <Typography variant="h4" fontWeight="bold">
+                  {estadisticas ? Object.keys(estadisticas.por_tipo).length : 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">Tipos documentales</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#48bb7820', color: '#48bb78' }}>
+                <CalendarIcon fontSize="large" />
+              </Box>
+              <Box>
+                <Typography variant="h4" fontWeight="bold">{firmadosEsteMes}</Typography>
+                <Typography variant="body2" color="text.secondary">Creados este mes</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Panel de filtros */}
       <Card sx={{ mb: 3, p: 2.5 }}>
@@ -143,7 +200,6 @@ const DocumentosList = () => {
         </Box>
 
         <Grid container spacing={2} alignItems="flex-end">
-          {/* Buscador de texto */}
           <Grid item xs={12} md={4}>
             <TextField
               fullWidth
@@ -163,7 +219,6 @@ const DocumentosList = () => {
             />
           </Grid>
 
-          {/* Tipo documental */}
           <Grid item xs={12} sm={6} md={2}>
             <FormControl fullWidth size="small">
               <InputLabel>Tipo</InputLabel>
@@ -182,25 +237,7 @@ const DocumentosList = () => {
             </FormControl>
           </Grid>
 
-          {/* Estado */}
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Estado</InputLabel>
-              <Select
-                value={estado}
-                label="Estado"
-                onChange={(e) => setEstado(e.target.value)}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                {Object.entries(estadoLabels).map(([key, label]) => (
-                  <MenuItem key={key} value={key}>{label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Fecha desde */}
-          <Grid item xs={6} sm={6} md={2}>
+          <Grid item xs={6} sm={3} md={2}>
             <TextField
               fullWidth
               size="small"
@@ -212,8 +249,7 @@ const DocumentosList = () => {
             />
           </Grid>
 
-          {/* Fecha hasta */}
-          <Grid item xs={6} sm={6} md={2}>
+          <Grid item xs={6} sm={3} md={2}>
             <TextField
               fullWidth
               size="small"
@@ -226,7 +262,6 @@ const DocumentosList = () => {
           </Grid>
         </Grid>
 
-        {/* Botones de acción */}
         <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
           <Button variant="contained" size="small" onClick={handleBuscar} startIcon={<SearchIcon />}>
             Buscar
@@ -239,32 +274,31 @@ const DocumentosList = () => {
         </Box>
       </Card>
 
+      {/* Tabla de documentos */}
       <Card>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Número</TableCell>
-                <TableCell>Título</TableCell>
                 <TableCell>Tipo</TableCell>
-                <TableCell>Expediente</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Estado</TableCell>
+                <TableCell>Título</TableCell>
+                <TableCell>Fecha de creación</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : documentos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      {hayFiltrosActivos ? 'No se encontraron documentos con los filtros aplicados' : 'No hay documentos registrados'}
+                      {hayFiltrosActivos ? 'No se encontraron documentos con los filtros aplicados' : 'No hay documentos firmados'}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -276,11 +310,12 @@ const DocumentosList = () => {
                         {item.numero || '-'}
                       </Typography>
                     </TableCell>
+                    <TableCell>{item.tipo_documental?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Typography
                         variant="body2"
                         sx={{
-                          maxWidth: 200,
+                          maxWidth: 300,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -289,21 +324,8 @@ const DocumentosList = () => {
                         {item.titulo}
                       </Typography>
                     </TableCell>
-                    <TableCell>{item.tipo_documental?.nombre || '-'}</TableCell>
-                    <TableCell>
-                      {item.expedientes && item.expedientes.length > 0
-                        ? item.expedientes.map((e: any) => e.numero_expediente || e.identificador).join(', ')
-                        : '-'}
-                    </TableCell>
                     <TableCell>
                       {format(new Date(item.created_at), 'dd/MM/yyyy', { locale: es })}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={estadoLabels[item.estado] || item.estado.replace('_', ' ')}
-                        color={estadoColors[item.estado] || 'default'}
-                        size="small"
-                      />
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Ver documento">
@@ -312,6 +334,14 @@ const DocumentosList = () => {
                           onClick={() => navigate(`/documentos/${item.id}`)}
                         >
                           <ViewIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Descargar PDF">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDescargar(item.id, item.numero)}
+                        >
+                          <DownloadIcon />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -339,4 +369,4 @@ const DocumentosList = () => {
   )
 }
 
-export default DocumentosList
+export default RepositorioDocumental

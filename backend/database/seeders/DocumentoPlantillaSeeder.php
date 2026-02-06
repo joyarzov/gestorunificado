@@ -172,7 +172,7 @@ class DocumentoPlantillaSeeder extends Seeder
     <!-- Logo en la parte superior izquierda -->
     <div style="margin-bottom: 40px;">
         <div style="text-align: left; margin-bottom: 10px;">
-            <img src="/logo.png" alt="Logo Municipalidad" style="max-width: 158px; height: auto;" />
+            <img src="/logo.png" alt="Logo Municipalidad" style="max-width: 200px; height: auto;" />
         </div>
         <div style="text-align: center;">
             <h2 style="margin: 0;"><strong>DECRETO ALCALDICIO Nº {{numero}}</strong></h2>

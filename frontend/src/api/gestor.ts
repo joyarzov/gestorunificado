@@ -23,6 +23,8 @@ export interface DocumentoFilters {
   tipo_documental_id?: number
   expediente_id?: number
   search?: string
+  fecha_desde?: string
+  fecha_hasta?: string
 }
 
 export interface CreateExpedienteData {
@@ -141,6 +143,13 @@ export const expedientesAPI = {
   asociarDocumento: async (expedienteId: number, documentoId: number) => {
     const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${expedienteId}/asociar-documento`, {
       documento_id: documentoId,
+    })
+    return response.data
+  },
+
+  reordenarDocumentos: async (expedienteId: number, documentos: { id: number; orden: number }[]) => {
+    const response = await api.put<ApiResponse<Expediente>>(`/expedientes/${expedienteId}/reordenar-documentos`, {
+      documentos,
     })
     return response.data
   },

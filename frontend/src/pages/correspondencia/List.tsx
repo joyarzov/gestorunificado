@@ -17,14 +17,23 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Visibility as ViewIcon,
   Search as SearchIcon,
+  FilterList as FilterIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
-import { Correspondencia } from '../../types'
+import { departamentosAPI } from '../../api/common'
+import { Correspondencia, Departamento } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -51,11 +60,24 @@ const CorrespondenciaList = () => {
   const navigate = useNavigate()
   const { isAdmin, isOficial } = useAuth()
   const [correspondencias, setCorrespondencias] = useState<Correspondencia[]>([])
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [total, setTotal] = useState(0)
+
+  // Filtros
   const [search, setSearch] = useState('')
+  const [estado, setEstado] = useState('')
+  const [departamentoId, setDepartamentoId] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
+
+  useEffect(() => {
+    departamentosAPI.listar().then((res) => {
+      if (res.success) setDepartamentos(res.data)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     loadCorrespondencias()
@@ -68,7 +90,11 @@ const CorrespondenciaList = () => {
       const response = await correspondenciaAPI.listar({
         page: page + 1,
         per_page: rowsPerPage,
-        search,
+        search: search || undefined,
+        estado: estado || undefined,
+        departamento_id: departamentoId ? Number(departamentoId) : undefined,
+        fecha_desde: fechaDesde || undefined,
+        fecha_hasta: fechaHasta || undefined,
       })
       setCorrespondencias(response.data.data)
       setTotal(response.data.total)
@@ -79,10 +105,22 @@ const CorrespondenciaList = () => {
     }
   }
 
-  const handleSearch = () => {
+  const handleBuscar = () => {
     setPage(0)
     loadCorrespondencias()
   }
+
+  const handleLimpiar = () => {
+    setSearch('')
+    setEstado('')
+    setDepartamentoId('')
+    setFechaDesde('')
+    setFechaHasta('')
+    setPage(0)
+    setTimeout(() => loadCorrespondencias(), 0)
+  }
+
+  const hayFiltrosActivos = search || estado || departamentoId || fechaDesde || fechaHasta
 
   return (
     <Box>
@@ -101,24 +139,110 @@ const CorrespondenciaList = () => {
         )}
       </Box>
 
-      <Card sx={{ mb: 3, p: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Buscar por remitente, número de documento..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <Button onClick={handleSearch}>Buscar</Button>
-            ),
-          }}
-        />
+      {/* Panel de filtros */}
+      <Card sx={{ mb: 3, p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <FilterIcon color="action" fontSize="small" />
+          <Typography variant="subtitle2" color="text.secondary">
+            Filtros de búsqueda
+          </Typography>
+        </Box>
+
+        <Grid container spacing={2} alignItems="flex-end">
+          {/* Buscador de texto */}
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Buscar"
+              placeholder="Remitente, Nº documento, descripción..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+
+          {/* Departamento */}
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Departamento</InputLabel>
+              <Select
+                value={departamentoId}
+                label="Departamento"
+                onChange={(e) => setDepartamentoId(e.target.value)}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {departamentos.map((depto) => (
+                  <MenuItem key={depto.id} value={depto.id}>
+                    {depto.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Estado */}
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={estado}
+                label="Estado"
+                onChange={(e) => setEstado(e.target.value)}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {Object.entries(estadoLabels).map(([key, label]) => (
+                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Fecha desde */}
+          <Grid item xs={6} sm={6} md={2.5}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Desde"
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+
+          {/* Fecha hasta */}
+          <Grid item xs={6} sm={6} md={2.5}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Hasta"
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
+
+        {/* Botones de acción */}
+        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+          <Button variant="contained" size="small" onClick={handleBuscar} startIcon={<SearchIcon />}>
+            Buscar
+          </Button>
+          {hayFiltrosActivos && (
+            <Button variant="outlined" size="small" onClick={handleLimpiar} startIcon={<ClearIcon />}>
+              Limpiar filtros
+            </Button>
+          )}
+        </Box>
       </Card>
 
       <Card>
@@ -146,7 +270,7 @@ const CorrespondenciaList = () => {
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      No hay correspondencias registradas
+                      {hayFiltrosActivos ? 'No se encontraron correspondencias con los filtros aplicados' : 'No hay correspondencias registradas'}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -168,12 +292,14 @@ const CorrespondenciaList = () => {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => navigate(`/correspondencia/${item.id}`)}
-                      >
-                        <ViewIcon />
-                      </IconButton>
+                      <Tooltip title="Ver correspondencia">
+                        <IconButton
+                          size="small"
+                          onClick={() => navigate(`/correspondencia/${item.id}`)}
+                        >
+                          <ViewIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))

@@ -12,6 +12,7 @@ import {
   Folder as ExpedienteIcon,
   Description as DocumentoIcon,
   PendingActions as PendienteIcon,
+  Archive as ArchiveIcon,
   Add as AddIcon,
 } from '@mui/icons-material'
 
@@ -39,6 +40,13 @@ const GestorDashboard = () => {
       icono: <PendienteIcon sx={{ fontSize: 48 }} />,
       color: '#ed8936',
       ruta: '/pendientes-firma',
+    },
+    {
+      titulo: 'Repositorio Documental',
+      descripcion: 'Archivo de documentos firmados',
+      icono: <ArchiveIcon sx={{ fontSize: 48 }} />,
+      color: '#9f7aea',
+      ruta: '/repositorio-documental',
     },
   ]
 
@@ -73,7 +81,7 @@ const GestorDashboard = () => {
 
       <Grid container spacing={3}>
         {modulos.map((modulo) => (
-          <Grid item xs={12} sm={6} md={4} key={modulo.titulo}>
+          <Grid item xs={12} sm={6} md={3} key={modulo.titulo}>
             <Card
               sx={{
                 height: '100%',

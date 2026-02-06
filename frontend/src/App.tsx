@@ -15,6 +15,9 @@ import CorrespondenciaDetail from './pages/correspondencia/Detail'
 import BandejaEntrada from './pages/correspondencia/Bandeja'
 import CorrespondenciaSearch from './pages/correspondencia/Search'
 
+// Verificación pública
+import VerificarDocumento from './pages/verificacion/VerificarDocumento'
+
 // OIRS
 import OirsPublicForm from './pages/oirs/PublicForm'
 import OirsPublicConsult from './pages/oirs/PublicConsult'
@@ -32,6 +35,7 @@ import DocumentosList from './pages/gestor/DocumentosList'
 import DocumentoNew from './pages/gestor/DocumentoNew'
 import DocumentoDetail from './pages/gestor/DocumentoDetail'
 import PendientesFirma from './pages/gestor/PendientesFirma'
+import RepositorioDocumental from './pages/gestor/RepositorioDocumental'
 
 // Admin
 import Administracion from './pages/admin/Administracion'
@@ -48,6 +52,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/oirs" element={<OirsPublicForm />} />
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />
+        <Route path="/verificar" element={<VerificarDocumento />} />
+        <Route path="/verificar/:codigo" element={<VerificarDocumento />} />
 
         {/* Rutas protegidas */}
         <Route element={<PrivateRoute />}>
@@ -84,6 +90,7 @@ function App() {
             <Route path="/documentos/nuevo" element={<DocumentoNew />} />
             <Route path="/documentos/:id" element={<DocumentoDetail />} />
             <Route path="/pendientes-firma" element={<PendientesFirma />} />
+            <Route path="/repositorio-documental" element={<RepositorioDocumental />} />
 
             {/* Administración */}
             <Route path="/administracion" element={<Administracion />} />

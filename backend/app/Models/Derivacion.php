@@ -21,6 +21,7 @@ class Derivacion extends Model
         'observaciones',
         'acciones_para',
         'folio',
+        'codigo_verificacion',
         'estado',
         'fecha_recepcion',
     ];

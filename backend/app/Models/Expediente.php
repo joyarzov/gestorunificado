@@ -63,8 +63,9 @@ class Expediente extends Model
     public function documentos()
     {
         return $this->belongsToMany(Documento::class, 'documento_expediente')
+            ->withPivot('orden')
             ->withTimestamps()
-            ->orderBy('created_at');
+            ->orderBy('documento_expediente.orden');
     }
 
     public function actividades()

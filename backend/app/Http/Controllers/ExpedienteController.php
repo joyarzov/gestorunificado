@@ -281,7 +281,8 @@ class ExpedienteController extends Controller
             return $this->errorResponse('El documento ya está asociado a este expediente', 400);
         }
 
-        $expediente->documentos()->attach($documentoId);
+        $maxOrden = $expediente->documentos()->max('documento_expediente.orden') ?? 0;
+        $expediente->documentos()->attach($documentoId, ['orden' => $maxOrden + 1]);
 
         $documento = Documento::find($documentoId);
 
@@ -321,7 +322,8 @@ class ExpedienteController extends Controller
                 'departamento_id' => Auth::user()->departamento_id,
             ]);
 
-            $expediente->documentos()->attach($documento->id);
+            $maxOrden = $expediente->documentos()->max('documento_expediente.orden') ?? 0;
+            $expediente->documentos()->attach($documento->id, ['orden' => $maxOrden + 1]);
 
             ExpedienteActividad::create([
                 'expediente_id' => $expediente->id,
@@ -340,6 +342,25 @@ class ExpedienteController extends Controller
             DB::rollBack();
             return $this->errorResponse('Error al subir documento: ' . $e->getMessage(), 500);
         }
+    }
+
+    public function reordenarDocumentos(Request $request, Expediente $expediente)
+    {
+        $request->validate([
+            'documentos' => 'required|array|min:1',
+            'documentos.*.id' => 'required|integer|exists:documentos,id',
+            'documentos.*.orden' => 'required|integer|min:1',
+        ]);
+
+        foreach ($request->documentos as $item) {
+            $expediente->documentos()->updateExistingPivot($item['id'], [
+                'orden' => $item['orden'],
+            ]);
+        }
+
+        $expediente->load(['documentos', 'creador', 'departamento']);
+
+        return $this->successResponse($expediente, 'Orden actualizado');
     }
 
     public function estadisticas()

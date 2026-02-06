@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DocumentoController extends Controller
 {
@@ -105,8 +106,13 @@ class DocumentoController extends Controller
             // Procesar contenido HTML
             $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
 
+            // Generar código de verificación e inyectar footer QR
+            $codigoVerificacion = Documento::generarCodigoVerificacion();
+            $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, $codigoVerificacion);
+
             $documento = Documento::create([
                 'identificador' => Documento::generarIdentificador(),
+                'codigo_verificacion' => $codigoVerificacion,
                 'titulo' => $request->titulo,
                 'expediente_id' => $request->expediente_id,
                 'plantilla_id' => $plantilla->id,
@@ -206,6 +212,7 @@ class DocumentoController extends Controller
         if ($request->has('contenido_json')) {
             $plantilla = $documento->plantilla;
             $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
+            $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, $documento->codigo_verificacion);
             $request->merge(['contenido_html' => $contenidoHtml]);
         }
 
@@ -282,10 +289,49 @@ class DocumentoController extends Controller
 
         $plantilla = DocumentoPlantilla::findOrFail($request->plantilla_id);
         $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
+        $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, 'XXXXXXXX');
 
         return response()->json([
             'html' => $contenidoHtml
         ]);
+    }
+
+    /**
+     * Inyectar footer de verificación con QR al HTML del documento
+     */
+    private function inyectarFooterVerificacion(string $html, string $codigo): string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+        $verificarUrl = "{$appUrl}/verificar/{$codigo}";
+
+        $qrSvg = '';
+        try {
+            $qrSvg = QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
+        } catch (\Exception $e) {
+            Log::warning('No se pudo generar QR: ' . $e->getMessage());
+        }
+
+        // Bloque QR flotado a la derecha (se posiciona al nivel de la última sección)
+        $qrBlock = '<div style="float:right;text-align:center;margin:0 0 10px 15px;">';
+        if ($qrSvg) {
+            $qrBlock .= '<div style="width:70px;height:70px;">' . $qrSvg . '</div>';
+        }
+        $qrBlock .= '<div style="font-size:6px;color:#888;margin-top:2px;">Verifique este documento</div>';
+        $qrBlock .= '<div style="font-size:6px;color:#888;">C&oacute;d: <strong>' . htmlspecialchars($codigo) . '</strong></div>';
+        $qrBlock .= '</div>';
+
+        // Inyectar QR antes de la última sección principal (distribución, firma, fecha, etc.)
+        // para que quede al mismo nivel visual (float:right)
+        $lastSectionPos = strrpos($html, '<div style="margin-top:');
+        if ($lastSectionPos !== false) {
+            $html = substr($html, 0, $lastSectionPos) . $qrBlock . substr($html, $lastSectionPos);
+        } elseif (stripos($html, '</body>') !== false) {
+            $html = str_ireplace('</body>', $qrBlock . '</body>', $html);
+        } else {
+            $html .= $qrBlock;
+        }
+
+        return $html;
     }
 
     /**
