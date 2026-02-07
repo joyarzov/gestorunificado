@@ -22,6 +22,8 @@ import {
   IconButton,
   Paper,
   Autocomplete,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Save as SaveIcon,
@@ -29,6 +31,9 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Visibility as PreviewIcon,
+  FormatAlignLeft as AlignLeftIcon,
+  FormatAlignCenter as AlignCenterIcon,
+  FormatAlignJustify as AlignJustifyIcon,
 } from '@mui/icons-material'
 import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
@@ -94,6 +99,7 @@ const DocumentoNew = () => {
     { id: '1', contenido: '' }
   ])
   const [distribucion, setDistribucion] = useState<DistribucionItem[]>([])
+  const [fieldAlignments, setFieldAlignments] = useState<Record<string, string>>({})
 
   // Determinar si es decreto
   const esDecreto = useMemo(() => {
@@ -169,13 +175,16 @@ const DocumentoNew = () => {
     const articulosValidos = articulos.filter(a => a.contenido.trim())
     if (articulosValidos.length === 0) return ''
 
-    return articulosValidos.map((art, index) => `
+    return articulosValidos.map((art, index) => {
+      const align = fieldAlignments[`articulo_${art.id}`] || 'left'
+      return `
       <div style="margin: 20px 0;">
         <p><strong>ARTÍCULO ${ORDINAL_NAMES[index] || (index + 1)}°:</strong></p>
-        <p style="margin-left: 20px;">${art.contenido}</p>
+        <p style="margin-left: 20px; text-align: ${align};">${art.contenido}</p>
       </div>
-    `).join('')
-  }, [articulos])
+    `
+    }).join('')
+  }, [articulos, fieldAlignments])
 
   // Generar HTML de firmas (3 por fila)
   const generarFirmasHtml = useCallback(() => {
@@ -221,6 +230,14 @@ const DocumentoNew = () => {
         variablesCompletas['articulos_html'] = generarArticulosHtml()
         variablesCompletas['firmas_html'] = generarFirmasHtml()
         variablesCompletas['distribucion_html'] = generarDistribucionHtml()
+
+        // Aplicar alineación a campos de texto
+        for (const campo of ['vistos', 'texto_decreto'] as const) {
+          const align = fieldAlignments[campo]
+          if (align && align !== 'left' && variablesCompletas[campo]) {
+            variablesCompletas[campo] = `<div style="text-align: ${align};">${variablesCompletas[campo]}</div>`
+          }
+        }
       }
 
       const response = await documentosAPI.previsualizar({
@@ -233,7 +250,7 @@ const DocumentoNew = () => {
     } finally {
       setPreviewLoading(false)
     }
-  }, [selectedPlantilla, variables, esDecreto, generarArticulosHtml, generarFirmasHtml, generarDistribucionHtml])
+  }, [selectedPlantilla, variables, esDecreto, fieldAlignments, generarArticulosHtml, generarFirmasHtml, generarDistribucionHtml])
 
   // Debounce para preview automático
   useEffect(() => {
@@ -285,6 +302,14 @@ const DocumentoNew = () => {
         variablesFinales['articulos_html'] = generarArticulosHtml()
         variablesFinales['firmas_html'] = generarFirmasHtml()
         variablesFinales['distribucion_html'] = generarDistribucionHtml()
+
+        // Aplicar alineación a campos de texto
+        for (const campo of ['vistos', 'texto_decreto'] as const) {
+          const align = fieldAlignments[campo]
+          if (align && align !== 'left' && variablesFinales[campo]) {
+            variablesFinales[campo] = `<div style="text-align: ${align};">${variablesFinales[campo]}</div>`
+          }
+        }
       }
 
       const data = {
@@ -355,6 +380,31 @@ const DocumentoNew = () => {
     </Grid>
   )
 
+  // Alineación de campos de texto
+  const getAlignment = (key: string) => fieldAlignments[key] || 'left'
+  const setAlignment = (key: string, value: string) => {
+    setFieldAlignments(prev => ({ ...prev, [key]: value }))
+  }
+
+  const renderAlignmentToolbar = (key: string) => (
+    <ToggleButtonGroup
+      value={getAlignment(key)}
+      exclusive
+      onChange={(_, v) => { if (v) setAlignment(key, v) }}
+      size="small"
+    >
+      <ToggleButton value="left" aria-label="Alinear izquierda">
+        <AlignLeftIcon fontSize="small" />
+      </ToggleButton>
+      <ToggleButton value="center" aria-label="Centrar">
+        <AlignCenterIcon fontSize="small" />
+      </ToggleButton>
+      <ToggleButton value="justify" aria-label="Justificar">
+        <AlignJustifyIcon fontSize="small" />
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+
   // Renderizar campos de variable
   const renderVariableField = (key: string, descripcion: string) => {
     // Omitir campos que se generan automáticamente
@@ -364,16 +414,38 @@ const DocumentoNew = () => {
 
     const esMultilinea = ['vistos', 'contenido', 'objeto', 'obligaciones', 'vigencia', 'considerando', 'resuelvo', 'texto_decreto'].includes(key)
 
+    // Overrides para decreto
+    const esNumeroDecreto = esDecreto && key === 'numero'
+    const esTextoDecreto = esDecreto && key === 'texto_decreto'
+    const tieneAlineacion = esDecreto && ['vistos', 'texto_decreto'].includes(key)
+
+    let label = descripcion || key
+    if (esNumeroDecreto) label = 'Número de decreto'
+    if (esTextoDecreto) label = 'DECRETO'
+
     return (
       <Grid item xs={12} md={esMultilinea ? 12 : 6} key={key}>
+        {tieneAlineacion && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
+            {renderAlignmentToolbar(key)}
+          </Box>
+        )}
         <TextField
           fullWidth
-          label={descripcion || key}
+          label={label}
           value={variables[key] || ''}
-          onChange={(e) => handleVariableChange(key, e.target.value)}
+          onChange={(e) => {
+            if (esNumeroDecreto) {
+              handleVariableChange(key, e.target.value.replace(/[^0-9]/g, ''))
+            } else {
+              handleVariableChange(key, e.target.value)
+            }
+          }}
           multiline={esMultilinea}
           rows={esMultilinea ? 4 : 1}
-          placeholder={descripcion}
+          placeholder={esNumeroDecreto ? 'Ingrese número' : descripcion}
+          inputProps={esNumeroDecreto ? { inputMode: 'numeric' as const, pattern: '[0-9]*' } : undefined}
+          sx={tieneAlineacion ? { '& textarea': { textAlign: getAlignment(key) } } : undefined}
         />
       </Grid>
     )
@@ -538,26 +610,31 @@ const DocumentoNew = () => {
             {articulos.map((articulo, index) => (
               <Grid item xs={12} key={articulo.id}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                    <Typography variant="subtitle2" sx={{ minWidth: 100, pt: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2">
                       {ORDINAL_NAMES[index] || `${index + 1}°`}:
                     </Typography>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={2}
-                      value={articulo.contenido}
-                      onChange={(e) => actualizarArticulo(articulo.id, e.target.value)}
-                      placeholder="Contenido del artículo..."
-                    />
-                    <IconButton
-                      onClick={() => eliminarArticulo(articulo.id)}
-                      disabled={articulos.length <= 1}
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {renderAlignmentToolbar(`articulo_${articulo.id}`)}
+                      <IconButton
+                        onClick={() => eliminarArticulo(articulo.id)}
+                        disabled={articulos.length <= 1}
+                        color="error"
+                        size="small"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={articulo.contenido}
+                    onChange={(e) => actualizarArticulo(articulo.id, e.target.value)}
+                    placeholder="Contenido del artículo..."
+                    sx={{ '& textarea': { textAlign: getAlignment(`articulo_${articulo.id}`) } }}
+                  />
                 </Paper>
               </Grid>
             ))}
@@ -627,24 +704,40 @@ const DocumentoNew = () => {
               Actualizar Preview
             </Button>
           </Box>
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
+              bgcolor: '#e0e0e0',
+              borderRadius: 1,
               p: 2,
-              minHeight: 400,
-              maxHeight: 600,
+              maxHeight: '75vh',
               overflow: 'auto',
-              bgcolor: '#fafafa'
+              pb: 2,
             }}
           >
             {previewHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <Box
+                sx={{
+                  width: 794,
+                  mx: 'auto',
+                  minHeight: 1123,
+                  bgcolor: 'white',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                  p: '96px 72px 96px 96px',
+                  '& > div': {
+                    maxWidth: '100% !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    lineHeight: '1.6 !important',
+                  },
+                }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
             ) : (
               <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
                 Complete los campos para ver la previsualización
               </Typography>
             )}
-          </Paper>
+          </Box>
         </Grid>
       </Grid>
     )
@@ -685,24 +778,40 @@ const DocumentoNew = () => {
         <Typography variant="h6" gutterBottom>
           Previsualización del Documento
         </Typography>
-        <Paper
-          variant="outlined"
+        <Box
           sx={{
+            bgcolor: '#e0e0e0',
+            borderRadius: 1,
             p: 2,
-            minHeight: 400,
-            maxHeight: 600,
+            maxHeight: '75vh',
             overflow: 'auto',
-            bgcolor: '#fafafa'
+            pb: 2,
           }}
         >
           {previewHtml ? (
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <Box
+              sx={{
+                width: 794,
+                mx: 'auto',
+                minHeight: 1123,
+                bgcolor: 'white',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                p: '96px 72px 96px 96px',
+                '& > div': {
+                  maxWidth: '100% !important',
+                  padding: '0 !important',
+                  margin: '0 !important',
+                  lineHeight: '1.6 !important',
+                },
+              }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
           ) : (
             <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
               Sin previsualización
             </Typography>
           )}
-        </Paper>
+        </Box>
       </Grid>
     </Grid>
   )

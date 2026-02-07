@@ -27,11 +27,11 @@ class DocumentoPlantillaSeeder extends Seeder
                 'tipo_documental_id' => $tipoDecreto?->id,
                 'contenido_html' => $this->getPlantillaDecreto(),
                 'variables_json' => [
-                    'numero' => 'Número del decreto (correlativo automático)',
+                    'numero' => 'Número de decreto',
                     'referencia' => 'Referencia o materia del decreto',
                     'fecha' => 'Fecha de emisión (formato: 15 de enero de 2026)',
                     'vistos' => 'VISTOS Y CONSIDERANDO (texto completo)',
-                    'texto_decreto' => 'Texto principal después del título DECRETO',
+                    'texto_decreto' => 'DECRETO',
                     'articulos_html' => 'HTML generado de artículos dinámicos',
                     'firmas_html' => 'HTML generado de firmas',
                     'distribucion_html' => 'HTML generado de distribución'

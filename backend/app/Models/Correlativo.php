@@ -50,9 +50,11 @@ class Correlativo extends Model
 
             // Si cambió el año y tiene reinicio anual, resetear
             if ($correlativo->reinicio_anual && $correlativo->anio !== $anioActual) {
-                $correlativo->valor_actual = 0;
-                $correlativo->anio = $anioActual;
-                $correlativo->ultimo_reset = now();
+                $correlativo->update([
+                    'valor_actual' => 0,
+                    'anio' => $anioActual,
+                    'ultimo_reset' => now(),
+                ]);
             }
 
             $correlativo->increment('valor_actual');

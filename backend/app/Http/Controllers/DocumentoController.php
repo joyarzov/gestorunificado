@@ -8,6 +8,7 @@ use App\Models\DocumentoPlantilla;
 use App\Models\Expediente;
 use App\Models\ExpedienteActividad;
 use App\Models\Correlativo;
+use App\Models\Notificacion;
 use App\Models\TipoDocumental;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -95,13 +96,13 @@ class DocumentoController extends Controller
         try {
             $plantilla = DocumentoPlantilla::findOrFail($request->plantilla_id);
 
-            // Generar correlativo si hay tipo documental
-            $datosCorrelativo = null;
             $tipoDocumentalId = $request->tipo_documental_id ?? $plantilla->tipo_documental_id;
 
-            if ($tipoDocumentalId) {
-                $datosCorrelativo = Documento::generarCorrelativo($tipoDocumentalId);
-            }
+            // Número de documento: el usuario lo ingresa y se combina con el año
+            $contenidoJson = $request->contenido_json;
+            $numeroIngresado = $contenidoJson['numero'] ?? null;
+            $anio = date('Y');
+            $numeroCompleto = $numeroIngresado ? "{$numeroIngresado}/{$anio}" : null;
 
             // Procesar contenido HTML
             $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
@@ -117,7 +118,7 @@ class DocumentoController extends Controller
                 'expediente_id' => $request->expediente_id,
                 'plantilla_id' => $plantilla->id,
                 'tipo_documental_id' => $tipoDocumentalId,
-                'numero' => $datosCorrelativo['completo'] ?? null,
+                'numero' => $numeroCompleto,
                 'estado' => Documento::ESTADO_BORRADOR,
                 'nivel_acceso' => $request->nivel_acceso,
                 'contenido_json' => $request->contenido_json,
@@ -214,12 +215,20 @@ class DocumentoController extends Controller
             $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
             $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, $documento->codigo_verificacion);
             $request->merge(['contenido_html' => $contenidoHtml]);
+
+            // Actualizar número si el usuario cambió el campo numero
+            $numeroIngresado = $request->contenido_json['numero'] ?? null;
+            if ($numeroIngresado) {
+                $anio = date('Y');
+                $request->merge(['numero' => "{$numeroIngresado}/{$anio}"]);
+            }
         }
 
         $documento->update($request->only([
             'titulo',
             'contenido_json',
             'contenido_html',
+            'numero',
             'palabras_clave',
             'nivel_acceso',
         ]) + ['actualizado_por' => Auth::id()]);
@@ -413,6 +422,21 @@ class DocumentoController extends Controller
             'actualizado_por' => Auth::id()
         ]);
 
+        // Notificar a cada firmante asignado
+        $firmantes = $documento->firmantesAsignados;
+        if ($firmantes->isEmpty() && $documento->firmante_asignado_id) {
+            $firmantes = collect([\App\Models\User::find($documento->firmante_asignado_id)]);
+        }
+        foreach ($firmantes as $firmante) {
+            Notificacion::create([
+                'user_id' => $firmante->id,
+                'tipo' => 'documento_pendiente_firma',
+                'titulo' => 'Documento pendiente de tu firma',
+                'mensaje' => "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
+                'data' => ['documento_id' => $documento->id],
+            ]);
+        }
+
         return $this->successResponse($documento->load('firmantesAsignados'), 'Documento enviado a firma');
     }
 
@@ -450,9 +474,31 @@ class DocumentoController extends Controller
                 ]);
             }
 
+            // Notificar al creador que alguien firmó
+            if ($documento->creado_por && $documento->creado_por !== $user->id) {
+                Notificacion::create([
+                    'user_id' => $documento->creado_por,
+                    'tipo' => 'documento_firma_registrada',
+                    'titulo' => 'Firma registrada en documento',
+                    'mensaje' => "{$user->nombre} firmó el documento \"{$documento->titulo}\" ({$documento->numero}).",
+                    'data' => ['documento_id' => $documento->id],
+                ]);
+            }
+
+            // Si el documento quedó completamente firmado, notificar al creador
+            $documento->refresh();
+            if ($documento->estado === Documento::ESTADO_FIRMADO && $documento->creado_por) {
+                Notificacion::create([
+                    'user_id' => $documento->creado_por,
+                    'tipo' => 'documento_firmado_completo',
+                    'titulo' => 'Documento completamente firmado',
+                    'mensaje' => "El documento \"{$documento->titulo}\" ({$documento->numero}) ha sido firmado por todos los firmantes. El PDF ha sido generado.",
+                    'data' => ['documento_id' => $documento->id],
+                ]);
+            }
+
             DB::commit();
 
-            $documento->refresh();
             $documento->load(['firmas.usuario', 'firmantesAsignados']);
 
             return $this->successResponse($documento, 'Documento firmado exitosamente');
@@ -500,6 +546,17 @@ class DocumentoController extends Controller
                     'tipo' => 'firma_rechazada',
                     'descripcion' => "Firma rechazada por {$user->nombre}: {$request->motivo}",
                     'metadata' => ['documento_id' => $documento->id],
+                ]);
+            }
+
+            // Notificar al creador del rechazo
+            if ($documento->creado_por && $documento->creado_por !== $user->id) {
+                Notificacion::create([
+                    'user_id' => $documento->creado_por,
+                    'tipo' => 'documento_firma_rechazada',
+                    'titulo' => 'Firma rechazada en documento',
+                    'mensaje' => "{$user->nombre} rechazó la firma del documento \"{$documento->titulo}\" ({$documento->numero}). Motivo: {$request->motivo}",
+                    'data' => ['documento_id' => $documento->id],
                 ]);
             }
 
@@ -579,17 +636,36 @@ class DocumentoController extends Controller
      */
     public function descargar(Documento $documento)
     {
-        // Si tiene archivo PDF, descargarlo
+        // Si tiene archivo PDF ya generado, descargarlo
         if ($documento->archivo_pdf && Storage::disk('public')->exists($documento->archivo_pdf)) {
+            $nombre = str_replace('/', '_', $documento->numero ?? $documento->identificador);
             return Storage::disk('public')->download(
                 $documento->archivo_pdf,
-                $documento->identificador . '.pdf'
+                $nombre . '.pdf'
             );
         }
 
-        // Si no, generar HTML como respuesta
-        return response($documento->contenido_html)
-            ->header('Content-Type', 'text/html')
-            ->header('Content-Disposition', 'inline; filename="' . $documento->identificador . '.html"');
+        // Solo generar PDF on-demand si el documento está firmado
+        // (el PDF oficial se genera al completarse todas las firmas)
+        if ($documento->estado === Documento::ESTADO_FIRMADO && !empty($documento->contenido_html)) {
+            $documento->generarPdfFinal();
+
+            if ($documento->archivo_pdf && Storage::disk('public')->exists($documento->archivo_pdf)) {
+                $nombre = str_replace('/', '_', $documento->numero ?? $documento->identificador);
+                return Storage::disk('public')->download(
+                    $documento->archivo_pdf,
+                    $nombre . '.pdf'
+                );
+            }
+        }
+
+        // Para documentos no firmados, devolver preview HTML
+        if (!empty($documento->contenido_html)) {
+            return response($documento->contenido_html)
+                ->header('Content-Type', 'text/html')
+                ->header('Content-Disposition', 'inline; filename="' . $documento->identificador . '.html"');
+        }
+
+        return response()->json(['message' => 'Documento sin contenido'], 404);
     }
 }

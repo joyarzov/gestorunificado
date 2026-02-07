@@ -6,53 +6,43 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent,
   CardActionArea,
   Avatar,
   Button,
-  Chip,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction,
   Paper,
   Skeleton,
   Alert,
   IconButton,
   Tooltip,
   Badge,
-  Divider,
 } from '@mui/material'
 import {
   Mail as MailIcon,
   Description as DocumentIcon,
   Forum as OirsIcon,
   Settings as AdminIcon,
-  Draw as FirmaIcon,
-  Inbox as BandejaIcon,
-  Assignment as SolicitudIcon,
-  ArrowForward as ArrowIcon,
   Refresh as RefreshIcon,
   Notifications as NotificacionesIcon,
   DoneAll as DoneAllIcon,
   Circle as CircleIcon,
   AccessTime as TimeIcon,
-  Warning as WarningIcon,
   ExitToApp as LogoutIcon,
   SwapHoriz as SwapRoleIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
-import { dashboardAPI, DashboardData } from '../api/dashboard'
 import { notificacionesAPI } from '../api/common'
 import { Notificacion } from '../types'
-import { format, parseISO, formatDistanceToNow } from 'date-fns'
+import { parseISO, formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useHoraOficial } from '../hooks/useHoraOficial'
 
 const Portal = () => {
   const navigate = useNavigate()
   const { user, selectedRole, hasAplicacion, isAdmin, logout, setShowRoleSelector } = useAuth()
-  const [data, setData] = useState<DashboardData | null>(null)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -61,14 +51,10 @@ const Portal = () => {
     setLoading(true)
     setError('')
     try {
-      const [dashRes, notifRes] = await Promise.all([
-        dashboardAPI.resumen(),
-        notificacionesAPI.noLeidas().catch(() => ({ success: false, data: [] as Notificacion[], message: '' })),
-      ])
-      if (dashRes.success) setData(dashRes.data)
+      const notifRes = await notificacionesAPI.noLeidas().catch(() => ({ success: false, data: [] as Notificacion[], message: '' }))
       if (notifRes.success) setNotificaciones(notifRes.data)
     } catch {
-      setError('Error al cargar el dashboard')
+      setError('Error al cargar las notificaciones')
     } finally {
       setLoading(false)
     }
@@ -87,6 +73,7 @@ const Portal = () => {
     setShowRoleSelector(true)
   }
 
+  const { hora, fecha } = useHoraOficial()
   const tieneMultiplesRoles = (user?.roles?.length ?? 0) > 1
 
   const handleMarcarTodasLeidas = async () => {
@@ -158,55 +145,6 @@ const Portal = () => {
     },
   ].filter(m => m.visible)
 
-  // Items pendientes del usuario
-  const getPendientes = () => {
-    if (!data) return []
-    const items: Array<{ texto: string; cantidad: number; color: string; icono: React.ReactNode; ruta: string; urgente?: boolean }> = []
-
-    if (data.correspondencia.pendientes_bandeja > 0) {
-      items.push({
-        texto: 'Correspondencias en tu bandeja',
-        cantidad: data.correspondencia.pendientes_bandeja,
-        color: '#4299e1',
-        icono: <BandejaIcon />,
-        ruta: '/bandeja',
-      })
-    }
-    if (data.gestor.mis_pendientes_firma > 0) {
-      items.push({
-        texto: 'Documentos pendientes de tu firma',
-        cantidad: data.gestor.mis_pendientes_firma,
-        color: '#e53e3e',
-        icono: <FirmaIcon />,
-        ruta: '/pendientes-firma',
-        urgente: true,
-      })
-    }
-    if (data.oirs.mis_asignadas > 0) {
-      items.push({
-        texto: 'Solicitudes OIRS asignadas',
-        cantidad: data.oirs.mis_asignadas,
-        color: '#ed8936',
-        icono: <SolicitudIcon />,
-        ruta: getOirsRoute(),
-      })
-    }
-    if (data.oirs.proximas_vencer > 0) {
-      items.push({
-        texto: 'OIRS por vencer (próximos 3 días)',
-        cantidad: data.oirs.proximas_vencer,
-        color: '#e53e3e',
-        icono: <WarningIcon />,
-        ruta: getOirsRoute(),
-        urgente: true,
-      })
-    }
-    return items
-  }
-
-  const pendientes = getPendientes()
-  const totalPendientes = pendientes.reduce((acc, p) => acc + p.cantidad, 0)
-
   return (
     <Box>
       {/* Header */}
@@ -238,13 +176,42 @@ const Portal = () => {
                   Hola, {user?.nombre?.split(' ')[0] || 'Usuario'}
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                  {getRolTexto()} {user?.departamento?.nombre ? ` \u00B7 ${user.departamento.nombre}` : ''} {' \u00B7 '}
-                  {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
+                  {getRolTexto()} {user?.departamento?.nombre ? ` \u00B7 ${user.departamento.nombre}` : ''}
+                  {fecha ? ` \u00B7 ${fecha}` : ''}
                 </Typography>
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {/* Hora Oficial de Chile - SHOA NTP */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  bgcolor: 'rgba(255, 255, 255, 0.15)',
+                  borderRadius: 2,
+                  px: 2,
+                  py: 0.75,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                }}
+              >
+                <TimeIcon sx={{ fontSize: 20, opacity: 0.9 }} />
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    sx={{ lineHeight: 1.2, fontFamily: 'monospace', letterSpacing: 1 }}
+                  >
+                    {hora || '--:--:--'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.75, lineHeight: 1, display: 'block', fontSize: '0.65rem' }}>
+                    Hora Oficial (Magallanes UTC-3)
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Tooltip title="Actualizar">
                 <IconButton onClick={fetchData} sx={{ color: 'white' }}>
                   <RefreshIcon />
@@ -290,6 +257,7 @@ const Portal = () => {
               >
                 Cerrar Sesión
               </Button>
+              </Box>
             </Box>
           </Box>
         </Container>
@@ -358,236 +326,73 @@ const Portal = () => {
           )}
         </Grid>
 
-        {/* === SECCIÓN 2: PENDIENTES + NOTIFICACIONES lado a lado === */}
-        <Grid container spacing={3}>
-          {/* Panel de Pendientes */}
-          <Grid item xs={12} md={7}>
-            <Paper sx={{ p: 0, overflow: 'hidden' }} elevation={2}>
-              <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="h6" fontWeight="bold">
-                    Tareas Pendientes
-                  </Typography>
-                  {!loading && totalPendientes > 0 && (
-                    <Chip label={totalPendientes} size="small" color="error" />
-                  )}
-                </Box>
-              </Box>
+        {/* === SECCIÓN 2: NOTIFICACIONES === */}
+        <Paper sx={{ p: 0, overflow: 'hidden' }} elevation={2}>
+          <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Badge badgeContent={notificaciones.length} color="error" max={99}>
+                <NotificacionesIcon color="action" />
+              </Badge>
+              <Typography variant="h6" fontWeight="bold">
+                Notificaciones
+              </Typography>
+            </Box>
+            {notificaciones.length > 0 && (
+              <Tooltip title="Marcar todas como leídas">
+                <IconButton size="small" onClick={handleMarcarTodasLeidas}>
+                  <DoneAllIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
 
-              {loading ? (
-                <Box sx={{ p: 3 }}>
-                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={56} sx={{ mb: 1 }} />)}
-                </Box>
-              ) : pendientes.length > 0 ? (
-                <List disablePadding>
-                  {pendientes.map((item, i) => (
-                    <ListItem
-                      key={i}
-                      divider={i < pendientes.length - 1}
-                      sx={{
-                        px: 3,
-                        py: 1.5,
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                      onClick={() => navigate(item.ruta)}
-                    >
-                      <ListItemIcon sx={{ minWidth: 44, color: item.color }}>
-                        {item.icono}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body1">
-                              {item.texto}
-                            </Typography>
-                            {item.urgente && (
-                              <Chip label="Urgente" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                            )}
-                          </Box>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip
-                            label={item.cantidad}
-                            size="small"
-                            sx={{
-                              bgcolor: `${item.color}18`,
-                              color: item.color,
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem',
-                              minWidth: 32,
-                            }}
-                          />
-                          <IconButton size="small" onClick={() => navigate(item.ruta)}>
-                            <ArrowIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Box sx={{ p: 4, textAlign: 'center' }}>
-                  <DoneAllIcon sx={{ fontSize: 48, color: 'success.light', mb: 1 }} />
-                  <Typography color="text.secondary">
-                    No tienes tareas pendientes
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Resumen rápido de documentos */}
-              {!loading && data && (
-                <>
-                  <Divider />
-                  <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Resumen de documentos
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#a0aec0">
-                            {data.gestor.documentos_borrador}
+          {loading ? (
+            <Box sx={{ p: 3 }}>
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={52} sx={{ mb: 1 }} />)}
+            </Box>
+          ) : notificaciones.length > 0 ? (
+            <List disablePadding sx={{ maxHeight: 500, overflow: 'auto' }}>
+              {notificaciones.slice(0, 15).map((notif, i) => (
+                <ListItem
+                  key={notif.id}
+                  divider={i < Math.min(notificaciones.length, 15) - 1}
+                  sx={{ px: 3, py: 1.5, alignItems: 'flex-start' }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+                    <CircleIcon sx={{ fontSize: 10, color: 'primary.main' }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" fontWeight="medium">
+                        {notif.titulo}
+                      </Typography>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {notif.mensaje}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                          <TimeIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.disabled">
+                            {formatDistanceToNow(parseISO(notif.created_at), { addSuffix: true, locale: es })}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">Borradores</Typography>
                         </Box>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#ed8936">
-                            {data.gestor.documentos_pendiente_firma}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Pend. Firma</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#48bb78">
-                            {data.gestor.documentos_firmados}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Firmados</Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  <Divider />
-                  <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Correspondencia
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="text.primary">
-                            {data.correspondencia.total}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Total</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#ed8936">
-                            {data.correspondencia.pendientes}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Pendientes</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#4299e1">
-                            {data.correspondencia.en_proceso}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">En proceso</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" fontWeight="bold" color="#48bb78">
-                            {data.correspondencia.completadas}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">Completadas</Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                </>
-              )}
-            </Paper>
-          </Grid>
-
-          {/* Panel de Notificaciones */}
-          <Grid item xs={12} md={5}>
-            <Paper sx={{ p: 0, overflow: 'hidden' }} elevation={2}>
-              <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Badge badgeContent={notificaciones.length} color="error" max={99}>
-                    <NotificacionesIcon color="action" />
-                  </Badge>
-                  <Typography variant="h6" fontWeight="bold">
-                    Notificaciones
-                  </Typography>
-                </Box>
-                {notificaciones.length > 0 && (
-                  <Tooltip title="Marcar todas como leídas">
-                    <IconButton size="small" onClick={handleMarcarTodasLeidas}>
-                      <DoneAllIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-
-              {loading ? (
-                <Box sx={{ p: 3 }}>
-                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={52} sx={{ mb: 1 }} />)}
-                </Box>
-              ) : notificaciones.length > 0 ? (
-                <List disablePadding sx={{ maxHeight: 420, overflow: 'auto' }}>
-                  {notificaciones.slice(0, 10).map((notif, i) => (
-                    <ListItem
-                      key={notif.id}
-                      divider={i < Math.min(notificaciones.length, 10) - 1}
-                      sx={{ px: 3, py: 1.5, alignItems: 'flex-start' }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                        <CircleIcon sx={{ fontSize: 10, color: 'primary.main' }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" fontWeight="medium">
-                            {notif.titulo}
-                          </Typography>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {notif.mensaje}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                              <TimeIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                              <Typography variant="caption" color="text.disabled">
-                                {formatDistanceToNow(parseISO(notif.created_at), { addSuffix: true, locale: es })}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Box sx={{ p: 4, textAlign: 'center' }}>
-                  <NotificacionesIcon sx={{ fontSize: 48, color: 'grey.300', mb: 1 }} />
-                  <Typography color="text.secondary">
-                    Sin notificaciones nuevas
-                  </Typography>
-                </Box>
-              )}
-            </Paper>
-          </Grid>
-        </Grid>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <NotificacionesIcon sx={{ fontSize: 48, color: 'grey.300', mb: 1 }} />
+              <Typography color="text.secondary">
+                Sin notificaciones nuevas
+              </Typography>
+            </Box>
+          )}
+        </Paper>
 
         {/* Footer */}
         <Box sx={{ textAlign: 'center', mt: 5 }}>

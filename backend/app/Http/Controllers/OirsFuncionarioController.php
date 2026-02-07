@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\OirsSolicitud;
 use App\Models\OirsAdjunto;
 use App\Models\OirsHistorial;
+use App\Models\Notificacion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -118,6 +120,21 @@ class OirsFuncionarioController extends Controller
             'estado_nuevo' => 'en_analisis',
             'observaciones' => 'Funcionario envió respuesta para revisión',
         ]);
+
+        // Notificar a administradores OIRS que hay respuesta para revisar
+        $adminsOirs = User::where(function ($q) {
+            $q->whereJsonContains('roles', 'oirs')
+                ->orWhereJsonContains('roles', 'admin');
+        })->get();
+        foreach ($adminsOirs as $admin) {
+            Notificacion::create([
+                'user_id' => $admin->id,
+                'tipo' => 'oirs_respuesta_interna',
+                'titulo' => 'Respuesta OIRS para revisión',
+                'mensaje' => "{$user->nombre} respondió la solicitud OIRS {$oir->folio}. Requiere tu revisión para enviar al ciudadano.",
+                'data' => ['oirs_id' => $oir->id],
+            ]);
+        }
 
         $oir->load(['adjuntos', 'historial.usuario']);
 

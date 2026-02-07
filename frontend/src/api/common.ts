@@ -94,6 +94,20 @@ export const usersAPI = {
   },
 }
 
+// API Hora Oficial (NTP SHOA - America/Punta_Arenas)
+export const horaOficialAPI = {
+  obtener: async () => {
+    const response = await api.get<ApiResponse<{
+      timestamp: string
+      unix: number
+      timezone: string
+      formatted: string
+      fecha: string
+    }>>('/hora-oficial')
+    return response.data
+  },
+}
+
 // API de Notificaciones
 export const notificacionesAPI = {
   listar: async () => {

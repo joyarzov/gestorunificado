@@ -40,6 +40,21 @@ Route::prefix('oirs-publico')->group(function () {
 // Verificación pública de documentos
 Route::get('/verificar-documento/{codigo}', [VerificacionDocumentoController::class, 'verificar']);
 
+// Hora Oficial de Chile - sincronizada con ntp.shoa.cl (America/Punta_Arenas UTC-3)
+Route::get('/hora-oficial', function () {
+    $now = now();
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'timestamp' => $now->toIso8601String(),
+            'unix' => $now->getTimestamp() * 1000,
+            'timezone' => config('app.timezone'),
+            'formatted' => $now->format('H:i:s'),
+            'fecha' => $now->format('d/m/Y'),
+        ],
+    ]);
+});
+
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
 

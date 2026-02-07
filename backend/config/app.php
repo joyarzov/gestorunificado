@@ -15,7 +15,7 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
-    'timezone' => 'America/Santiago',
+    'timezone' => 'America/Punta_Arenas',
 
     'locale' => 'es',
 

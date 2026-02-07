@@ -166,6 +166,19 @@ class DerivacionController extends Controller
             'departamentoDestino',
         ]);
 
+        // Notificar a usuarios del departamento destino
+        $deptoDestinoNombre = $derivacion->departamentoDestino->nombre ?? 'Destino';
+        $usuariosDestino = User::where('departamento_id', $request->departamento_destino_id)->get();
+        foreach ($usuariosDestino as $usuarioDestino) {
+            Notificacion::create([
+                'user_id' => $usuarioDestino->id,
+                'tipo' => 'correspondencia_recibida',
+                'titulo' => 'Nueva correspondencia en tu bandeja',
+                'mensaje' => "Se ha derivado la correspondencia de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
+                'data' => ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id],
+            ]);
+        }
+
         $message = $esAlcaldeDerivando
             ? 'Derivación creada con providencia generada'
             : 'Derivación creada correctamente';
@@ -248,6 +261,17 @@ class DerivacionController extends Controller
         $correspondencia = $derivacion->correspondencia;
         if ($correspondencia && $correspondencia->estado === 'derivada_funcionario') {
             $correspondencia->update(['estado' => 'completada']);
+
+            // Notificar al usuario que derivó originalmente
+            if ($derivacion->usuario_origen_id) {
+                Notificacion::create([
+                    'user_id' => $derivacion->usuario_origen_id,
+                    'tipo' => 'correspondencia_completada',
+                    'titulo' => 'Correspondencia completada',
+                    'mensaje' => "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
+                    'data' => ['correspondencia_id' => $correspondencia->id],
+                ]);
+            }
         }
 
         return $this->successResponse($derivacion, 'Derivación recibida');

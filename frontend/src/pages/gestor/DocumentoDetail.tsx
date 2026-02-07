@@ -313,22 +313,36 @@ const DocumentoDetail = () => {
 
           {/* Vista previa del contenido */}
           {documento.contenido_html && (
-            <Card>
-              <CardContent>
+            <Card sx={{ bgcolor: '#e0e0e0' }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="h6" gutterBottom>
                   Contenido
                 </Typography>
                 <Box
                   sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1,
-                    p: 2,
-                    bgcolor: 'white',
-                    minHeight: 400,
+                    maxHeight: '85vh',
+                    overflow: 'auto',
+                    pb: 2,
                   }}
-                  dangerouslySetInnerHTML={{ __html: documento.contenido_html }}
-                />
+                >
+                  <Box
+                    sx={{
+                      width: 794,
+                      mx: 'auto',
+                      minHeight: 1123,
+                      bgcolor: 'white',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                      p: '96px 72px 96px 96px',
+                      '& > div': {
+                        maxWidth: '100% !important',
+                        padding: '0 !important',
+                        margin: '0 !important',
+                        lineHeight: '1.6 !important',
+                      },
+                    }}
+                    dangerouslySetInnerHTML={{ __html: documento.contenido_html }}
+                  />
+                </Box>
               </CardContent>
             </Card>
           )}

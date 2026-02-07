@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OirsSolicitud;
 use App\Models\OirsHistorial;
+use App\Models\Notificacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -122,6 +123,15 @@ class OirsSolicitudController extends Controller
             'estado_nuevo' => 'asignada',
         ]);
 
+        // Notificar al funcionario asignado
+        Notificacion::create([
+            'user_id' => $request->funcionario_asignado_id,
+            'tipo' => 'oirs_asignada',
+            'titulo' => 'Solicitud OIRS asignada',
+            'mensaje' => "Se te ha asignado la solicitud OIRS {$oir->folio}: \"{$oir->asunto}\".",
+            'data' => ['oirs_id' => $oir->id],
+        ]);
+
         $oir->load(['unidadResponsable', 'funcionarioAsignado']);
 
         return $this->successResponse($oir, 'Solicitud asignada');
@@ -150,6 +160,17 @@ class OirsSolicitudController extends Controller
             'estado_nuevo' => 'respondido',
             'observaciones' => 'Respuesta enviada al ciudadano',
         ]);
+
+        // Notificar al funcionario asignado que la solicitud fue respondida
+        if ($oir->funcionario_asignado_id && $oir->funcionario_asignado_id !== Auth::id()) {
+            Notificacion::create([
+                'user_id' => $oir->funcionario_asignado_id,
+                'tipo' => 'oirs_respondida',
+                'titulo' => 'Solicitud OIRS respondida',
+                'mensaje' => "La solicitud OIRS {$oir->folio} ha sido respondida al ciudadano.",
+                'data' => ['oirs_id' => $oir->id],
+            ]);
+        }
 
         return $this->successResponse($oir, 'Respuesta enviada');
     }

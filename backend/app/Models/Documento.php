@@ -222,7 +222,13 @@ class Documento extends Model
             return;
         }
 
-        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;font-size:12px;}</style></head><body>' . $this->contenido_html . '</body></html>';
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+    @page { margin: 2.5cm 1.9cm 2.5cm 2.5cm; }
+    body { font-family: "Times New Roman", Times, serif; font-size: 12px; margin: 0; padding: 0; line-height: 1.6; }
+    body > div { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+</style>
+</head><body>' . $this->contenido_html . '</body></html>';
 
         $pdf = Pdf::loadHTML($html);
         $pdf->setPaper('letter');
