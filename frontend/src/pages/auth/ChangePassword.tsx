@@ -12,13 +12,20 @@ import {
 } from '@mui/material'
 import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
 import { authAPI } from '../../api/auth'
+import { useAuth } from '../../contexts/AuthContext'
 
 const ChangePassword = () => {
   const navigate = useNavigate()
+  const { user, checkAuth } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState('')
 
+  // Profile form
+  const [cargo, setCargo] = useState(user?.cargo || '')
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  // Password form
   const [formData, setFormData] = useState({
     currentPassword: '',
     password: '',
@@ -29,10 +36,27 @@ const ChangePassword = () => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    setProfileLoading(true)
+    try {
+      await authAPI.updateProfile({ cargo })
+      await checkAuth()
+      setSuccess('Perfil actualizado correctamente')
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any)?.response?.data?.message || 'Error al actualizar perfil')
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess(false)
+    setSuccess('')
 
     if (formData.password !== formData.passwordConfirmation) {
       setError('Las contraseñas no coinciden')
@@ -51,7 +75,7 @@ const ChangePassword = () => {
         formData.password,
         formData.passwordConfirmation
       )
-      setSuccess(true)
+      setSuccess('Contraseña actualizada correctamente')
       setFormData({
         currentPassword: '',
         password: '',
@@ -72,23 +96,74 @@ const ChangePassword = () => {
           Volver
         </Button>
         <Typography variant="h4" fontWeight="bold">
-          Cambiar Contraseña
+          Mi Perfil
         </Typography>
       </Box>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Profile Section */}
+      <Card sx={{ maxWidth: 500, mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Datos del Perfil
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="Nombre"
+            value={user?.nombre || ''}
+            disabled
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            label="RUT"
+            value={user?.rut || ''}
+            disabled
+            sx={{ mb: 2 }}
+          />
+
+          <Box component="form" onSubmit={handleUpdateProfile}>
+            <TextField
+              fullWidth
+              label="Cargo"
+              value={cargo}
+              onChange={(e) => setCargo(e.target.value)}
+              placeholder="Ej: Jefe de Departamento, Secretario Municipal..."
+              sx={{ mb: 2 }}
+            />
+
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              startIcon={profileLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+              disabled={profileLoading}
+            >
+              {profileLoading ? 'Guardando...' : 'Guardar Cargo'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Password Section */}
       <Card sx={{ maxWidth: 500 }}>
         <CardContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert severity="success" sx={{ mb: 3 }}>
-              Contraseña actualizada correctamente
-            </Alert>
-          )}
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Cambiar Contraseña
+          </Typography>
 
           <Box component="form" onSubmit={handleSubmit}>
             <TextField

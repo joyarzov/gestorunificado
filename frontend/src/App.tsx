@@ -35,7 +35,9 @@ import DocumentosList from './pages/gestor/DocumentosList'
 import DocumentoNew from './pages/gestor/DocumentoNew'
 import DocumentoDetail from './pages/gestor/DocumentoDetail'
 import PendientesFirma from './pages/gestor/PendientesFirma'
+import DocumentosRecibidos from './pages/gestor/DocumentosRecibidos'
 import RepositorioDocumental from './pages/gestor/RepositorioDocumental'
+import RepositorioExpedientes from './pages/gestor/RepositorioExpedientes'
 
 // Admin
 import Administracion from './pages/admin/Administracion'
@@ -90,6 +92,8 @@ function App() {
             <Route path="/documentos/nuevo" element={<DocumentoNew />} />
             <Route path="/documentos/:id" element={<DocumentoDetail />} />
             <Route path="/pendientes-firma" element={<PendientesFirma />} />
+            <Route path="/documentos-recibidos" element={<DocumentosRecibidos />} />
+            <Route path="/repositorio-expedientes" element={<RepositorioExpedientes />} />
             <Route path="/repositorio-documental" element={<RepositorioDocumental />} />
 
             {/* Administración */}

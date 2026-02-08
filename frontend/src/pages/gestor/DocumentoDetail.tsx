@@ -15,6 +15,12 @@ import {
   ListItemText,
   ListItemIcon,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Autocomplete,
+  TextField,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -26,12 +32,13 @@ import {
   Cancel as RechazadoIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
-import { Documento, DocumentoFirma, User } from '../../types'
+import { usersAPI } from '../../api/common'
+import { Documento, DocumentoEnvio, DocumentoFirma, User } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 
-const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
+const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error' | 'info'> = {
   borrador: 'default',
   pendiente_firma: 'warning',
   firmado: 'success',
@@ -47,6 +54,16 @@ const estadoLabels: Record<string, string> = {
   anulado: 'Anulado',
 }
 
+const envioEstadoLabels: Record<string, string> = {
+  enviado: 'Enviado',
+  completado: 'Completado',
+}
+
+const envioEstadoColors: Record<string, 'info' | 'success'> = {
+  enviado: 'info',
+  completado: 'success',
+}
+
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -55,6 +72,10 @@ const DocumentoDetail = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [envios, setEnvios] = useState<DocumentoEnvio[]>([])
+  const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
+  const [funcionarios, setFuncionarios] = useState<User[]>([])
+  const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -72,6 +93,15 @@ const DocumentoDetail = () => {
     try {
       const response = await documentosAPI.obtener(docId)
       setDocumento(response.data)
+      // Cargar envíos si el documento está firmado
+      if (response.data.estado === 'firmado') {
+        try {
+          const enviosRes = await documentosAPI.enviosDocumento(docId)
+          setEnvios(enviosRes.data)
+        } catch {
+          // No es crítico si falla
+        }
+      }
     } catch (err) {
       setError('Error al cargar el documento')
       console.error(err)
@@ -127,6 +157,48 @@ const DocumentoDetail = () => {
     }
   }
 
+  const handleEnviarDocumento = async (destinatarioIds?: number[]) => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await documentosAPI.enviarDocumento(parseInt(id), destinatarioIds)
+      setSnackbar({ open: true, message: 'Documento enviado correctamente', severity: 'success' })
+      setEnviarDialogOpen(false)
+      setSelectedDestinatarios([])
+      loadDocumento(parseInt(id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al enviar documento'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleClickEnviar = async () => {
+    // Si el documento tiene destinatario preestablecido (memo), enviar directo
+    const tieneDestinatarioPreset = documento?.contenido_json?.['_destinatario_id'] || documento?.contenido_json?.['para']
+    if (tieneDestinatarioPreset) {
+      handleEnviarDocumento()
+    } else {
+      // Para decretos y otros: abrir diálogo de selección
+      if (funcionarios.length === 0) {
+        try {
+          const res = await usersAPI.funcionarios()
+          setFuncionarios(res.data)
+        } catch {
+          // fallback silencioso
+        }
+      }
+      setEnviarDialogOpen(true)
+    }
+  }
+
+  const handleEnviarConDestinatarios = () => {
+    if (selectedDestinatarios.length === 0) return
+    const ids = selectedDestinatarios.map(u => u.id)
+    handleEnviarDocumento(ids)
+  }
+
   // Determinar si el usuario actual puede firmar:
   // - Documento en estado pendiente_firma
   // - Usuario está en firmantes_asignados O es firmante_asignado_id
@@ -144,6 +216,14 @@ const DocumentoDetail = () => {
     ((documento?.firmantes_asignados && documento.firmantes_asignados.length > 0) || documento?.firmante_asignado_id)
 
   const puedeFirmar = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo
+
+  // El creador puede enviar el documento firmado
+  // Para memos: tiene destinatario preestablecido → enviar directo (solo una vez)
+  // Para decretos: sin destinatario preestablecido → abrir selector de usuarios (puede enviar a múltiples)
+  const tieneDestinatarioPreset = documento?.contenido_json?.['_destinatario_id'] || documento?.contenido_json?.['para']
+  const yaEnviado = envios.length > 0
+  const puedeEnviar = documento?.estado === 'firmado' && documento?.creado_por === user?.id &&
+    (!tieneDestinatarioPreset || !yaEnviado)
 
   // Build the list of firmantes with their status
   const getFirmantesConEstado = () => {
@@ -212,8 +292,29 @@ const DocumentoDetail = () => {
             label={estadoLabels[documento.estado] || documento.estado}
             color={estadoColors[documento.estado]}
           />
+          {yaEnviado && (
+            <Chip
+              label={envios.length === 1
+                ? (envioEstadoLabels[envios[0].estado] || envios[0].estado)
+                : `Enviado a ${envios.length} destinatarios`
+              }
+              color={envios.every(e => e.estado === 'completado') ? 'success' : 'info'}
+              variant="outlined"
+            />
+          )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
+          {puedeEnviar && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={actionLoading ? <CircularProgress size={20} /> : <EnviarIcon />}
+              onClick={handleClickEnviar}
+              disabled={actionLoading}
+            >
+              Enviar
+            </Button>
+          )}
           {puedeEnviarAFirma && (
             <Button
               variant="outlined"
@@ -410,6 +511,45 @@ const DocumentoDetail = () => {
             </CardContent>
           </Card>
 
+          {/* Estado de Envío */}
+          {(yaEnviado || puedeEnviar) && (
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Envío
+                </Typography>
+                {yaEnviado ? (
+                  envios.map((envio) => (
+                    <Box key={envio.id} sx={{ mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                        <Typography variant="body2">
+                          <strong>Para:</strong> {envio.destinatario?.nombre}
+                        </Typography>
+                        <Chip
+                          label={envioEstadoLabels[envio.estado]}
+                          color={envioEstadoColors[envio.estado]}
+                          size="small"
+                        />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Enviado: {format(new Date(envio.fecha_envio), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      </Typography>
+                      {envio.fecha_recepcion && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Recibido: {format(new Date(envio.fecha_recepcion), 'dd/MM/yyyy HH:mm', { locale: es })}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Documento listo para enviar al destinatario
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Metadatos */}
           <Card>
             <CardContent>
@@ -440,6 +580,49 @@ const DocumentoDetail = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Diálogo para seleccionar destinatarios (decretos y otros) */}
+      <Dialog
+        open={enviarDialogOpen}
+        onClose={() => { setEnviarDialogOpen(false); setSelectedDestinatarios([]) }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Enviar Documento</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Seleccione los destinatarios a quienes desea enviar este documento.
+          </Typography>
+          <Autocomplete
+            multiple
+            options={funcionarios.filter(f => f.id !== user?.id && !envios.some(e => e.destinatario_id === f.id))}
+            getOptionLabel={(option) => option.nombre + (option.cargo ? ` - ${option.cargo}` : '')}
+            value={selectedDestinatarios}
+            onChange={(_, newValue) => setSelectedDestinatarios(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Destinatarios"
+                placeholder="Buscar funcionario..."
+                sx={{ mt: 1 }}
+              />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setEnviarDialogOpen(false); setSelectedDestinatarios([]) }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={actionLoading ? <CircularProgress size={20} /> : <EnviarIcon />}
+            onClick={handleEnviarConDestinatarios}
+            disabled={actionLoading || selectedDestinatarios.length === 0}
+          >
+            Enviar a {selectedDestinatarios.length > 0 ? `${selectedDestinatarios.length} destinatario${selectedDestinatarios.length > 1 ? 's' : ''}` : '...'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

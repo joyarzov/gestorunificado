@@ -15,6 +15,7 @@ class User extends Authenticatable
         'rut',
         'password',
         'nombre',
+        'cargo',
         'email',
         'roles',
         'aplicaciones_permitidas',

@@ -13,7 +13,9 @@ import {
   Description as DocumentoIcon,
   PendingActions as PendienteIcon,
   Archive as ArchiveIcon,
+  Inbox as RecibidosIcon,
   Add as AddIcon,
+  FolderCopy as RepoExpedientesIcon,
 } from '@mui/icons-material'
 
 const GestorDashboard = () => {
@@ -21,15 +23,15 @@ const GestorDashboard = () => {
 
   const modulos = [
     {
-      titulo: 'Expedientes',
-      descripcion: 'Gestión de expedientes administrativos',
+      titulo: 'Mis Expedientes',
+      descripcion: 'Expedientes creados por ti',
       icono: <ExpedienteIcon sx={{ fontSize: 48 }} />,
       color: '#4299e1',
       ruta: '/expedientes',
     },
     {
-      titulo: 'Documentos',
-      descripcion: 'Crear y gestionar documentos oficiales',
+      titulo: 'Mis Documentos',
+      descripcion: 'Documentos creados por ti',
       icono: <DocumentoIcon sx={{ fontSize: 48 }} />,
       color: '#48bb78',
       ruta: '/documentos',
@@ -40,6 +42,20 @@ const GestorDashboard = () => {
       icono: <PendienteIcon sx={{ fontSize: 48 }} />,
       color: '#ed8936',
       ruta: '/pendientes-firma',
+    },
+    {
+      titulo: 'Documentos Recibidos',
+      descripcion: 'Documentos enviados a tu bandeja',
+      icono: <RecibidosIcon sx={{ fontSize: 48 }} />,
+      color: '#38b2ac',
+      ruta: '/documentos-recibidos',
+    },
+    {
+      titulo: 'Repositorio de Expedientes',
+      descripcion: 'Expedientes cerrados de todos los usuarios',
+      icono: <RepoExpedientesIcon sx={{ fontSize: 48 }} />,
+      color: '#e53e3e',
+      ruta: '/repositorio-expedientes',
     },
     {
       titulo: 'Repositorio Documental',

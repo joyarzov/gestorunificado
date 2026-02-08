@@ -16,6 +16,7 @@ use App\Http\Controllers\ExpedienteController;
 use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\CorrelativoController;
 use App\Http\Controllers\TipoDocumentalController;
+use App\Http\Controllers\DocumentoEnvioController;
 use App\Http\Controllers\VerificacionDocumentoController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
 
@@ -188,6 +190,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{documento}/agregar-firmante', [DocumentoController::class, 'agregarFirmante']);
     });
     Route::apiResource('documentos', DocumentoController::class);
+
+    // Envíos de documentos
+    Route::prefix('documento-envios')->group(function () {
+        Route::get('/recibidos', [DocumentoEnvioController::class, 'recibidos']);
+        Route::get('/enviados', [DocumentoEnvioController::class, 'enviados']);
+        Route::post('/{envio}/acusar-recibo', [DocumentoEnvioController::class, 'acusarRecibo']);
+    });
+    Route::post('/documentos/{documento}/enviar', [DocumentoEnvioController::class, 'enviar']);
+    Route::get('/documentos/{documento}/envios', [DocumentoEnvioController::class, 'estadoEnvio']);
 
     // Tipos documentales - endpoint adicional
     Route::get('tipos-documentales-activos', [TipoDocumentalController::class, 'activos']);

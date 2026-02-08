@@ -55,6 +55,7 @@ const UsuariosManage = () => {
     rut: '',
     password: '',
     nombre: '',
+    cargo: '',
     email: '',
     roles: [] as string[],
     departamento_id: '',
@@ -89,6 +90,7 @@ const UsuariosManage = () => {
         rut: user.rut,
         password: '',
         nombre: user.nombre,
+        cargo: user.cargo || '',
         email: user.email || '',
         roles: user.roles || [],
         departamento_id: user.departamento_id?.toString() || '',
@@ -100,6 +102,7 @@ const UsuariosManage = () => {
         rut: '',
         password: '',
         nombre: '',
+        cargo: '',
         email: '',
         roles: ['usuario'],
         departamento_id: '',
@@ -121,15 +124,20 @@ const UsuariosManage = () => {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const data = {
+      const data: Record<string, unknown> = {
         ...formData,
         departamento_id: formData.departamento_id ? Number(formData.departamento_id) : undefined,
+      }
+
+      // No enviar password vacío al editar (solo si el admin escribió una nueva)
+      if (editingUser && !formData.password) {
+        delete data.password
       }
 
       if (editingUser) {
         await usersAPI.actualizar(editingUser.id, data)
       } else {
-        await usersAPI.crear(data as typeof data & { rut: string; password: string })
+        await usersAPI.crear(data)
       }
       loadData()
       handleCloseDialog()
@@ -181,6 +189,7 @@ const UsuariosManage = () => {
               <TableRow>
                 <TableCell>RUT</TableCell>
                 <TableCell>Nombre</TableCell>
+                <TableCell>Cargo</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Departamento</TableCell>
                 <TableCell>Roles</TableCell>
@@ -191,13 +200,13 @@ const UsuariosManage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : usuarios.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       No hay usuarios
                     </Typography>
@@ -208,6 +217,7 @@ const UsuariosManage = () => {
                   <TableRow key={user.id} hover>
                     <TableCell>{user.rut}</TableCell>
                     <TableCell>{user.nombre}</TableCell>
+                    <TableCell>{user.cargo || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>{user.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
@@ -276,6 +286,15 @@ const UsuariosManage = () => {
                 value={formData.nombre}
                 onChange={(e) => handleChange('nombre', e.target.value)}
                 required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Cargo"
+                value={formData.cargo}
+                onChange={(e) => handleChange('cargo', e.target.value)}
+                placeholder="Ej: Jefe de Departamento, Secretario Municipal..."
               />
             </Grid>
             <Grid item xs={12}>

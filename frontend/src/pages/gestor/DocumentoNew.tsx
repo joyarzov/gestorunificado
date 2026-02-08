@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -34,10 +34,13 @@ import {
   FormatAlignLeft as AlignLeftIcon,
   FormatAlignCenter as AlignCenterIcon,
   FormatAlignJustify as AlignJustifyIcon,
+  FormatBold as BoldIcon,
+  TableChart as TableIcon,
 } from '@mui/icons-material'
 import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
 import { DocumentoPlantilla, Expediente, User, Departamento } from '../../types'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Nombres de artículos en español
 const ORDINAL_NAMES = [
@@ -67,6 +70,7 @@ interface DistribucionItem {
 
 const DocumentoNew = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const expedienteIdParam = searchParams.get('expediente_id')
 
@@ -101,12 +105,59 @@ const DocumentoNew = () => {
   const [distribucion, setDistribucion] = useState<DistribucionItem[]>([])
   const [fieldAlignments, setFieldAlignments] = useState<Record<string, string>>({})
 
-  // Determinar si es decreto
+  // Ref para el editor de contenido del memo
+  const contenidoEditorRef = useRef<HTMLDivElement>(null)
+
+  // Determinar si es decreto (tiene artículos)
   const esDecreto = useMemo(() => {
     if (!selectedPlantilla) return false
     return selectedPlantilla.codigo === 'PLT_DECRETO_001' ||
            selectedPlantilla.codigo.toLowerCase().includes('decreto')
   }, [selectedPlantilla])
+
+  // Determinar si es memorándum
+  const esMemo = useMemo(() => {
+    if (!selectedPlantilla) return false
+    return selectedPlantilla.codigo === 'PLT_MEMO_001' ||
+           selectedPlantilla.codigo.toLowerCase().includes('memo')
+  }, [selectedPlantilla])
+
+  // Determinar si la plantilla usa firmas y distribución dinámicas
+  const usaFirmasDinamicas = useMemo(() => {
+    if (!selectedPlantilla?.variables_json) return false
+    return 'firmas_html' in selectedPlantilla.variables_json
+  }, [selectedPlantilla])
+
+  const usaDistribucion = useMemo(() => {
+    if (!selectedPlantilla?.variables_json) return false
+    return 'distribucion_html' in selectedPlantilla.variables_json
+  }, [selectedPlantilla])
+
+  // Inicializar contenido del editor rich text al volver al paso 2
+  useEffect(() => {
+    if (activeStep === 1 && esMemo && contenidoEditorRef.current) {
+      const val = variables.contenido || ''
+      if (contenidoEditorRef.current.innerHTML !== val) {
+        contenidoEditorRef.current.innerHTML = val
+      }
+    }
+  }, [activeStep, esMemo])
+
+  // Helpers para el editor de contenido rich text
+  const execFormatCommand = (command: string, value?: string) => {
+    document.execCommand(command, false, value)
+    if (contenidoEditorRef.current) {
+      handleVariableChange('contenido', contenidoEditorRef.current.innerHTML)
+    }
+  }
+
+  const insertTable = () => {
+    const tableHtml = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;"><tbody><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></tbody></table><p>&nbsp;</p>'
+    document.execCommand('insertHTML', false, tableHtml)
+    if (contenidoEditorRef.current) {
+      handleVariableChange('contenido', contenidoEditorRef.current.innerHTML)
+    }
+  }
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -160,6 +211,12 @@ const DocumentoNew = () => {
                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
     varsIniciales['fecha'] = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`
     varsIniciales['anio'] = String(hoy.getFullYear())
+
+    // Auto-llenar remitente en memorándum con el usuario logueado
+    const esMemoPlantilla = plantilla.codigo === 'PLT_MEMO_001' || plantilla.codigo.toLowerCase().includes('memo')
+    if (esMemoPlantilla && user) {
+      varsIniciales['de'] = user.nombre + (user.cargo ? `\n${user.cargo}` : '')
+    }
 
     setVariables(varsIniciales)
     setActiveStep(1)
@@ -228,8 +285,6 @@ const DocumentoNew = () => {
 
       if (esDecreto) {
         variablesCompletas['articulos_html'] = generarArticulosHtml()
-        variablesCompletas['firmas_html'] = generarFirmasHtml()
-        variablesCompletas['distribucion_html'] = generarDistribucionHtml()
 
         // Aplicar alineación a campos de texto
         for (const campo of ['vistos', 'texto_decreto'] as const) {
@@ -238,6 +293,13 @@ const DocumentoNew = () => {
             variablesCompletas[campo] = `<div style="text-align: ${align};">${variablesCompletas[campo]}</div>`
           }
         }
+      }
+
+      if (usaFirmasDinamicas) {
+        variablesCompletas['firmas_html'] = generarFirmasHtml()
+      }
+      if (usaDistribucion) {
+        variablesCompletas['distribucion_html'] = generarDistribucionHtml()
       }
 
       const response = await documentosAPI.previsualizar({
@@ -250,7 +312,7 @@ const DocumentoNew = () => {
     } finally {
       setPreviewLoading(false)
     }
-  }, [selectedPlantilla, variables, esDecreto, fieldAlignments, generarArticulosHtml, generarFirmasHtml, generarDistribucionHtml])
+  }, [selectedPlantilla, variables, esDecreto, usaFirmasDinamicas, usaDistribucion, fieldAlignments, generarArticulosHtml, generarFirmasHtml, generarDistribucionHtml])
 
   // Debounce para preview automático
   useEffect(() => {
@@ -300,8 +362,6 @@ const DocumentoNew = () => {
       const variablesFinales = { ...variables }
       if (esDecreto) {
         variablesFinales['articulos_html'] = generarArticulosHtml()
-        variablesFinales['firmas_html'] = generarFirmasHtml()
-        variablesFinales['distribucion_html'] = generarDistribucionHtml()
 
         // Aplicar alineación a campos de texto
         for (const campo of ['vistos', 'texto_decreto'] as const) {
@@ -310,6 +370,12 @@ const DocumentoNew = () => {
             variablesFinales[campo] = `<div style="text-align: ${align};">${variablesFinales[campo]}</div>`
           }
         }
+      }
+      if (usaFirmasDinamicas) {
+        variablesFinales['firmas_html'] = generarFirmasHtml()
+      }
+      if (usaDistribucion) {
+        variablesFinales['distribucion_html'] = generarDistribucionHtml()
       }
 
       const data = {
@@ -412,15 +478,163 @@ const DocumentoNew = () => {
       return null
     }
 
+    // Memo: "de" es read-only (usuario logueado)
+    if (esMemo && key === 'de') {
+      return (
+        <Grid item xs={12} md={6} key={key}>
+          <TextField
+            fullWidth
+            label="Remitente (De)"
+            value={variables[key] || ''}
+            disabled
+            multiline
+            rows={2}
+          />
+        </Grid>
+      )
+    }
+
+    // Memo: "para" es selector de funcionarios con cargo
+    if (esMemo && key === 'para') {
+      return (
+        <Grid item xs={12} md={6} key={key}>
+          <Autocomplete
+            options={funcionarios}
+            getOptionLabel={(option) => `${option.nombre}${option.cargo ? ` - ${option.cargo}` : option.departamento ? ` - ${option.departamento.nombre}` : ''}`}
+            value={funcionarios.find(f => variables[key]?.startsWith(f.nombre)) || null}
+            onChange={(_, newValue) => {
+              if (newValue) {
+                handleVariableChange(key, newValue.nombre + (newValue.cargo ? `\n${newValue.cargo}` : ''))
+                handleVariableChange('_destinatario_id', String(newValue.id))
+              } else {
+                handleVariableChange(key, '')
+                handleVariableChange('_destinatario_id', '')
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Destinatario (Para)"
+                placeholder="Seleccionar funcionario..."
+              />
+            )}
+          />
+          {variables[key] && (
+            <TextField
+              fullWidth
+              value={variables[key]}
+              disabled
+              multiline
+              rows={2}
+              sx={{ mt: 1 }}
+            />
+          )}
+        </Grid>
+      )
+    }
+
+    // Memo: contenido con editor rich text
+    if (esMemo && key === 'contenido') {
+      return (
+        <Grid item xs={12} key={key}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Contenido del memorándum
+          </Typography>
+          <Box
+            sx={{
+              border: '1px solid rgba(0,0,0,0.23)',
+              borderRadius: 1,
+              '&:focus-within': { borderColor: 'primary.main', borderWidth: 2 },
+            }}
+          >
+            {/* Toolbar */}
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 0.5,
+                p: 1,
+                borderBottom: '1px solid rgba(0,0,0,0.12)',
+                bgcolor: '#f5f5f5',
+                borderRadius: '4px 4px 0 0',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                onChange={(_, v) => {
+                  if (v) execFormatCommand(v === 'left' ? 'justifyLeft' : v === 'center' ? 'justifyCenter' : 'justifyFull')
+                }}
+              >
+                <ToggleButton value="left" aria-label="Alinear izquierda" onMouseDown={(e) => e.preventDefault()}>
+                  <AlignLeftIcon fontSize="small" />
+                </ToggleButton>
+                <ToggleButton value="center" aria-label="Centrar" onMouseDown={(e) => e.preventDefault()}>
+                  <AlignCenterIcon fontSize="small" />
+                </ToggleButton>
+                <ToggleButton value="justify" aria-label="Justificar" onMouseDown={(e) => e.preventDefault()}>
+                  <AlignJustifyIcon fontSize="small" />
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+              <IconButton
+                size="small"
+                onClick={() => execFormatCommand('bold')}
+                onMouseDown={(e) => e.preventDefault()}
+                title="Negrita"
+              >
+                <BoldIcon fontSize="small" />
+              </IconButton>
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+              <IconButton
+                size="small"
+                onClick={insertTable}
+                onMouseDown={(e) => e.preventDefault()}
+                title="Insertar tabla"
+              >
+                <TableIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            {/* Editor */}
+            <Box
+              ref={contenidoEditorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={() => {
+                if (contenidoEditorRef.current) {
+                  handleVariableChange('contenido', contenidoEditorRef.current.innerHTML)
+                }
+              }}
+              sx={{
+                p: 2,
+                minHeight: 200,
+                maxHeight: 600,
+                resize: 'vertical',
+                overflow: 'auto',
+                outline: 'none',
+                fontFamily: '"Times New Roman", serif',
+                fontSize: '14px',
+                lineHeight: 1.6,
+                '& table': { borderCollapse: 'collapse', width: '100%', my: 1 },
+                '& td, & th': { border: '1px solid #999', p: 1, minWidth: 40 },
+              }}
+            />
+          </Box>
+        </Grid>
+      )
+    }
+
     const esMultilinea = ['vistos', 'contenido', 'objeto', 'obligaciones', 'vigencia', 'considerando', 'resuelvo', 'texto_decreto'].includes(key)
 
-    // Overrides para decreto
-    const esNumeroDecreto = esDecreto && key === 'numero'
+    // Overrides para decreto y memo
+    const esNumeroEspecial = (esDecreto || esMemo) && key === 'numero'
     const esTextoDecreto = esDecreto && key === 'texto_decreto'
     const tieneAlineacion = esDecreto && ['vistos', 'texto_decreto'].includes(key)
 
     let label = descripcion || key
-    if (esNumeroDecreto) label = 'Número de decreto'
+    if (esDecreto && key === 'numero') label = 'Número de decreto'
+    if (esMemo && key === 'numero') label = 'Número de memorándum'
     if (esTextoDecreto) label = 'DECRETO'
 
     return (
@@ -435,7 +649,7 @@ const DocumentoNew = () => {
           label={label}
           value={variables[key] || ''}
           onChange={(e) => {
-            if (esNumeroDecreto) {
+            if (esNumeroEspecial) {
               handleVariableChange(key, e.target.value.replace(/[^0-9]/g, ''))
             } else {
               handleVariableChange(key, e.target.value)
@@ -443,8 +657,8 @@ const DocumentoNew = () => {
           }}
           multiline={esMultilinea}
           rows={esMultilinea ? 4 : 1}
-          placeholder={esNumeroDecreto ? 'Ingrese número' : descripcion}
-          inputProps={esNumeroDecreto ? { inputMode: 'numeric' as const, pattern: '[0-9]*' } : undefined}
+          placeholder={esNumeroEspecial ? 'Ingrese número' : descripcion}
+          inputProps={esNumeroEspecial ? { inputMode: 'numeric' as const, pattern: '[0-9]*' } : undefined}
           sx={tieneAlineacion ? { '& textarea': { textAlign: getAlignment(key) } } : undefined}
         />
       </Grid>
@@ -582,7 +796,7 @@ const DocumentoNew = () => {
         </Grid>
 
         {/* Para decretos: mostrar variables antes de texto_decreto, luego artículos, luego texto_decreto */}
-        {esDecreto && selectedPlantilla.variables_json ? (
+        {esDecreto && selectedPlantilla?.variables_json ? (
           <>
             {/* Variables excepto texto_decreto */}
             {Object.entries(selectedPlantilla.variables_json)
@@ -650,8 +864,8 @@ const DocumentoNew = () => {
           )
         )}
 
-        {/* Distribución para decretos */}
-        {esDecreto && (
+        {/* Distribución */}
+        {usaDistribucion && (
           <>
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />

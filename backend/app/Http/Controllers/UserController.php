@@ -29,7 +29,7 @@ class UserController extends Controller
     {
         $funcionarios = User::where('activo', true)
             ->orderBy('nombre')
-            ->get(['id', 'rut', 'nombre', 'departamento_id']);
+            ->get(['id', 'rut', 'nombre', 'cargo', 'departamento_id']);
 
         return $this->successResponse($funcionarios);
     }
@@ -40,6 +40,7 @@ class UserController extends Controller
             'rut' => 'required|string|max:12|unique:users,rut',
             'password' => 'required|string|min:6',
             'nombre' => 'required|string|max:100',
+            'cargo' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:150',
             'roles' => 'required|array',
             'aplicaciones_permitidas' => 'nullable|array',
@@ -53,6 +54,7 @@ class UserController extends Controller
             'rut' => $rut,
             'password' => Hash::make($request->password),
             'nombre' => $request->nombre,
+            'cargo' => $request->cargo,
             'email' => $request->email,
             'roles' => $request->roles,
             'aplicaciones_permitidas' => $request->aplicaciones_permitidas,
@@ -77,21 +79,31 @@ class UserController extends Controller
     {
         $request->validate([
             'nombre' => 'sometimes|required|string|max:100',
+            'cargo' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:150',
+            'password' => 'nullable|string|min:6',
             'roles' => 'sometimes|array',
             'aplicaciones_permitidas' => 'nullable|array',
             'departamento_id' => 'nullable|exists:departamentos,id',
             'visador' => 'sometimes|boolean',
         ]);
 
-        $user->update($request->only([
+        $data = $request->only([
             'nombre',
+            'cargo',
             'email',
             'roles',
             'aplicaciones_permitidas',
             'departamento_id',
             'visador',
-        ]));
+        ]);
+
+        // Solo actualizar contraseña si viene con valor
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
 
         $user->load('departamento');
 

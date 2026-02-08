@@ -46,30 +46,18 @@ export const usersAPI = {
     return response.data
   },
 
-  crear: async (data: {
-    rut: string
-    password: string
-    nombre: string
-    email?: string
-    roles: string[]
-    aplicaciones_permitidas?: string[]
-    departamento_id?: number
-    visador?: boolean
-  }) => {
+  crear: async (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: Record<string, any>,
+  ) => {
     const response = await api.post<ApiResponse<User>>('/users', data)
     return response.data
   },
 
   actualizar: async (
     id: number,
-    data: {
-      nombre?: string
-      email?: string
-      roles?: string[]
-      aplicaciones_permitidas?: string[]
-      departamento_id?: number
-      visador?: boolean
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: Record<string, any>,
   ) => {
     const response = await api.put<ApiResponse<User>>(`/users/${id}`, data)
     return response.data

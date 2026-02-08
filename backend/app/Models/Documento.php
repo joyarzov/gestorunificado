@@ -149,6 +149,11 @@ class Documento extends Model
         return $this->hasMany(DocumentoFirma::class)->orderBy('orden');
     }
 
+    public function envios()
+    {
+        return $this->hasMany(DocumentoEnvio::class);
+    }
+
     public function firmasPendientes()
     {
         return $this->firmas()->where('estado', 'pendiente');
@@ -222,16 +227,30 @@ class Documento extends Model
             return;
         }
 
+        $contenido = $this->contenido_html;
+
+        // Convertir logo a base64 para que DomPDF pueda renderizarlo
+        $logoPath = storage_path('app/public/logo.png');
+        if (file_exists($logoPath)) {
+            $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            $contenido = str_replace(
+                ['src="/logo.png"', "src='/logo.png'"],
+                ['src="' . $logoBase64 . '"', 'src="' . $logoBase64 . '"'],
+                $contenido
+            );
+        }
+
         $html = '<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
-    @page { margin: 2.5cm 1.9cm 2.5cm 2.5cm; }
-    body { font-family: "Times New Roman", Times, serif; font-size: 12px; margin: 0; padding: 0; line-height: 1.6; }
+    @page { margin: 3.4cm 2.5cm 3.4cm 3.4cm; }
+    body { font-family: serif; font-size: 12px; margin: 0; padding: 0; line-height: 1.6; }
     body > div { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
 </style>
-</head><body>' . $this->contenido_html . '</body></html>';
+</head><body>' . $contenido . '</body></html>';
 
         $pdf = Pdf::loadHTML($html);
         $pdf->setPaper('letter');
+        $pdf->setOption('isRemoteEnabled', true);
 
         $filename = 'documentos/' . $this->identificador . '_' . time() . '.pdf';
         Storage::disk('public')->put($filename, $pdf->output());

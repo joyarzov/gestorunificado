@@ -254,12 +254,23 @@ class ExpedienteController extends Controller
     {
         $user = Auth::user();
 
-        $query = Expediente::with(['departamento'])
-            ->where('creado_por', $user->id)
-            ->orWhere('departamento_id', $user->departamento_id);
+        $query = Expediente::with(['creador', 'departamento'])
+            ->where(function ($q) use ($user) {
+                $q->where('creado_por', $user->id)
+                    ->orWhere('departamento_id', $user->departamento_id);
+            });
 
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('identificador', 'like', "%{$search}%")
+                    ->orWhere('titulo', 'like', "%{$search}%")
+                    ->orWhere('asunto', 'like', "%{$search}%");
+            });
         }
 
         $expedientes = $query->orderBy('created_at', 'desc')

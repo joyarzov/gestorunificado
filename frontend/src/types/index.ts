@@ -11,6 +11,7 @@ export interface User {
   id: number
   rut: string
   nombre: string
+  cargo?: string
   email?: string
   roles: string[]
   aplicaciones_permitidas?: string[]
@@ -264,6 +265,23 @@ export interface DocumentoFirma {
   observaciones?: string
   es_simulada?: boolean
   metadata_firma?: Record<string, unknown>
+}
+
+// Envío de documentos
+export interface DocumentoEnvio {
+  id: number
+  documento_id: number
+  documento?: Documento
+  remitente_id: number
+  remitente?: User
+  destinatario_id: number
+  destinatario?: User
+  estado: 'enviado' | 'completado'
+  fecha_envio: string
+  fecha_recepcion?: string
+  observaciones?: string
+  created_at: string
+  updated_at: string
 }
 
 // Tipos de API

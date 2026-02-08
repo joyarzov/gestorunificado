@@ -50,6 +50,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'rut' => $user->rut,
                 'nombre' => $user->nombre,
+                'cargo' => $user->cargo,
                 'email' => $user->email,
                 'roles' => $user->roles ?? [],
                 'aplicaciones_permitidas' => $user->aplicaciones_permitidas,
@@ -83,6 +84,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'rut' => $user->rut,
             'nombre' => $user->nombre,
+            'cargo' => $user->cargo,
             'email' => $user->email,
             'roles' => $user->roles ?? [],
             'aplicaciones_permitidas' => $user->aplicaciones_permitidas,
@@ -90,6 +92,33 @@ class AuthController extends Controller
             'departamento' => $user->departamento?->nombre,
             'visador' => $user->visador,
         ]);
+    }
+
+    /**
+     * Actualizar perfil del usuario autenticado
+     */
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'cargo' => 'nullable|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $user->update($request->only('cargo'));
+        $user->load('departamento');
+
+        return $this->successResponse([
+            'id' => $user->id,
+            'rut' => $user->rut,
+            'nombre' => $user->nombre,
+            'cargo' => $user->cargo,
+            'email' => $user->email,
+            'roles' => $user->roles ?? [],
+            'aplicaciones_permitidas' => $user->aplicaciones_permitidas,
+            'departamento_id' => $user->departamento_id,
+            'departamento' => $user->departamento?->nombre,
+            'visador' => $user->visador,
+        ], 'Perfil actualizado correctamente');
     }
 
     /**

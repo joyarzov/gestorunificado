@@ -33,4 +33,9 @@ export const authAPI = {
     })
     return response.data
   },
+
+  updateProfile: async (data: { cargo?: string }) => {
+    const response = await api.put<ApiResponse<User>>('/auth/profile', data)
+    return response.data
+  },
 }

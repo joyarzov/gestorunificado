@@ -44,7 +44,7 @@ class DocumentoPlantillaSeeder extends Seeder
         );
 
         // Plantilla de Memorándum
-        DocumentoPlantilla::firstOrCreate(
+        DocumentoPlantilla::updateOrCreate(
             ['codigo' => 'PLT_MEMO_001'],
             [
                 'nombre' => 'Memorándum Estándar',
@@ -54,11 +54,13 @@ class DocumentoPlantillaSeeder extends Seeder
                 'variables_json' => [
                     'numero' => 'Número del memorándum',
                     'anio' => 'Año',
-                    'para' => 'Destinatario (cargo)',
-                    'de' => 'Remitente (cargo)',
+                    'para' => 'Destinatario',
+                    'de' => 'Remitente',
                     'referencia' => 'Referencia o asunto',
                     'contenido' => 'Contenido del memorándum',
-                    'fecha' => 'Fecha de emisión'
+                    'fecha' => 'Fecha de emisión',
+                    'firmas_html' => 'HTML generado de firmas',
+                    'distribucion_html' => 'HTML generado de distribución'
                 ],
                 'activo' => true,
                 'requiere_firma' => true,
@@ -221,26 +223,45 @@ class DocumentoPlantillaSeeder extends Seeder
     private function getPlantillaMemorandum(): string
     {
         return '
-<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px;">
-    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px;">
-        <h1 style="margin: 0;">MUNICIPALIDAD DE CABO DE HORNOS</h1>
-        <h2 style="margin: 10px 0 0 0;">MEMORÁNDUM N° {{numero}}/{{anio}}</h2>
+<div style="font-family: Times New Roman, serif; max-width: 800px; margin: 0 auto; padding: 40px; line-height: 1.6;">
+    <!-- Logo en la parte superior izquierda -->
+    <div style="margin-bottom: 40px;">
+        <div style="text-align: left; margin-bottom: 10px;">
+            <img src="/logo.png" alt="Logo Municipalidad" style="max-width: 200px; height: auto;" />
+        </div>
+        <div style="text-align: center;">
+            <h2 style="margin: 0;"><strong>MEMORÁNDUM Nº {{numero}}/{{anio}}</strong></h2>
+        </div>
     </div>
 
+    <!-- Referencia y Fecha alineados a la derecha (igual que decreto) -->
+    <div style="margin-bottom: 50px; text-align: right;">
+        <p><strong>Ref:</strong> {{referencia}}</p>
+        <p><strong>Puerto Williams,</strong> {{fecha}}</p>
+    </div>
+
+    <!-- DE / PARA -->
     <div style="margin-bottom: 30px;">
-        <p><strong>DE:</strong> {{de}}</p>
-        <p><strong>PARA:</strong> {{para}}</p>
-        <p><strong>REFERENCIA:</strong> {{referencia}}</p>
-        <p><strong>FECHA:</strong> {{fecha}}</p>
+        <p><strong>DE:</strong></p>
+        <p style="margin-left: 20px; white-space: pre-line;">{{de}}</p>
+        <p style="margin-top: 10px;"><strong>PARA:</strong></p>
+        <p style="margin-left: 20px; white-space: pre-line;">{{para}}</p>
     </div>
 
-    <div style="margin-top: 40px; text-align: justify;">
-        <p>{{contenido}}</p>
+    <!-- Contenido -->
+    <div style="margin-bottom: 30px; text-align: justify;">
+        {{contenido}}
     </div>
 
-    <div style="margin-top: 80px; text-align: center;">
-        <p>___________________________</p>
-        <p><strong>{{de}}</strong></p>
+    <!-- Firmas -->
+    <div style="margin-top: 80px;">
+        {{firmas_html}}
+    </div>
+
+    <!-- Distribución -->
+    <div style="margin-top: 40px; font-size: 8pt; font-style: italic;">
+        <p><strong>DISTRIBUCIÓN:</strong></p>
+        {{distribucion_html}}
     </div>
 </div>';
     }

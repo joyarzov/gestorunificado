@@ -3,6 +3,7 @@ import {
   ApiResponse,
   Expediente,
   Documento,
+  DocumentoEnvio,
   TipoDocumental,
   DocumentoPlantilla,
   PaginatedResponse,
@@ -264,6 +265,37 @@ export const documentosAPI = {
       por_tipo: Record<string, number>
       creados_este_mes: number
     }>>('/documentos/estadisticas')
+    return response.data
+  },
+
+  // Enviar documento firmado a destinatario(s)
+  enviarDocumento: async (id: number, destinatarioIds?: number[]) => {
+    const data = destinatarioIds ? { destinatario_ids: destinatarioIds } : {}
+    const response = await api.post<ApiResponse<DocumentoEnvio | DocumentoEnvio[]>>(`/documentos/${id}/enviar`, data)
+    return response.data
+  },
+
+  // Obtener envíos de un documento
+  enviosDocumento: async (id: number) => {
+    const response = await api.get<ApiResponse<DocumentoEnvio[]>>(`/documentos/${id}/envios`)
+    return response.data
+  },
+}
+
+// API de Envíos de Documentos
+export const documentoEnviosAPI = {
+  recibidos: async (params?: { estado?: string; page?: number; per_page?: number }) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<DocumentoEnvio>>>('/documento-envios/recibidos', { params })
+    return response.data
+  },
+
+  enviados: async (params?: { estado?: string; page?: number; per_page?: number }) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<DocumentoEnvio>>>('/documento-envios/enviados', { params })
+    return response.data
+  },
+
+  acusarRecibo: async (envioId: number) => {
+    const response = await api.post<ApiResponse<DocumentoEnvio>>(`/documento-envios/${envioId}/acusar-recibo`)
     return response.data
   },
 }

@@ -64,6 +64,10 @@ class DocumentoController extends Controller
             });
         }
 
+        if ($request->input('creado_por') === 'me') {
+            $query->where('creado_por', $request->user()->id);
+        }
+
         $documentos = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10));
 

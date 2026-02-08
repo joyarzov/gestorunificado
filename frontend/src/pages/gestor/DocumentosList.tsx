@@ -90,7 +90,8 @@ const DocumentosList = () => {
         tipo_documental_id: tipoDocumentalId ? Number(tipoDocumentalId) : undefined,
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
-      })
+        creado_por: 'me',
+      } as any)
       setDocumentos(response.data.data)
       setTotal(response.data.total)
     } catch (error) {
@@ -122,7 +123,7 @@ const DocumentosList = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" fontWeight="bold">
-          Documentos
+          Mis Documentos
         </Typography>
         <Button
           variant="contained"

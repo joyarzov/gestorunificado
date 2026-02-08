@@ -58,6 +58,7 @@ import { expedientesAPI, documentosAPI } from '../../api/gestor'
 import { Expediente, Documento } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useAuth } from '../../contexts/AuthContext'
 
 const estadoColors: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
   borrador: 'default',
@@ -134,6 +135,7 @@ const SortableDocItem = ({ doc, onClick }: SortableDocItemProps) => {
 const ExpedienteDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [expediente, setExpediente] = useState<Expediente | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -320,6 +322,9 @@ const ExpedienteDetail = () => {
   }
 
   const estaCerrado = expediente?.estado === 'cerrado' || expediente?.estado === 'archivado'
+  const esCreador = expediente?.creado_por === user?.id
+  const esAdmin = user?.roles?.includes('admin')
+  const puedeEditar = esCreador || esAdmin
 
   if (loading) {
     return (
@@ -355,32 +360,34 @@ const ExpedienteDetail = () => {
             color={estadoColors[expediente.estado] || 'default'}
           />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {!estaCerrado ? (
+        {puedeEditar && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {!estaCerrado ? (
+              <Button
+                variant="outlined"
+                startIcon={<CerrarIcon />}
+                onClick={handleCerrar}
+              >
+                Cerrar
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                startIcon={<ReabrirIcon />}
+                onClick={handleReabrir}
+              >
+                Reabrir
+              </Button>
+            )}
             <Button
-              variant="outlined"
-              startIcon={<CerrarIcon />}
-              onClick={handleCerrar}
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/expedientes/${id}/editar`)}
             >
-              Cerrar
+              Editar
             </Button>
-          ) : (
-            <Button
-              variant="outlined"
-              startIcon={<ReabrirIcon />}
-              onClick={handleReabrir}
-            >
-              Reabrir
-            </Button>
-          )}
-          <Button
-            variant="contained"
-            startIcon={<EditIcon />}
-            onClick={() => navigate(`/expedientes/${id}/editar`)}
-          >
-            Editar
-          </Button>
-        </Box>
+          </Box>
+        )}
       </Box>
 
       <Grid container spacing={3}>
@@ -473,14 +480,16 @@ const ExpedienteDetail = () => {
                 <Typography variant="h6">
                   Documentos del Expediente
                 </Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={handleMenuOpen}
-                  disabled={estaCerrado}
-                >
-                  Agregar Documento
-                </Button>
+                {puedeEditar && (
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleMenuOpen}
+                    disabled={estaCerrado}
+                  >
+                    Agregar Documento
+                  </Button>
+                )}
                 <Menu
                   anchorEl={menuAnchor}
                   open={Boolean(menuAnchor)}

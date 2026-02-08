@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
-  Button,
   Card,
   Table,
   TableBody,
@@ -17,9 +16,9 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
+  Tooltip,
 } from '@mui/material'
 import {
-  Add as AddIcon,
   Visibility as ViewIcon,
   Search as SearchIcon,
 } from '@mui/icons-material'
@@ -28,28 +27,7 @@ import { Expediente } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const estadoColors: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
-  borrador: 'default',
-  en_tramite: 'info',
-  cerrado: 'warning',
-  archivado: 'default',
-}
-
-const estadoLabels: Record<string, string> = {
-  borrador: 'Borrador',
-  en_tramite: 'En Trámite',
-  cerrado: 'Cerrado',
-  archivado: 'Archivado',
-}
-
-const nivelAccesoLabels: Record<number, string> = {
-  1: 'Público',
-  2: 'Restringido',
-  3: 'Reservado',
-  4: 'Secreto',
-}
-
-const ExpedientesList = () => {
+const RepositorioExpedientes = () => {
   const navigate = useNavigate()
   const [expedientes, setExpedientes] = useState<Expediente[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,9 +44,10 @@ const ExpedientesList = () => {
   const loadExpedientes = async () => {
     setLoading(true)
     try {
-      const response = await expedientesAPI.misExpedientes({
+      const response = await expedientesAPI.listar({
         page: page + 1,
         per_page: rowsPerPage,
+        estado: 'cerrado',
         search,
       })
       setExpedientes(response.data.data)
@@ -87,34 +66,27 @@ const ExpedientesList = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight="bold">
-          Mis Expedientes
+          Repositorio de Expedientes
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/expedientes/nuevo')}
-        >
-          Nuevo Expediente
-        </Button>
+        <Typography variant="body1" color="text.secondary">
+          Expedientes cerrados de la municipalidad
+        </Typography>
       </Box>
 
       <Card sx={{ mb: 3, p: 2 }}>
         <TextField
           fullWidth
-          placeholder="Buscar por identificador, título, asunto..."
+          placeholder="Buscar por identificador, titulo, asunto..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon />
               </InputAdornment>
-            ),
-            endAdornment: (
-              <Button onClick={handleSearch}>Buscar</Button>
             ),
           }}
         />
@@ -126,31 +98,30 @@ const ExpedientesList = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Identificador</TableCell>
-                <TableCell>Título</TableCell>
+                <TableCell>Titulo</TableCell>
                 <TableCell>Asunto</TableCell>
-                <TableCell>Nivel Acceso</TableCell>
-                <TableCell>Fecha Creación</TableCell>
-                <TableCell>Estado</TableCell>
+                <TableCell>Creador</TableCell>
+                <TableCell>Fecha Cierre</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : expedientes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      No hay expedientes registrados
+                      No hay expedientes cerrados
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                expedientes.map((item: any) => (
+                expedientes.map((item) => (
                   <TableRow key={item.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
@@ -184,31 +155,24 @@ const ExpedientesList = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={nivelAccesoLabels[item.nivel_acceso] || 'Público'}
-                        size="small"
-                        variant="outlined"
-                      />
+                      {item.creador?.nombre || '-'}
                     </TableCell>
                     <TableCell>
-                      {item.fecha_creacion
-                        ? format(new Date(item.fecha_creacion), 'dd/MM/yyyy', { locale: es })
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={estadoLabels[item.estado] || item.estado}
-                        color={estadoColors[item.estado] || 'default'}
-                        size="small"
-                      />
+                      {item.fecha_cierre
+                        ? format(new Date(item.fecha_cierre), 'dd/MM/yyyy', { locale: es })
+                        : item.updated_at
+                          ? format(new Date(item.updated_at), 'dd/MM/yyyy', { locale: es })
+                          : '-'}
                     </TableCell>
                     <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => navigate(`/expedientes/${item.id}`)}
-                      >
-                        <ViewIcon />
-                      </IconButton>
+                      <Tooltip title="Ver expediente">
+                        <IconButton
+                          size="small"
+                          onClick={() => navigate(`/expedientes/${item.id}`)}
+                        >
+                          <ViewIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
@@ -226,7 +190,7 @@ const ExpedientesList = () => {
             setRowsPerPage(parseInt(e.target.value, 10))
             setPage(0)
           }}
-          labelRowsPerPage="Filas por página:"
+          labelRowsPerPage="Filas por pagina:"
           labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
         />
       </Card>
@@ -234,4 +198,4 @@ const ExpedientesList = () => {
   )
 }
 
-export default ExpedientesList
+export default RepositorioExpedientes
