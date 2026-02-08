@@ -52,7 +52,10 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": [
+                "nunomaduro/collision",
+                "spatie/laravel-ignition"
+            ]
         }
     },
     "config": {

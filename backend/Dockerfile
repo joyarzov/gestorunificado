@@ -31,8 +31,11 @@ RUN mkdir -p storage/app/public \
     && mkdir -p storage/logs \
     && mkdir -p bootstrap/cache
 
+# Limpiar cache de providers (puede contener refs a dev packages)
+RUN rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+
 # Instalar dependencias de PHP y regenerar package discovery sin dev deps
-RUN composer install --no-interaction --no-dev --optimize-autoloader --no-scripts \
+RUN composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-scripts \
     && php artisan package:discover --ansi
 
 # Permisos

@@ -11,7 +11,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Chip,
   IconButton,
   TextField,
   InputAdornment,
