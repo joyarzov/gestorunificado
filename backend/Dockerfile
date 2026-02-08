@@ -31,8 +31,9 @@ RUN mkdir -p storage/app/public \
     && mkdir -p storage/logs \
     && mkdir -p bootstrap/cache
 
-# Instalar dependencias de PHP (sin ejecutar scripts)
-RUN composer install --no-interaction --no-dev --optimize-autoloader --no-scripts
+# Instalar dependencias de PHP y regenerar package discovery sin dev deps
+RUN composer install --no-interaction --no-dev --optimize-autoloader --no-scripts \
+    && php artisan package:discover --ansi
 
 # Permisos
 RUN chown -R www-data:www-data /var/www/html \
