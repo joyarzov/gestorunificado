@@ -188,6 +188,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{documento}/firmar', [DocumentoController::class, 'firmar']);
         Route::post('/{documento}/rechazar-firma', [DocumentoController::class, 'rechazarFirma']);
         Route::post('/{documento}/agregar-firmante', [DocumentoController::class, 'agregarFirmante']);
+        Route::get('/{documento}/trazabilidad', [DocumentoController::class, 'trazabilidad']);
     });
     Route::apiResource('documentos', DocumentoController::class);
 

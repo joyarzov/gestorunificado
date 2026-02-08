@@ -4,6 +4,7 @@ import {
   Expediente,
   Documento,
   DocumentoEnvio,
+  DocumentoTrazabilidad,
   TipoDocumental,
   DocumentoPlantilla,
   PaginatedResponse,
@@ -278,6 +279,12 @@ export const documentosAPI = {
   // Obtener envíos de un documento
   enviosDocumento: async (id: number) => {
     const response = await api.get<ApiResponse<DocumentoEnvio[]>>(`/documentos/${id}/envios`)
+    return response.data
+  },
+
+  // Obtener trazabilidad de un documento
+  trazabilidad: async (id: number) => {
+    const response = await api.get<ApiResponse<DocumentoTrazabilidad[]>>(`/documentos/${id}/trazabilidad`)
     return response.data
   },
 }

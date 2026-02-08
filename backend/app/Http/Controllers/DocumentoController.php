@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Documento;
 use App\Models\DocumentoFirma;
 use App\Models\DocumentoPlantilla;
+use App\Models\DocumentoTrazabilidad;
 use App\Models\Expediente;
 use App\Models\ExpedienteActividad;
 use App\Models\Correlativo;
@@ -173,6 +174,8 @@ class DocumentoController extends Controller
 
             DB::commit();
 
+            DocumentoTrazabilidad::registrar($documento->id, 'creado', 'Documento creado');
+
             return $this->successResponse(
                 $documento->load('plantilla', 'tipoDocumental', 'firmanteAsignado', 'firmantesAsignados', 'expedientes'),
                 'Documento creado exitosamente',
@@ -228,6 +231,10 @@ class DocumentoController extends Controller
             }
         }
 
+        $camposModificados = array_keys($request->only([
+            'titulo', 'contenido_json', 'palabras_clave', 'nivel_acceso',
+        ]));
+
         $documento->update($request->only([
             'titulo',
             'contenido_json',
@@ -236,6 +243,10 @@ class DocumentoController extends Controller
             'palabras_clave',
             'nivel_acceso',
         ]) + ['actualizado_por' => Auth::id()]);
+
+        DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Documento editado', [
+            'campos_modificados' => $camposModificados,
+        ]);
 
         $documento->load(['plantilla', 'tipoDocumental', 'firmantesAsignados']);
 
@@ -264,6 +275,8 @@ class DocumentoController extends Controller
                     'descripcion' => "Documento eliminado: {$documento->titulo}",
                 ]);
             }
+
+            DocumentoTrazabilidad::registrar($documento->id, 'eliminado', 'Documento eliminado');
 
             $documento->delete();
 
@@ -426,6 +439,8 @@ class DocumentoController extends Controller
             'actualizado_por' => Auth::id()
         ]);
 
+        DocumentoTrazabilidad::registrar($documento->id, 'enviado_a_firma', 'Documento enviado a firma');
+
         // Notificar a cada firmante asignado
         $firmantes = $documento->firmantesAsignados;
         if ($firmantes->isEmpty() && $documento->firmante_asignado_id) {
@@ -466,6 +481,10 @@ class DocumentoController extends Controller
         DB::beginTransaction();
         try {
             $firma = $documento->registrarFirma($user, $request->observaciones);
+
+            DocumentoTrazabilidad::registrar($documento->id, 'firmado', "Documento firmado por {$user->nombre}", [
+                'observaciones' => $request->observaciones,
+            ]);
 
             // Registrar actividad si hay expediente
             if ($documento->expediente_id) {
@@ -542,6 +561,10 @@ class DocumentoController extends Controller
                 'actualizado_por' => $user->id
             ]);
 
+            DocumentoTrazabilidad::registrar($documento->id, 'firma_rechazada', "Firma rechazada por {$user->nombre}", [
+                'motivo' => $request->motivo,
+            ]);
+
             // Registrar actividad
             if ($documento->expediente_id) {
                 ExpedienteActividad::create([
@@ -602,6 +625,11 @@ class DocumentoController extends Controller
             'orden' => $ultimoOrden + 1,
             'created_at' => now(),
             'updated_at' => now()
+        ]);
+
+        $firmante = \App\Models\User::find($request->usuario_id);
+        DocumentoTrazabilidad::registrar($documento->id, 'firmante_agregado', "Firmante agregado: {$firmante->nombre}", [
+            'firmante_id' => $request->usuario_id,
         ]);
 
         $documento->load('firmantesAsignados');
@@ -671,5 +699,18 @@ class DocumentoController extends Controller
         }
 
         return response()->json(['message' => 'Documento sin contenido'], 404);
+    }
+
+    /**
+     * Obtener trazabilidad del documento
+     */
+    public function trazabilidad(Documento $documento)
+    {
+        $trazabilidad = $documento->trazabilidades()
+            ->with('usuario:id,nombre,rut,cargo')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return $this->successResponse($trazabilidad);
     }
 }

@@ -21,6 +21,7 @@ import {
   DialogActions,
   Autocomplete,
   TextField,
+  Divider,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -30,10 +31,15 @@ import {
   CheckCircle as FirmadoIcon,
   HourglassEmpty as PendienteIcon,
   Cancel as RechazadoIcon,
+  AddCircle as AddCircleIcon,
+  Forward as ForwardIcon,
+  MarkEmailRead as MarkEmailReadIcon,
+  PersonAdd as PersonAddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
 import { usersAPI } from '../../api/common'
-import { Documento, DocumentoEnvio, DocumentoFirma, User } from '../../types'
+import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, User } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -64,6 +70,30 @@ const envioEstadoColors: Record<string, 'info' | 'success'> = {
   completado: 'success',
 }
 
+const trazabilidadIconMap: Record<string, { icon: React.ReactElement; color: string }> = {
+  creado: { icon: <AddCircleIcon />, color: '#4caf50' },
+  editado: { icon: <EditIcon />, color: '#2196f3' },
+  enviado_a_firma: { icon: <EnviarIcon />, color: '#ff9800' },
+  firmado: { icon: <FirmadoIcon />, color: '#4caf50' },
+  firma_rechazada: { icon: <RechazadoIcon />, color: '#f44336' },
+  enviado: { icon: <ForwardIcon />, color: '#2196f3' },
+  recibido: { icon: <MarkEmailReadIcon />, color: '#4caf50' },
+  firmante_agregado: { icon: <PersonAddIcon />, color: '#2196f3' },
+  eliminado: { icon: <DeleteIcon />, color: '#f44336' },
+}
+
+const accionLabels: Record<string, string> = {
+  creado: 'Creado',
+  editado: 'Editado',
+  enviado_a_firma: 'Enviado a firma',
+  firmado: 'Firmado',
+  firma_rechazada: 'Firma rechazada',
+  enviado: 'Enviado',
+  recibido: 'Recibido',
+  firmante_agregado: 'Firmante agregado',
+  eliminado: 'Eliminado',
+}
+
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -73,6 +103,7 @@ const DocumentoDetail = () => {
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [envios, setEnvios] = useState<DocumentoEnvio[]>([])
+  const [trazabilidad, setTrazabilidad] = useState<DocumentoTrazabilidad[]>([])
   const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
@@ -101,6 +132,13 @@ const DocumentoDetail = () => {
         } catch {
           // No es crítico si falla
         }
+      }
+      // Cargar trazabilidad
+      try {
+        const trazRes = await documentosAPI.trazabilidad(docId)
+        setTrazabilidad(trazRes.data)
+      } catch {
+        // No es crítico si falla
       }
     } catch (err) {
       setError('Error al cargar el documento')
@@ -551,7 +589,7 @@ const DocumentoDetail = () => {
           )}
 
           {/* Metadatos */}
-          <Card>
+          <Card sx={{ mb: 2 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Información Adicional
@@ -576,6 +614,58 @@ const DocumentoDetail = () => {
                   {format(new Date(documento.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
                 </Typography>
               </Box>
+            </CardContent>
+          </Card>
+
+          {/* Trazabilidad */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Trazabilidad
+              </Typography>
+              {trazabilidad.length > 0 ? (
+                <List dense disablePadding>
+                  {trazabilidad.map((evento, index) => {
+                    const iconConfig = trazabilidadIconMap[evento.accion] || { icon: <AddCircleIcon />, color: '#9e9e9e' }
+                    return (
+                      <Box key={evento.id}>
+                        {index > 0 && <Divider />}
+                        <ListItem sx={{ px: 0, py: 1 }}>
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <Box sx={{ color: iconConfig.color, display: 'flex' }}>
+                              {iconConfig.icon}
+                            </Box>
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {accionLabels[evento.accion] || evento.accion}
+                                </Typography>
+                              </Box>
+                            }
+                            secondary={
+                              <>
+                                <Typography variant="caption" component="span" display="block">
+                                  {evento.descripcion}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" component="span" display="block">
+                                  {evento.usuario?.nombre && `${evento.usuario.nombre} — `}
+                                  {format(new Date(evento.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                                </Typography>
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      </Box>
+                    )
+                  })}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Sin registros de trazabilidad
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>

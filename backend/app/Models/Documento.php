@@ -154,6 +154,11 @@ class Documento extends Model
         return $this->hasMany(DocumentoEnvio::class);
     }
 
+    public function trazabilidades()
+    {
+        return $this->hasMany(DocumentoTrazabilidad::class)->orderBy('created_at');
+    }
+
     public function firmasPendientes()
     {
         return $this->firmas()->where('estado', 'pendiente');

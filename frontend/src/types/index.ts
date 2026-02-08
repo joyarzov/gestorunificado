@@ -267,6 +267,18 @@ export interface DocumentoFirma {
   metadata_firma?: Record<string, unknown>
 }
 
+// Trazabilidad de documentos
+export interface DocumentoTrazabilidad {
+  id: number
+  documento_id: number
+  usuario_id?: number
+  usuario?: User
+  accion: string
+  descripcion: string
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
 // Envío de documentos
 export interface DocumentoEnvio {
   id: number

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Documento;
 use App\Models\DocumentoEnvio;
+use App\Models\DocumentoTrazabilidad;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -64,6 +65,11 @@ class DocumentoEnvioController extends Controller
                 return $this->errorResponse('El documento ya fue enviado a todos los destinatarios seleccionados', 422);
             }
 
+            $nombresDestinatarios = collect($enviosCreados)->map(fn($e) => $e->destinatario->nombre ?? '')->filter()->implode(', ');
+            DocumentoTrazabilidad::registrar($documento->id, 'enviado', "Documento enviado a: {$nombresDestinatarios}", [
+                'destinatario_ids' => collect($enviosCreados)->pluck('destinatario_id')->toArray(),
+            ]);
+
             $msg = count($enviosCreados) === 1
                 ? 'Documento enviado correctamente'
                 : 'Documento enviado a ' . count($enviosCreados) . ' destinatarios';
@@ -111,6 +117,10 @@ class DocumentoEnvioController extends Controller
         ]);
 
         $envio->load(['remitente', 'destinatario']);
+
+        DocumentoTrazabilidad::registrar($documento->id, 'enviado', "Documento enviado a: {$destinatario->nombre}", [
+            'destinatario_ids' => [$destinatarioId],
+        ]);
 
         return $this->successResponse($envio, 'Documento enviado correctamente');
     }
@@ -179,6 +189,10 @@ class DocumentoEnvioController extends Controller
         ]);
 
         $envio->load(['documento.tipoDocumental', 'remitente', 'destinatario']);
+
+        DocumentoTrazabilidad::registrar($envio->documento_id, 'recibido', 'Acuse de recibo registrado', [
+            'remitente_id' => $envio->remitente_id,
+        ]);
 
         return $this->successResponse($envio, 'Acuse de recibo registrado');
     }
