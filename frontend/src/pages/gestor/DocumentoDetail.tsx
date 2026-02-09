@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -104,6 +104,7 @@ const DocumentoDetail = () => {
   const [actionLoading, setActionLoading] = useState(false)
   const [envios, setEnvios] = useState<DocumentoEnvio[]>([])
   const [trazabilidad, setTrazabilidad] = useState<DocumentoTrazabilidad[]>([])
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
@@ -113,11 +114,40 @@ const DocumentoDetail = () => {
     severity: 'success',
   })
 
+  // Responsive document preview scaling
+  const previewContainerRef = useRef<HTMLDivElement>(null)
+  const [docScale, setDocScale] = useState(1)
+
+  const updateScale = useCallback(() => {
+    if (previewContainerRef.current) {
+      const containerWidth = previewContainerRef.current.clientWidth - 32 // padding
+      const docWidth = 794
+      const scale = Math.min(1, containerWidth / docWidth)
+      setDocScale(scale)
+    }
+  }, [])
+
+  useEffect(() => {
+    updateScale()
+    const observer = new ResizeObserver(updateScale)
+    if (previewContainerRef.current) {
+      observer.observe(previewContainerRef.current)
+    }
+    return () => observer.disconnect()
+  }, [updateScale])
+
   useEffect(() => {
     if (id) {
       loadDocumento(parseInt(id))
     }
   }, [id])
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+    }
+  }, [pdfUrl])
 
   const loadDocumento = async (docId: number) => {
     setLoading(true)
@@ -131,6 +161,18 @@ const DocumentoDetail = () => {
           setEnvios(enviosRes.data)
         } catch {
           // No es crítico si falla
+        }
+        // Cargar PDF para vista previa
+        if (response.data.archivo_pdf) {
+          try {
+            const blob = await documentosAPI.descargar(docId)
+            if (blob instanceof Blob && blob.type === 'application/pdf') {
+              if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+              setPdfUrl(URL.createObjectURL(blob))
+            }
+          } catch {
+            // Fallback a HTML si falla la carga del PDF
+          }
         }
       }
       // Cargar trazabilidad
@@ -451,37 +493,59 @@ const DocumentoDetail = () => {
           </Card>
 
           {/* Vista previa del contenido */}
-          {documento.contenido_html && (
-            <Card sx={{ bgcolor: '#e0e0e0' }}>
+          {(pdfUrl || documento.contenido_html) && (
+            <Card sx={{ bgcolor: '#e0e0e0' }} ref={previewContainerRef}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                 <Typography variant="h6" gutterBottom>
-                  Contenido
+                  Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
                 </Typography>
-                <Box
-                  sx={{
-                    maxHeight: '85vh',
-                    overflow: 'auto',
-                    pb: 2,
-                  }}
-                >
+                {pdfUrl ? (
+                  <Box
+                    component="iframe"
+                    src={`${pdfUrl}#navpanes=0`}
+                    sx={{
+                      width: '100%',
+                      height: '85vh',
+                      border: 'none',
+                      borderRadius: 1,
+                      bgcolor: 'white',
+                    }}
+                  />
+                ) : (
                   <Box
                     sx={{
-                      width: 794,
-                      mx: 'auto',
-                      minHeight: 1123,
-                      bgcolor: 'white',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                      p: '96px 72px 96px 96px',
-                      '& > div': {
-                        maxWidth: '100% !important',
-                        padding: '0 !important',
-                        margin: '0 !important',
-                        lineHeight: '1.6 !important',
-                      },
+                      maxHeight: '85vh',
+                      overflow: 'auto',
+                      pb: 2,
                     }}
-                    dangerouslySetInnerHTML={{ __html: documento.contenido_html }}
-                  />
-                </Box>
+                  >
+                    <Box sx={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                    }}>
+                      <Box
+                        sx={{
+                          width: 794,
+                          minHeight: 1123 * docScale,
+                          bgcolor: 'white',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                          p: '96px 72px 96px 96px',
+                          transform: `scale(${docScale})`,
+                          transformOrigin: 'top center',
+                          mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
+                          '& > div': {
+                            maxWidth: '100% !important',
+                            padding: '0 !important',
+                            margin: '0 !important',
+                            lineHeight: '1.6 !important',
+                          },
+                        }}
+                        dangerouslySetInnerHTML={{ __html: documento.contenido_html || '' }}
+                      />
+                    </Box>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           )}

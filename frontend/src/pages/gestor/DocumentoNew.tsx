@@ -88,6 +88,29 @@ const DocumentoNew = () => {
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
 
+  // Responsive document preview scaling
+  const [docScale, setDocScale] = useState(1)
+  const observerRef = useRef<ResizeObserver | null>(null)
+
+  const previewContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+    }
+    if (node) {
+      const update = () => {
+        const containerWidth = node.clientWidth - 32
+        setDocScale(Math.min(1, containerWidth / 794))
+      }
+      update()
+      observerRef.current = new ResizeObserver(update)
+      observerRef.current.observe(node)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => { observerRef.current?.disconnect() }
+  }, [])
+
   // Formulario
   const [selectedPlantilla, setSelectedPlantilla] = useState<DocumentoPlantilla | null>(null)
   const [titulo, setTitulo] = useState('')
@@ -919,6 +942,7 @@ const DocumentoNew = () => {
             </Button>
           </Box>
           <Box
+            ref={previewContainerRef}
             sx={{
               bgcolor: '#e0e0e0',
               borderRadius: 1,
@@ -929,23 +953,27 @@ const DocumentoNew = () => {
             }}
           >
             {previewHtml ? (
-              <Box
-                sx={{
-                  width: 794,
-                  mx: 'auto',
-                  minHeight: 1123,
-                  bgcolor: 'white',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                  p: '96px 72px 96px 96px',
-                  '& > div': {
-                    maxWidth: '100% !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    lineHeight: '1.6 !important',
-                  },
-                }}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+              <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <Box
+                  sx={{
+                    width: 794,
+                    minHeight: 1123 * docScale,
+                    bgcolor: 'white',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                    p: '96px 72px 96px 96px',
+                    transform: `scale(${docScale})`,
+                    transformOrigin: 'top center',
+                    mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
+                    '& > div': {
+                      maxWidth: '100% !important',
+                      padding: '0 !important',
+                      margin: '0 !important',
+                      lineHeight: '1.6 !important',
+                    },
+                  }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </Box>
             ) : (
               <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
                 Complete los campos para ver la previsualización
@@ -993,6 +1021,7 @@ const DocumentoNew = () => {
           Previsualización del Documento
         </Typography>
         <Box
+          ref={previewContainerRef}
           sx={{
             bgcolor: '#e0e0e0',
             borderRadius: 1,
@@ -1003,23 +1032,27 @@ const DocumentoNew = () => {
           }}
         >
           {previewHtml ? (
-            <Box
-              sx={{
-                width: 794,
-                mx: 'auto',
-                minHeight: 1123,
-                bgcolor: 'white',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                p: '96px 72px 96px 96px',
-                '& > div': {
-                  maxWidth: '100% !important',
-                  padding: '0 !important',
-                  margin: '0 !important',
-                  lineHeight: '1.6 !important',
-                },
-              }}
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <Box
+                sx={{
+                  width: 794,
+                  minHeight: 1123 * docScale,
+                  bgcolor: 'white',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                  p: '96px 72px 96px 96px',
+                  transform: `scale(${docScale})`,
+                  transformOrigin: 'top center',
+                  mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
+                  '& > div': {
+                    maxWidth: '100% !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    lineHeight: '1.6 !important',
+                  },
+                }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </Box>
           ) : (
             <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
               Sin previsualización
