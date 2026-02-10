@@ -277,7 +277,7 @@ const RepositorioDocumental = () => {
       {/* Tabla de documentos */}
       <Card>
         <TableContainer>
-          <Table>
+          <Table sx={{ minWidth: 600 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Número</TableCell>

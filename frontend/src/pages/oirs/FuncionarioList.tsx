@@ -65,7 +65,7 @@ const OirsFuncionarioList = () => {
 
       <Card>
         <TableContainer>
-          <Table>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Folio</TableCell>

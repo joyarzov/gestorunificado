@@ -93,7 +93,7 @@ const RepositorioExpedientes = () => {
 
       <Card>
         <TableContainer>
-          <Table>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Identificador</TableCell>

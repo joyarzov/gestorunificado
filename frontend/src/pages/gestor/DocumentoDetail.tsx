@@ -360,8 +360,8 @@ const DocumentoDetail = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
             Volver
           </Button>
@@ -383,7 +383,7 @@ const DocumentoDetail = () => {
             />
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {puedeEnviar && (
             <Button
               variant="contained"
@@ -438,7 +438,7 @@ const DocumentoDetail = () => {
         </Box>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={8}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -505,7 +505,7 @@ const DocumentoDetail = () => {
                     src={`${pdfUrl}#navpanes=0`}
                     sx={{
                       width: '100%',
-                      height: '85vh',
+                      height: { xs: '60vh', md: '85vh' },
                       border: 'none',
                       borderRadius: 1,
                       bgcolor: 'white',

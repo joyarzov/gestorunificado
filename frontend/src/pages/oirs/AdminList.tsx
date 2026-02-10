@@ -189,7 +189,7 @@ const OirsAdminList = () => {
       {/* Tabla */}
       <Card>
         <TableContainer>
-          <Table>
+          <Table sx={{ minWidth: 850 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Folio</TableCell>

@@ -68,7 +68,7 @@ const GestorDashboard = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 4 }}>
         <Box>
           <Typography variant="h4" fontWeight="bold">
             Cero Papel Cabo de Hornos
@@ -77,7 +77,7 @@ const GestorDashboard = () => {
             Gestor Documental - Municipalidad de Cabo de Hornos
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             startIcon={<AddIcon />}

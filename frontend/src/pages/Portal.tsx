@@ -211,7 +211,7 @@ const Portal = () => {
                 </Box>
               </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Tooltip title="Actualizar">
                 <IconButton onClick={fetchData} sx={{ color: 'white' }}>
                   <RefreshIcon />

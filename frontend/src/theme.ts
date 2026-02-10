@@ -42,12 +42,27 @@ const theme = createTheme({
     },
     h4: {
       fontWeight: 600,
+      fontSize: '1.5rem',
+      '@media (min-width:600px)': {
+        fontSize: '1.75rem',
+      },
+      '@media (min-width:900px)': {
+        fontSize: '2.125rem',
+      },
     },
     h5: {
       fontWeight: 500,
+      fontSize: '1.25rem',
+      '@media (min-width:600px)': {
+        fontSize: '1.5rem',
+      },
     },
     h6: {
       fontWeight: 500,
+      fontSize: '1.1rem',
+      '@media (min-width:600px)': {
+        fontSize: '1.25rem',
+      },
     },
   },
   components: {
@@ -56,6 +71,19 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           borderRadius: 8,
+          '@media (pointer: coarse)': {
+            minHeight: 44,
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          '@media (pointer: coarse)': {
+            minHeight: 44,
+            minWidth: 44,
+          },
         },
       },
     },
@@ -70,6 +98,38 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
+        },
+      },
+    },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          overflowX: 'auto',
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          whiteSpace: 'nowrap',
+        },
+      },
+    },
+    MuiTablePagination: {
+      styleOverrides: {
+        toolbar: {
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+        },
+        selectLabel: {
+          '@media (max-width:599px)': {
+            display: 'none',
+          },
+        },
+        input: {
+          '@media (max-width:599px)': {
+            marginRight: 8,
+          },
         },
       },
     },

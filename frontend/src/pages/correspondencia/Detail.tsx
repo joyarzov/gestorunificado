@@ -232,8 +232,8 @@ const CorrespondenciaDetail = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
             Volver
           </Button>
@@ -245,7 +245,7 @@ const CorrespondenciaDetail = () => {
             color={estadoColors[correspondencia.estado]}
           />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {(isAdmin() || isOficial()) && isPendienteSinDerivaciones && (
             <Button
               variant="contained"
@@ -294,7 +294,7 @@ const CorrespondenciaDetail = () => {
         </Alert>
       )}
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         {/* Información principal */}
         <Grid item xs={12} md={8}>
           <Card>

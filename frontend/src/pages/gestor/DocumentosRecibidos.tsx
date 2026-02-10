@@ -76,7 +76,7 @@ const DocumentosRecibidos = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
             Volver
@@ -99,7 +99,7 @@ const DocumentosRecibidos = () => {
 
       <Card>
         <TableContainer>
-          <Table>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Documento</TableCell>
