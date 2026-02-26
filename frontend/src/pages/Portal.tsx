@@ -7,7 +7,6 @@ import {
   Grid,
   Card,
   CardActionArea,
-  Avatar,
   Button,
   List,
   ListItem,
@@ -159,18 +158,12 @@ const Portal = () => {
         <Container maxWidth="xl">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-              <Avatar
-                sx={{
-                  width: 56,
-                  height: 56,
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  border: '2px solid rgba(255, 255, 255, 0.4)',
-                  fontSize: '1.5rem',
-                  fontWeight: 'bold',
-                }}
-              >
-                {user?.nombre?.charAt(0) || 'U'}
-              </Avatar>
+              <Box
+                component="img"
+                src="/logo.png"
+                alt="Municipalidad de Cabo de Hornos"
+                sx={{ height: 52, width: 'auto', bgcolor: 'white', borderRadius: 1.5, p: 0.5 }}
+              />
               <Box>
                 <Typography variant="h4" component="h1" fontWeight="bold">
                   Hola, {user?.nombre?.split(' ')[0] || 'Usuario'}
