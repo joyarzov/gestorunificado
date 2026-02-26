@@ -134,7 +134,7 @@ class DerivacionController extends Controller
             // Marcar la derivación original del alcalde como "derivado"
             Derivacion::where('correspondencia_id', $correspondencia->id)
                 ->where('departamento_destino_id', $user->departamento_id)
-                ->where('estado', 'recibido')
+                ->whereIn('estado', ['pendiente', 'recibido'])
                 ->where('id', '!=', $derivacion->id)
                 ->update(['estado' => 'derivado']);
         } else {
