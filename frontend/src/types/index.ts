@@ -69,6 +69,7 @@ export interface Derivacion {
   usuario_destino_id?: number
   usuario_origen?: User
   usuario_destino?: User
+  correspondencia?: Correspondencia
   pdf_ruta?: string
   observaciones?: string
   acciones_para?: string[]

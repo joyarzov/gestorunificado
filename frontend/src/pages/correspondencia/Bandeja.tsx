@@ -116,9 +116,10 @@ const BandejaEntrada = () => {
             <TableHead>
               <TableRow>
                 <TableCell>ID</TableCell>
-                <TableCell>Correspondencia</TableCell>
-                <TableCell>Desde</TableCell>
-                <TableCell>Fecha</TableCell>
+                <TableCell>N° Documento</TableCell>
+                <TableCell>Remitente</TableCell>
+                <TableCell>Fecha Recibo</TableCell>
+                <TableCell>Departamento</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
@@ -126,13 +127,13 @@ const BandejaEntrada = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : filteredDerivaciones.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       No hay correspondencia en esta bandeja
                     </Typography>
@@ -144,16 +145,19 @@ const BandejaEntrada = () => {
                     <TableCell>{der.correspondencia_id}</TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {der.observaciones || 'Sin observaciones'}
+                        {der.correspondencia?.numero_documento || '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell>{der.departamento_origen?.nombre}</TableCell>
+                    <TableCell>{der.correspondencia?.remitente || '-'}</TableCell>
                     <TableCell>
-                      {format(new Date(der.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      {der.correspondencia?.fecha_recibo
+                        ? format(new Date(der.correspondencia.fecha_recibo), 'dd/MM/yyyy', { locale: es })
+                        : format(new Date(der.created_at), 'dd/MM/yyyy', { locale: es })}
                     </TableCell>
+                    <TableCell>{der.departamento_origen?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={der.estado}
+                        label={der.estado === 'pendiente' ? 'Pendiente' : der.estado === 'recibido' ? 'Recibido' : der.estado}
                         color={der.estado === 'pendiente' ? 'warning' : 'success'}
                         size="small"
                       />
