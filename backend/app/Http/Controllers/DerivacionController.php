@@ -266,7 +266,7 @@ class DerivacionController extends Controller
 
         // Actualizar correspondencia a completada
         $correspondencia = $derivacion->correspondencia;
-        if ($correspondencia && $correspondencia->estado === 'derivada_funcionario') {
+        if ($correspondencia && in_array($correspondencia->estado, ['derivada_funcionario', 'derivada_alcaldia'])) {
             $correspondencia->update(['estado' => 'completada']);
 
             // Marcar la derivación del alcalde como completada
