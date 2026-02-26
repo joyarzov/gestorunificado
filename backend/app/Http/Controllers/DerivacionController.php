@@ -269,6 +269,11 @@ class DerivacionController extends Controller
         if ($correspondencia && $correspondencia->estado === 'derivada_funcionario') {
             $correspondencia->update(['estado' => 'completada']);
 
+            // Marcar la derivación del alcalde como completada
+            Derivacion::where('correspondencia_id', $correspondencia->id)
+                ->where('estado', 'derivado')
+                ->update(['estado' => 'recibido']);
+
             // Notificar al usuario que derivó originalmente
             if ($derivacion->usuario_origen_id) {
                 Notificacion::create([
