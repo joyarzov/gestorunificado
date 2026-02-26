@@ -159,11 +159,19 @@ const CorrespondenciaDetail = () => {
       )
     : undefined
 
+  // Derivación pendiente para el alcalde (cuando recibe desde Oficina de Partes)
+  const derivacionPendienteParaAlcalde = isAlcalde() && correspondencia?.estado === 'derivada_alcaldia'
+    ? correspondencia.derivaciones?.find(
+        (d) => d.estado === 'pendiente' && d.departamento_destino_id === user?.departamento_id
+      )
+    : undefined
+
   const handleMarcarRecibida = async () => {
-    if (!derivacionPendienteParaUsuario) return
+    const derivacion = derivacionPendienteParaUsuario || derivacionPendienteParaAlcalde
+    if (!derivacion) return
     setRecibirLoading(true)
     try {
-      await correspondenciaAPI.recibirDerivacion(derivacionPendienteParaUsuario.id)
+      await correspondenciaAPI.recibirDerivacion(derivacion.id)
       setSnackbar({ open: true, message: 'Correspondencia marcada como recibida' })
       if (id) loadCorrespondencia(parseInt(id))
     } catch (err) {
@@ -257,13 +265,26 @@ const CorrespondenciaDetail = () => {
             </Button>
           )}
           {isAlcalde() && correspondencia?.estado === 'derivada_alcaldia' && (
-            <Button
-              variant="contained"
-              startIcon={<DerivacionIcon />}
-              onClick={handleDerivarFuncionario}
-            >
-              Derivar a Funcionario
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                startIcon={<DerivacionIcon />}
+                onClick={handleDerivarFuncionario}
+              >
+                Derivar a Funcionario
+              </Button>
+              {derivacionPendienteParaAlcalde && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={recibirLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                  onClick={handleMarcarRecibida}
+                  disabled={recibirLoading}
+                >
+                  {recibirLoading ? 'Procesando...' : 'Marcar como Recibida'}
+                </Button>
+              )}
+            </>
           )}
           {(isAdmin() || isOficial()) && correspondencia.estado === 'pendiente' && (
             <Button
