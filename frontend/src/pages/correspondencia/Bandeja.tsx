@@ -22,7 +22,6 @@ import {
   Visibility as ViewIcon,
   CheckCircle as RecibirIcon,
   Archive as ArchivarIcon,
-  Send as DerivarIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Derivacion } from '../../types'
@@ -180,17 +179,7 @@ const BandejaEntrada = () => {
                           <RecibirIcon />
                         </IconButton>
                       )}
-                      {der.estado === 'recibido' && isAlcalde() && (
-                        <IconButton
-                          size="small"
-                          color="secondary"
-                          onClick={() => navigate(`/correspondencia/${der.correspondencia_id}`)}
-                          title="Derivar a funcionario"
-                        >
-                          <DerivarIcon />
-                        </IconButton>
-                      )}
-                      {der.estado === 'recibido' && (
+                      {der.estado === 'recibido' && !isAlcalde() && (
                         <IconButton
                           size="small"
                           color="primary"
