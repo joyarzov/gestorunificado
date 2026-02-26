@@ -150,7 +150,7 @@ const RepositorioDocumental = () => {
         <Grid item xs={12} sm={4}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#9f7aea20', color: '#9f7aea' }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#0071BC20', color: '#0071BC' }}>
                 <ArchiveIcon fontSize="large" />
               </Box>
               <Box>
@@ -163,7 +163,7 @@ const RepositorioDocumental = () => {
         <Grid item xs={12} sm={4}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4299e120', color: '#4299e1' }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#28A9E320', color: '#28A9E3' }}>
                 <DocIcon fontSize="large" />
               </Box>
               <Box>
@@ -178,7 +178,7 @@ const RepositorioDocumental = () => {
         <Grid item xs={12} sm={4}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#48bb7820', color: '#48bb78' }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#8AC53E20', color: '#8AC53E' }}>
                 <CalendarIcon fontSize="large" />
               </Box>
               <Box>

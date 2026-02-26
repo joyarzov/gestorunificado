@@ -98,7 +98,7 @@ const VerificarDocumento = () => {
       {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #38a169 0%, #2f855a 100%)',
+          bgcolor: '#0071BC',
           color: 'white',
           py: 4,
         }}
@@ -144,8 +144,8 @@ const VerificarDocumento = () => {
                   disabled={loading}
                   sx={{
                     height: 56,
-                    bgcolor: '#38a169',
-                    '&:hover': { bgcolor: '#2f855a' },
+                    bgcolor: '#0071BC',
+                    '&:hover': { bgcolor: '#005a96' },
                   }}
                 >
                   Verificar
@@ -166,9 +166,9 @@ const VerificarDocumento = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                 {resultado.firmado ? (
-                  <VerifiedIcon sx={{ fontSize: 48, color: '#38a169' }} />
+                  <VerifiedIcon sx={{ fontSize: 48, color: '#2DC700' }} />
                 ) : (
-                  <WarningIcon sx={{ fontSize: 48, color: '#ed8936' }} />
+                  <WarningIcon sx={{ fontSize: 48, color: '#EE5825' }} />
                 )}
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="h5" fontWeight="bold">
@@ -268,7 +268,7 @@ const VerificarDocumento = () => {
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                <VerifiedIcon sx={{ fontSize: 48, color: '#38a169' }} />
+                <VerifiedIcon sx={{ fontSize: 48, color: '#2DC700' }} />
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="h5" fontWeight="bold">
                     Providencia Verificada

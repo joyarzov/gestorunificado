@@ -31,6 +31,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
+import CorporateColorBar from '../branding/CorporateColorBar'
 
 const drawerWidth = 260
 
@@ -115,15 +116,23 @@ const AppLayout = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           p: 2,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          bgcolor: '#0071BC',
           color: 'white',
         }}
       >
-        <Box>
-          <Typography variant="subtitle1" fontWeight="bold">
-            Municipalidad
-          </Typography>
-          <Typography variant="caption">Cabo de Hornos</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="Municipalidad de Cabo de Hornos"
+            sx={{ height: 40, width: 'auto', filter: 'brightness(0) invert(1)' }}
+          />
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+              Municipalidad
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.85 }}>Cabo de Hornos</Typography>
+          </Box>
         </Box>
         {isMobile && (
           <IconButton color="inherit" onClick={handleDrawerToggle}>
@@ -131,7 +140,7 @@ const AppLayout = () => {
           </IconButton>
         )}
       </Box>
-      <Divider />
+      <CorporateColorBar height={4} />
       <List>
         {menuItems
           .filter((item) => item.show)

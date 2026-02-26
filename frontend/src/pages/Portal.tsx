@@ -110,7 +110,7 @@ const Portal = () => {
       nombre: 'Correspondencia',
       descripcion: 'Gestión de correspondencia, derivaciones y seguimiento',
       icono: <MailIcon sx={{ fontSize: 40 }} />,
-      color: '#4299e1',
+      color: '#28A9E3',
       ruta: getCorrespondenciaRoute(),
       visible: hasAplicacion('correspondencia'),
     },
@@ -121,7 +121,7 @@ const Portal = () => {
         ? 'Gestión de solicitudes ciudadanas'
         : 'Solicitudes asignadas para tu respuesta',
       icono: <OirsIcon sx={{ fontSize: 40 }} />,
-      color: '#ed8936',
+      color: '#EE5825',
       ruta: getOirsRoute(),
       visible: hasAplicacion('oirs'),
     },
@@ -130,7 +130,7 @@ const Portal = () => {
       nombre: 'Cero Papel',
       descripcion: 'Documentos, expedientes y firma electrónica',
       icono: <DocumentIcon sx={{ fontSize: 40 }} />,
-      color: '#48bb78',
+      color: '#8AC53E',
       ruta: '/gestor-documental',
       visible: hasAplicacion('gestor_documental'),
     },
@@ -139,7 +139,7 @@ const Portal = () => {
       nombre: 'Administración',
       descripcion: 'Usuarios, departamentos y configuración',
       icono: <AdminIcon sx={{ fontSize: 40 }} />,
-      color: '#667eea',
+      color: '#0071BC',
       ruta: '/administracion',
       visible: isAdmin(),
     },
@@ -150,7 +150,7 @@ const Portal = () => {
       {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          bgcolor: '#0071BC',
           color: 'white',
           py: 4,
           mb: 3,

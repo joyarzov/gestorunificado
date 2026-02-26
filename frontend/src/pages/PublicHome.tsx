@@ -24,21 +24,21 @@ const PublicHome = () => {
       titulo: 'OIRS',
       descripcion: 'Ingrese consultas, reclamos, sugerencias o solicitudes de información',
       icono: <OirsIcon sx={{ fontSize: 48 }} />,
-      color: '#ed8936',
+      color: '#EE5825',
       ruta: '/oirs',
     },
     {
       titulo: 'Consultar Solicitud',
       descripcion: 'Revise el estado de su solicitud OIRS con su número de folio',
       icono: <SearchIcon sx={{ fontSize: 48 }} />,
-      color: '#4299e1',
+      color: '#28A9E3',
       ruta: '/oirs/consultar',
     },
     {
       titulo: 'Verificar Documento',
       descripcion: 'Verifique la autenticidad de un documento municipal con su código de verificación',
       icono: <VerifyIcon sx={{ fontSize: 48 }} />,
-      color: '#38a169',
+      color: '#2DC700',
       ruta: '/verificar',
     },
   ]
@@ -48,23 +48,28 @@ const PublicHome = () => {
       {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          bgcolor: '#0071BC',
           color: 'white',
-          py: 8,
+          py: 4,
         }}
       >
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Box>
-              <Typography variant="h3" fontWeight="bold" gutterBottom>
-                Portal Ciudadano
-              </Typography>
-              <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                Ilustre Municipalidad de Cabo de Hornos
-              </Typography>
-              <Typography variant="body1" sx={{ mt: 2, opacity: 0.8 }}>
-                Bienvenido al portal de servicios en línea de la municipalidad.
-              </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Box
+                component="img"
+                src="/logo.png"
+                alt="Ilustre Municipalidad de Cabo de Hornos"
+                sx={{ height: 64, width: 'auto', flexShrink: 0 }}
+              />
+              <Box>
+                <Typography variant="h4" fontWeight="bold">
+                  Portal Ciudadano
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.85 }}>
+                  Ilustre Municipalidad de Cabo de Hornos
+                </Typography>
+              </Box>
             </Box>
             <Button
               variant="contained"

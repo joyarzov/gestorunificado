@@ -14,6 +14,7 @@ import {
 } from '@mui/material'
 import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
+import CorporateColorBar from '../../components/branding/CorporateColorBar'
 
 const Login = () => {
   const [rut, setRut] = useState('')
@@ -74,14 +75,21 @@ const Login = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        bgcolor: '#0071BC',
         p: 2,
       }}
     >
-      <Card sx={{ maxWidth: 400, width: '100%' }}>
+      <Card sx={{ maxWidth: 400, width: '100%', overflow: 'hidden' }}>
+        <CorporateColorBar height={5} />
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Typography variant="h4" fontWeight="bold" color="primary">
+            <Box
+              component="img"
+              src="/logo.png"
+              alt="Municipalidad de Cabo de Hornos"
+              sx={{ height: 64, width: 'auto', mb: 2 }}
+            />
+            <Typography variant="h5" fontWeight="bold" color="primary">
               Bienvenido
             </Typography>
             <Typography variant="body2" color="text.secondary">

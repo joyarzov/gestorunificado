@@ -126,7 +126,7 @@ const OirsPublicForm = () => {
       {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)',
+          bgcolor: '#EE5825',
           color: 'white',
           py: 4,
         }}

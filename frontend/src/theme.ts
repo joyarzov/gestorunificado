@@ -1,16 +1,34 @@
 import { createTheme } from '@mui/material/styles'
 
+// Identidad Corporativa: Ilustre Municipalidad de Cabo de Hornos
+export const CORPORATE_COLORS = {
+  primaryBlue: '#0071BC',
+  primaryBlueDark: '#005a96',
+  primaryBlueLight: '#3391cc',
+  textGray: '#4D4D4D',
+  // Barra característica (orden izquierda a derecha)
+  barYellowGreen: '#2DC700',
+  barGreen: '#8AC53E',
+  barMagenta: '#EB1B78',
+  barLightBlue: '#28A9E3',
+  barOrange: '#EE5825',
+}
+
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#667eea',
-      light: '#818cf8',
-      dark: '#4f46e5',
+      main: '#0071BC',
+      light: '#3391cc',
+      dark: '#005a96',
     },
     secondary: {
-      main: '#48bb78',
-      light: '#68d391',
-      dark: '#38a169',
+      main: '#8AC53E',
+      light: '#a3d466',
+      dark: '#6a9a2f',
+    },
+    text: {
+      primary: '#4D4D4D',
+      secondary: '#666666',
     },
     background: {
       default: '#f5f5f5',
@@ -20,17 +38,17 @@ const theme = createTheme({
       main: '#ef4444',
     },
     warning: {
-      main: '#f59e0b',
+      main: '#EE5825',
     },
     info: {
-      main: '#3b82f6',
+      main: '#28A9E3',
     },
     success: {
-      main: '#10b981',
+      main: '#2DC700',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Montserrat", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
     },
@@ -71,6 +89,7 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           borderRadius: 8,
+          fontWeight: 600,
           '@media (pointer: coarse)': {
             minHeight: 44,
           },

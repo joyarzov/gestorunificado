@@ -82,7 +82,7 @@ const OirsPublicConsult = () => {
       {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #4299e1 0%, #2b6cb0 100%)',
+          bgcolor: '#28A9E3',
           color: 'white',
           py: 4,
         }}
