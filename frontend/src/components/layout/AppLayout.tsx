@@ -125,7 +125,7 @@ const AppLayout = () => {
             component="img"
             src="/logo.png"
             alt="Municipalidad de Cabo de Hornos"
-            sx={{ height: 40, width: 'auto', filter: 'brightness(0) invert(1)' }}
+            sx={{ height: 36, width: 'auto', bgcolor: 'white', borderRadius: 1, p: 0.5 }}
           />
           <Box>
             <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
