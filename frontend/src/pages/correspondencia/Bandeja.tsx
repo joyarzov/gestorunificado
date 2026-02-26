@@ -76,7 +76,8 @@ const BandejaEntrada = () => {
 
   const filteredDerivaciones = derivaciones.filter((d) => {
     if (tab === 0) return d.estado === 'pendiente'
-    if (tab === 1) return d.estado === 'recibido' || d.estado === 'derivado'
+    if (tab === 1) return d.estado === 'recibido'
+    if (tab === 2) return d.estado === 'derivado'
     return true
   })
 
@@ -107,7 +108,10 @@ const BandejaEntrada = () => {
             label={`Pendientes (${derivaciones.filter((d) => d.estado === 'pendiente').length})`}
           />
           <Tab
-            label={`Recibidos (${derivaciones.filter((d) => d.estado === 'recibido' || d.estado === 'derivado').length})`}
+            label={`Recibidos (${derivaciones.filter((d) => d.estado === 'recibido').length})`}
+          />
+          <Tab
+            label={`Derivados (${derivaciones.filter((d) => d.estado === 'derivado').length})`}
           />
         </Tabs>
 
