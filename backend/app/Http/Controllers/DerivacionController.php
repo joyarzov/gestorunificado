@@ -130,6 +130,13 @@ class DerivacionController extends Controller
                 'providencia_pdf' => $derivacionData['pdf_ruta'],
                 'providencia_generada' => true,
             ]);
+
+            // Marcar la derivación original del alcalde como "derivado"
+            Derivacion::where('correspondencia_id', $correspondencia->id)
+                ->where('departamento_destino_id', $user->departamento_id)
+                ->where('estado', 'recibido')
+                ->where('id', '!=', $derivacion->id)
+                ->update(['estado' => 'derivado']);
         } else {
             $nuevoEstado = 'en_proceso';
 
@@ -236,7 +243,7 @@ class DerivacionController extends Controller
             'usuarioOrigen',
         ])
             ->where('departamento_destino_id', $user->departamento_id)
-            ->whereIn('estado', ['pendiente', 'recibido'])
+            ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])
             ->orderBy('created_at', 'desc')
             ->get();
 

@@ -74,7 +74,7 @@ export interface Derivacion {
   observaciones?: string
   acciones_para?: string[]
   folio?: string
-  estado: 'pendiente' | 'recibido' | 'archivado'
+  estado: 'pendiente' | 'recibido' | 'archivado' | 'derivado'
   fecha_recepcion?: string
   created_at: string
 }
