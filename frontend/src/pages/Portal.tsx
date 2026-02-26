@@ -106,8 +106,10 @@ const Portal = () => {
   const modulos = [
     {
       id: 'correspondencia',
-      nombre: 'Correspondencia',
-      descripcion: 'Gestión de correspondencia, derivaciones y seguimiento',
+      nombre: selectedRole === 'admin' || selectedRole === 'oficial' ? 'Oficina de Partes' : 'Correspondencia',
+      descripcion: selectedRole === 'admin' || selectedRole === 'oficial'
+        ? 'Recepción, derivación y seguimiento de correspondencia'
+        : 'Gestión de correspondencia, derivaciones y seguimiento',
       icono: <MailIcon sx={{ fontSize: 40 }} />,
       color: '#28A9E3',
       ruta: getCorrespondenciaRoute(),

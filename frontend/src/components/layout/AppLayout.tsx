@@ -83,7 +83,7 @@ const AppLayout = () => {
       show: true,
     },
     {
-      text: 'Correspondencia',
+      text: selectedRole === 'admin' || selectedRole === 'oficial' ? 'Oficina de Partes' : 'Correspondencia',
       icon: <MailIcon />,
       path: selectedRole === 'usuario' || selectedRole === 'alcalde' ? '/bandeja' : '/correspondencia',
       show: hasAplicacion('correspondencia'),
