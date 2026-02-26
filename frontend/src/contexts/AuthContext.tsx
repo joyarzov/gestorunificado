@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
     // Sin configuración explícita: defaults basados en el rol
     const defaultsByRole: Record<string, string[]> = {
-      oficial: ['correspondencia', 'oirs'],
+      oficial: ['correspondencia'],
       oirs: ['oirs'],
       alcalde: ['correspondencia', 'gestor_documental'],
       usuario: ['correspondencia', 'gestor_documental', 'oirs'],
