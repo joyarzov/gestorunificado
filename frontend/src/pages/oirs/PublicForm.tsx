@@ -40,11 +40,14 @@ const categorias = [
   { value: 'otro', label: 'Otro' },
 ]
 
+const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
 const OirsPublicForm = () => {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailError, setEmailError] = useState('')
   const [success, setSuccess] = useState<{ folio: string } | null>(null)
 
   const [formData, setFormData] = useState({
@@ -252,7 +255,19 @@ const OirsPublicForm = () => {
                         type="email"
                         label="Correo Electrónico"
                         value={formData.email_solicitante}
-                        onChange={(e) => handleChange('email_solicitante', e.target.value)}
+                        onChange={(e) => {
+                          handleChange('email_solicitante', e.target.value)
+                          if (emailError && validateEmail(e.target.value)) setEmailError('')
+                        }}
+                        onBlur={() => {
+                          if (formData.email_solicitante && !validateEmail(formData.email_solicitante)) {
+                            setEmailError('Ingrese un correo electrónico válido')
+                          } else {
+                            setEmailError('')
+                          }
+                        }}
+                        error={!!emailError}
+                        helperText={emailError}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -381,7 +396,7 @@ const OirsPublicForm = () => {
                   onClick={() => setStep((prev) => prev + 1)}
                   disabled={
                     (step === 0 && (!formData.tipo_solicitud || !formData.categoria)) ||
-                    (step === 1 && !formData.anonimo && (!formData.nombre_solicitante || !formData.email_solicitante)) ||
+                    (step === 1 && !formData.anonimo && (!formData.nombre_solicitante || !formData.email_solicitante || !validateEmail(formData.email_solicitante))) ||
                     (step === 2 && (!formData.asunto || !formData.descripcion))
                   }
                 >

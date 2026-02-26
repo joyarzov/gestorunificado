@@ -133,10 +133,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const hasAplicacion = (app: string) => {
-    if (!user?.aplicaciones_permitidas || user.aplicaciones_permitidas.length === 0) {
-      return true
+    if (isAdmin()) return true
+    // Si tiene aplicaciones explícitas, respetar esa configuración
+    if (user?.aplicaciones_permitidas && user.aplicaciones_permitidas.length > 0) {
+      return user.aplicaciones_permitidas.includes(app)
     }
-    return user.aplicaciones_permitidas.includes(app)
+    // Sin configuración explícita: defaults basados en el rol
+    const defaultsByRole: Record<string, string[]> = {
+      oficial: ['correspondencia', 'oirs'],
+      oirs: ['oirs'],
+      alcalde: ['correspondencia', 'gestor_documental'],
+      usuario: ['correspondencia', 'gestor_documental', 'oirs'],
+    }
+    const defaults = selectedRole ? defaultsByRole[selectedRole] : null
+    return defaults ? defaults.includes(app) : false
   }
 
   const canViewAllCorrespondence = () => {

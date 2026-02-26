@@ -89,9 +89,9 @@ const AppLayout = () => {
       show: hasAplicacion('correspondencia'),
     },
     {
-      text: selectedRole === 'admin' || selectedRole === 'oficial' ? 'Admin OIRS' : 'Mis Solicitudes',
+      text: selectedRole === 'admin' || selectedRole === 'oirs' ? 'Admin OIRS' : 'Mis Solicitudes',
       icon: <OirsIcon />,
-      path: selectedRole === 'admin' || selectedRole === 'oficial' ? '/oirs-admin' : '/mis-solicitudes',
+      path: selectedRole === 'admin' || selectedRole === 'oirs' ? '/oirs-admin' : '/mis-solicitudes',
       show: hasAplicacion('oirs'),
     },
     {

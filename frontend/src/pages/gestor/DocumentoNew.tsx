@@ -156,6 +156,17 @@ const DocumentoNew = () => {
     return 'distribucion_html' in selectedPlantilla.variables_json
   }, [selectedPlantilla])
 
+  // Proteger contra pérdida de datos no guardados
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (selectedPlantilla !== null) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [selectedPlantilla])
+
   // Inicializar contenido del editor rich text al volver al paso 2
   useEffect(() => {
     if (activeStep === 1 && esMemo && contenidoEditorRef.current) {

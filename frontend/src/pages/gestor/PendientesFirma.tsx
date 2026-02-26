@@ -10,6 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Button,
   CircularProgress,
   Alert,
@@ -24,16 +25,20 @@ const PendientesFirma = () => {
   const [documentos, setDocumentos] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [total, setTotal] = useState(0)
 
   useEffect(() => {
     loadPendientes()
-  }, [])
+  }, [page, rowsPerPage])
 
   const loadPendientes = async () => {
     setLoading(true)
     try {
-      const response = await documentosAPI.pendientesFirma()
+      const response = await documentosAPI.pendientesFirma({ page: page + 1, per_page: rowsPerPage })
       setDocumentos(response.data.data)
+      setTotal(response.data.total)
     } catch (err) {
       setError('Error al cargar documentos pendientes')
       console.error(err)
@@ -123,6 +128,20 @@ const PendientesFirma = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10))
+            setPage(0)
+          }}
+          rowsPerPageOptions={[5, 10, 25]}
+          labelRowsPerPage="Filas por página"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+        />
       </Card>
     </Box>
   )

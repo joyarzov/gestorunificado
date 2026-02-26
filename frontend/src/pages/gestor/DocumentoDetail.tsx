@@ -108,6 +108,9 @@ const DocumentoDetail = () => {
   const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
+  const [firmarDialogOpen, setFirmarDialogOpen] = useState(false)
+  const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false)
+  const [rechazoMotivo, setRechazoMotivo] = useState('')
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -221,13 +224,13 @@ const DocumentoDetail = () => {
   }
 
   const handleRechazar = async () => {
-    if (!id) return
-    const motivo = prompt('Ingrese el motivo del rechazo:')
-    if (!motivo) return
+    if (!id || !rechazoMotivo.trim()) return
     setActionLoading(true)
     try {
-      await documentosAPI.rechazarFirma(parseInt(id), motivo)
+      await documentosAPI.rechazarFirma(parseInt(id), rechazoMotivo.trim())
       setSnackbar({ open: true, message: 'Firma rechazada', severity: 'success' })
+      setRechazarDialogOpen(false)
+      setRechazoMotivo('')
       loadDocumento(parseInt(id))
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al rechazar firma'
@@ -410,8 +413,8 @@ const DocumentoDetail = () => {
               <Button
                 variant="contained"
                 color="success"
-                startIcon={actionLoading ? <CircularProgress size={20} /> : <FirmarIcon />}
-                onClick={handleFirmar}
+                startIcon={<FirmarIcon />}
+                onClick={() => setFirmarDialogOpen(true)}
                 disabled={actionLoading}
               >
                 Firmar
@@ -419,7 +422,7 @@ const DocumentoDetail = () => {
               <Button
                 variant="outlined"
                 color="error"
-                onClick={handleRechazar}
+                onClick={() => setRechazarDialogOpen(true)}
                 disabled={actionLoading}
               >
                 Rechazar
@@ -734,6 +737,78 @@ const DocumentoDetail = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Diálogo de confirmación de firma */}
+      <Dialog
+        open={firmarDialogOpen}
+        onClose={() => setFirmarDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirmar Firma</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Está a punto de firmar electrónicamente el documento <strong>{documento.numero || documento.identificador}</strong>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Esta acción tiene validez legal y no puede deshacerse. Al firmar, usted certifica que ha revisado y aprueba el contenido del documento.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFirmarDialogOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={actionLoading ? <CircularProgress size={20} /> : <FirmarIcon />}
+            onClick={() => {
+              setFirmarDialogOpen(false)
+              handleFirmar()
+            }}
+            disabled={actionLoading}
+          >
+            Confirmar Firma
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de rechazo de firma */}
+      <Dialog
+        open={rechazarDialogOpen}
+        onClose={() => { setRechazarDialogOpen(false); setRechazoMotivo('') }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Rechazar Firma</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Indique el motivo por el cual rechaza firmar este documento.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            label="Motivo del rechazo"
+            value={rechazoMotivo}
+            onChange={(e) => setRechazoMotivo(e.target.value)}
+            placeholder="Describa el motivo del rechazo..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setRechazarDialogOpen(false); setRechazoMotivo('') }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRechazar}
+            disabled={actionLoading || !rechazoMotivo.trim()}
+            startIcon={actionLoading ? <CircularProgress size={20} /> : undefined}
+          >
+            Rechazar Firma
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Diálogo para seleccionar destinatarios (decretos y otros) */}
       <Dialog

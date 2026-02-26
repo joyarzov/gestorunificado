@@ -328,12 +328,12 @@ const Portal = () => {
 
         {/* === SECCIÓN 2: NOTIFICACIONES === */}
         <Paper sx={{ p: 0, overflow: 'hidden' }} elevation={2}>
-          <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Badge badgeContent={notificaciones.length} color="error" max={99}>
-                <NotificacionesIcon color="action" />
+                <NotificacionesIcon fontSize="small" color="action" />
               </Badge>
-              <Typography variant="h6" fontWeight="bold">
+              <Typography variant="subtitle1" fontWeight="bold">
                 Notificaciones
               </Typography>
             </Box>
@@ -347,47 +347,58 @@ const Portal = () => {
           </Box>
 
           {loading ? (
-            <Box sx={{ p: 3 }}>
-              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={52} sx={{ mb: 1 }} />)}
+            <Box sx={{ p: 2 }}>
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={36} sx={{ mb: 0.5 }} />)}
             </Box>
           ) : notificaciones.length > 0 ? (
-            <List disablePadding sx={{ maxHeight: 500, overflow: 'auto' }}>
-              {notificaciones.slice(0, 15).map((notif, i) => (
+            <List disablePadding dense sx={{ maxHeight: 280, overflow: 'auto' }}>
+              {notificaciones.slice(0, 8).map((notif, i) => (
                 <ListItem
                   key={notif.id}
-                  divider={i < Math.min(notificaciones.length, 15) - 1}
-                  sx={{ px: 3, py: 1.5, alignItems: 'flex-start' }}
+                  divider={i < Math.min(notificaciones.length, 8) - 1}
+                  sx={{
+                    px: 2,
+                    py: 0.75,
+                    ...(notif.data?.url ? {
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    } : {}),
+                  }}
+                  onClick={async () => {
+                    if (notif.data?.url) {
+                      try { await notificacionesAPI.marcarLeida(notif.id) } catch { /* ignore */ }
+                      setNotificaciones(prev => prev.filter(n => n.id !== notif.id))
+                      navigate(notif.data.url as string)
+                    }
+                  }}
                 >
-                  <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
-                    <CircleIcon sx={{ fontSize: 10, color: 'primary.main' }} />
+                  <ListItemIcon sx={{ minWidth: 24 }}>
+                    <CircleIcon sx={{ fontSize: 8, color: 'primary.main' }} />
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Typography variant="body2" fontWeight="medium">
-                        {notif.titulo}
-                      </Typography>
-                    }
-                    secondary={
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {notif.mensaje}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
+                        <Typography variant="body2" fontWeight="medium" noWrap sx={{ flex: 1 }}>
+                          {notif.titulo}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                          <TimeIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                          <Typography variant="caption" color="text.disabled">
-                            {formatDistanceToNow(parseISO(notif.created_at), { addSuffix: true, locale: es })}
-                          </Typography>
-                        </Box>
+                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                          {formatDistanceToNow(parseISO(notif.created_at), { addSuffix: true, locale: es })}
+                        </Typography>
                       </Box>
                     }
+                    secondary={
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {notif.mensaje}
+                      </Typography>
+                    }
+                    sx={{ my: 0 }}
                   />
                 </ListItem>
               ))}
             </List>
           ) : (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <NotificacionesIcon sx={{ fontSize: 48, color: 'grey.300', mb: 1 }} />
-              <Typography color="text.secondary">
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
                 Sin notificaciones nuevas
               </Typography>
             </Box>
