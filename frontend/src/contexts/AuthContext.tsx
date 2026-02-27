@@ -118,11 +118,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const isAdmin = () => {
-    return selectedRole === 'admin' || user?.roles?.includes('admin') || false
+    return selectedRole === 'admin'
   }
 
   const isOficial = () => {
-    return selectedRole === 'oficial' || user?.roles?.includes('oficial') || false
+    return selectedRole === 'oficial'
   }
 
   const isAlcalde = () => {
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const hasRole = (role: string) => {
-    return selectedRole === role || user?.roles?.includes(role) || false
+    return selectedRole === role
   }
 
   const hasAplicacion = (app: string) => {
