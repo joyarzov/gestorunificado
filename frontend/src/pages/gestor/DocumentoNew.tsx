@@ -968,16 +968,16 @@ const DocumentoNew = () => {
                 <Box
                   sx={{
                     width: 794,
-                    minHeight: 1123 * docScale,
+                    minHeight: 1056 * docScale,
                     bgcolor: 'white',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                    p: '60px 94px 128px 128px',
+                    p: '60px 94px 76px 113px',
                     fontFamily: 'serif',
                     fontSize: '12pt',
                     lineHeight: 1.6,
                     transform: `scale(${docScale})`,
                     transformOrigin: 'top center',
-                    mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
+                    mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
                     '& > div': {
                       maxWidth: '100% !important',
                       padding: '0 !important',
@@ -1049,13 +1049,13 @@ const DocumentoNew = () => {
               <Box
                 sx={{
                   width: 794,
-                  minHeight: 1123 * docScale,
+                  minHeight: 1056 * docScale,
                   bgcolor: 'white',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                  p: '60px 94px 128px 128px',
+                  p: '60px 94px 76px 113px',
                   transform: `scale(${docScale})`,
                   transformOrigin: 'top center',
-                  mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
+                  mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
                   '& > div': {
                     maxWidth: '100% !important',
                     padding: '0 !important',
