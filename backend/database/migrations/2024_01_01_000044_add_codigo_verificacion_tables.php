@@ -13,7 +13,7 @@ return new class extends Migration
         });
 
         Schema::table('derivaciones', function (Blueprint $table) {
-            $table->string('codigo_verificacion', 12)->nullable()->unique()->after('folio');
+            $table->string('codigo_verificacion', 12)->nullable()->unique();
         });
     }
 
