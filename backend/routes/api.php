@@ -18,6 +18,8 @@ use App\Http\Controllers\CorrelativoController;
 use App\Http\Controllers\TipoDocumentalController;
 use App\Http\Controllers\DocumentoEnvioController;
 use App\Http\Controllers\VerificacionDocumentoController;
+use App\Http\Controllers\FondoPublicoController;
+use App\Http\Controllers\FondoConcursableController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +56,18 @@ Route::get('/hora-oficial', function () {
             'fecha' => $now->format('d/m/Y'),
         ],
     ]);
+});
+
+// Rutas públicas Fondos Concursables
+Route::prefix('fondos-publico')->group(function () {
+    Route::get('/activo', [FondoPublicoController::class, 'activo']);
+    Route::get('/{fondo}/bases', [FondoPublicoController::class, 'descargarBases']);
+    Route::post('/postular', [FondoPublicoController::class, 'postular']);
+    Route::put('/postulacion/{codigo}', [FondoPublicoController::class, 'guardarBorrador']);
+    Route::post('/postulacion/{codigo}/enviar', [FondoPublicoController::class, 'enviar']);
+    Route::post('/postulacion/{codigo}/adjunto', [FondoPublicoController::class, 'subirAdjunto']);
+    Route::delete('/postulacion/{codigo}/adjunto/{id}', [FondoPublicoController::class, 'eliminarAdjunto']);
+    Route::get('/consultar', [FondoPublicoController::class, 'consultar']);
 });
 
 // Rutas protegidas
@@ -203,4 +217,29 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Tipos documentales - endpoint adicional
     Route::get('tipos-documentales-activos', [TipoDocumentalController::class, 'activos']);
+
+    // =====================================================
+    // MÓDULO FONDOS CONCURSABLES (admin, fomento_productivo)
+    // =====================================================
+    Route::middleware('role:admin,fomento_productivo')->group(function () {
+        Route::prefix('fondos-concursables')->group(function () {
+            Route::get('/', [FondoConcursableController::class, 'index']);
+            Route::post('/', [FondoConcursableController::class, 'store']);
+            Route::get('/{fondoConcursable}', [FondoConcursableController::class, 'show']);
+            Route::put('/{fondoConcursable}', [FondoConcursableController::class, 'update']);
+            Route::post('/{fondoConcursable}/bases', [FondoConcursableController::class, 'subirBases']);
+            Route::get('/{id}/postulaciones', [FondoConcursableController::class, 'postulaciones']);
+            Route::get('/{id}/estadisticas', [FondoConcursableController::class, 'estadisticas']);
+        });
+
+        Route::prefix('postulaciones')->group(function () {
+            Route::get('/{id}', [FondoConcursableController::class, 'showPostulacion']);
+            Route::post('/{id}/evaluar', [FondoConcursableController::class, 'evaluar']);
+            Route::post('/{id}/aprobar', [FondoConcursableController::class, 'aprobar']);
+            Route::post('/{id}/rechazar', [FondoConcursableController::class, 'rechazar']);
+            Route::get('/{id}/ficha', [FondoConcursableController::class, 'ficha']);
+        });
+
+        Route::get('/postulacion-adjuntos/{id}/descargar', [FondoConcursableController::class, 'descargarAdjunto']);
+    });
 });

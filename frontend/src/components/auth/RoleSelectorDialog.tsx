@@ -15,6 +15,7 @@ import {
   Badge as OficialIcon,
   Person as UsuarioIcon,
   AccountBalance as AlcaldeIcon,
+  Storefront as FomentoIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -38,6 +39,11 @@ const roleConfig: Record<string, { label: string; icon: React.ReactNode; descrip
     label: 'Usuario',
     icon: <UsuarioIcon color="action" />,
     description: 'Acceso a bandeja de entrada',
+  },
+  fomento_productivo: {
+    label: 'Fomento Productivo',
+    icon: <FomentoIcon color="secondary" />,
+    description: 'Gestión de fondos concursables',
   },
 }
 

@@ -152,5 +152,8 @@ class DatabaseSeeder extends Seeder
 
         // Plantillas de documentos
         $this->call(DocumentoPlantillaSeeder::class);
+
+        // Fondos concursables
+        $this->call(FondoConcursableSeeder::class);
     }
 }

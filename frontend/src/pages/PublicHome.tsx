@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -14,10 +15,23 @@ import {
   Search as SearchIcon,
   Login as LoginIcon,
   VerifiedUser as VerifyIcon,
+  Storefront as NegocioIcon,
+  TrackChanges as SeguimientoIcon,
 } from '@mui/icons-material'
+import { FondoConcursable } from '../types'
+import { fondosPublicoAPI } from '../api/fondos'
+import FondoInfoDialog from '../components/fondos/FondoInfoDialog'
 
 const PublicHome = () => {
   const navigate = useNavigate()
+  const [fondoActivo, setFondoActivo] = useState<FondoConcursable | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    fondosPublicoAPI.obtenerActivo()
+      .then((res) => setFondoActivo(res.data))
+      .catch(() => { /* No hay fondo activo */ })
+  }, [])
 
   const serviciosPublicos = [
     {
@@ -40,6 +54,23 @@ const PublicHome = () => {
       icono: <VerifyIcon sx={{ fontSize: 48 }} />,
       color: '#2DC700',
       ruta: '/verificar',
+    },
+  ]
+
+  const fondoServicios = [
+    ...(fondoActivo ? [{
+      titulo: 'Tu Negocio Crece',
+      descripcion: 'Postula al fondo concursable para emprendedores de Cabo de Hornos',
+      icono: <NegocioIcon sx={{ fontSize: 48 }} />,
+      color: '#EB1B78',
+      accion: () => setDialogOpen(true),
+    }] : []),
+    {
+      titulo: 'Seguimiento Postulación',
+      descripcion: 'Consulte el estado de su postulación al fondo concursable',
+      icono: <SeguimientoIcon sx={{ fontSize: 48 }} />,
+      color: '#8AC53E',
+      ruta: '/fondos/seguimiento',
     },
   ]
 
@@ -135,6 +166,58 @@ const PublicHome = () => {
           ))}
         </Grid>
 
+        {/* Fondos Concursables */}
+        {fondoServicios.length > 0 && (
+          <>
+            <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 4, mt: 6 }}>
+              Fondos Concursables
+            </Typography>
+
+            <Grid container spacing={4}>
+              {fondoServicios.map((servicio) => (
+                <Grid item xs={12} sm={6} md={4} key={servicio.titulo}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    <CardActionArea
+                      onClick={() => 'accion' in servicio && servicio.accion ? servicio.accion() : navigate(servicio.ruta!)}
+                      sx={{ height: '100%' }}
+                    >
+                      <CardContent sx={{ textAlign: 'center', p: 4 }}>
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            p: 2,
+                            borderRadius: 2,
+                            bgcolor: `${servicio.color}20`,
+                            mb: 2,
+                            color: servicio.color,
+                          }}
+                        >
+                          {servicio.icono}
+                        </Box>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom>
+                          {servicio.titulo}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {servicio.descripcion}
+                        </Typography>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </>
+        )}
+
         {/* Información de contacto */}
         <Box sx={{ mt: 8, textAlign: 'center' }}>
           <Typography variant="h6" gutterBottom>
@@ -160,6 +243,13 @@ const PublicHome = () => {
           </Typography>
         </Container>
       </Box>
+
+      {/* Dialog Fondo Concursable */}
+      <FondoInfoDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        fondo={fondoActivo}
+      />
     </Box>
   )
 }

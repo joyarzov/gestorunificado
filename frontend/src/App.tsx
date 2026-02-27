@@ -39,6 +39,14 @@ import DocumentosRecibidos from './pages/gestor/DocumentosRecibidos'
 import RepositorioDocumental from './pages/gestor/RepositorioDocumental'
 import RepositorioExpedientes from './pages/gestor/RepositorioExpedientes'
 
+// Fondos Concursables
+import PostulacionForm from './pages/fondos/PostulacionForm'
+import SeguimientoPostulacion from './pages/fondos/SeguimientoPostulacion'
+import FomentoProductivoDashboard from './pages/fondos/FomentoProductivoDashboard'
+import PostulacionesList from './pages/fondos/PostulacionesList'
+import PostulacionDetail from './pages/fondos/PostulacionDetail'
+import PostulacionEvaluar from './pages/fondos/PostulacionEvaluar'
+
 // Admin
 import Administracion from './pages/admin/Administracion'
 import UsuariosManage from './pages/admin/UsuariosManage'
@@ -56,6 +64,9 @@ function App() {
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />
         <Route path="/verificar" element={<VerificarDocumento />} />
         <Route path="/verificar/:codigo" element={<VerificarDocumento />} />
+        <Route path="/fondos/postular" element={<PostulacionForm />} />
+        <Route path="/fondos/postular/:codigo" element={<PostulacionForm />} />
+        <Route path="/fondos/seguimiento" element={<SeguimientoPostulacion />} />
 
         {/* Rutas protegidas */}
         <Route element={<PrivateRoute />}>
@@ -95,6 +106,12 @@ function App() {
             <Route path="/documentos-recibidos" element={<DocumentosRecibidos />} />
             <Route path="/repositorio-expedientes" element={<RepositorioExpedientes />} />
             <Route path="/repositorio-documental" element={<RepositorioDocumental />} />
+
+            {/* Fomento Productivo */}
+            <Route path="/fomento-productivo" element={<FomentoProductivoDashboard />} />
+            <Route path="/fondos-concursables/:id" element={<PostulacionesList />} />
+            <Route path="/postulaciones/:id" element={<PostulacionDetail />} />
+            <Route path="/postulaciones/:id/evaluar" element={<PostulacionEvaluar />} />
 
             {/* Administración */}
             <Route path="/administracion" element={<Administracion />} />

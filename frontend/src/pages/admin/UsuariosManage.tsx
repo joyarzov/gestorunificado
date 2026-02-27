@@ -38,6 +38,7 @@ const rolesOptions = [
   { value: 'alcalde', label: 'Alcalde' },
   { value: 'oficial', label: 'Oficial de Partes' },
   { value: 'oirs', label: 'Administrador OIRS' },
+  { value: 'fomento_productivo', label: 'Fomento Productivo' },
   { value: 'usuario', label: 'Usuario' },
 ]
 

@@ -38,8 +38,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     // No verificar auth en rutas públicas
-    const publicPaths = ['/', '/login', '/oirs', '/oirs/consultar']
-    if (publicPaths.includes(location.pathname)) {
+    const publicPaths = ['/', '/login', '/oirs', '/oirs/consultar', '/fondos/postular', '/fondos/seguimiento']
+    const isPublicSubpath = location.pathname.startsWith('/fondos/postular/') || location.pathname.startsWith('/verificar/')
+    if (publicPaths.includes(location.pathname) || isPublicSubpath) {
       setLoading(false)
       return
     }
@@ -144,6 +145,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       oirs: ['oirs'],
       alcalde: ['correspondencia', 'gestor_documental'],
       usuario: ['correspondencia', 'gestor_documental', 'oirs'],
+      fomento_productivo: ['fomento_productivo'],
     }
     const defaults = selectedRole ? defaultsByRole[selectedRole] : null
     return defaults ? defaults.includes(app) : false

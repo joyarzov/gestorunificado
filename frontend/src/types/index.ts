@@ -312,6 +312,102 @@ export interface PaginatedResponse<T> {
   total: number
 }
 
+// Fondos Concursables
+export interface FondoConcursable {
+  id: number
+  nombre: string
+  codigo: string
+  descripcion?: string
+  bases_pdf_path?: string
+  monto_total: number
+  monto_maximo_por_proyecto: number
+  estado: 'borrador' | 'abierto' | 'cerrado' | 'evaluacion' | 'finalizado'
+  fecha_apertura?: string
+  fecha_cierre?: string
+  anio: number
+  postulaciones_count?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PostulacionItemFinanciamiento {
+  id?: number
+  postulacion_id?: number
+  sub_item: 'activo_fijo' | 'activo_intangible' | 'materia_prima' | 'mercaderia' | 'promocion' | 'transporte'
+  producto_servicio: string
+  justificacion?: string
+  plazo_ejecucion?: string
+  numero_cotizacion?: string
+  proveedor?: string
+  cantidad: number
+  valor_unitario: number
+  valor_total: number
+  monto_municipio: number
+  monto_cofinanciamiento: number
+}
+
+export interface PostulacionAdjunto {
+  id: number
+  postulacion_id: number
+  tipo_documento: 'cedula_identidad' | 'registro_social_hogares' | 'cotizaciones' | 'resolucion_sanitaria' | 'patente_comercial' | 'carpeta_tributaria' | 'otro'
+  nombre_archivo: string
+  ruta_archivo: string
+  tipo_mime?: string
+  tamanio_bytes?: number
+}
+
+export interface Postulacion {
+  id: number
+  codigo: string
+  fondo_id: number
+  fondo?: FondoConcursable
+  nombre_postulante: string
+  rut_postulante: string
+  email_postulante?: string
+  telefono_postulante?: string
+  contenido_json?: Record<string, unknown>
+  estado: 'borrador' | 'enviada' | 'en_revision' | 'aprobada' | 'rechazada'
+  puntaje?: number
+  puntaje_detalle?: Record<string, number>
+  observaciones_evaluacion?: string
+  evaluado_por?: number
+  evaluador?: User
+  fecha_evaluacion?: string
+  monto_aprobado?: number
+  paso_actual: number
+  items_financiamiento?: PostulacionItemFinanciamiento[]
+  adjuntos?: PostulacionAdjunto[]
+  created_at: string
+  updated_at: string
+}
+
+export interface FondoEstadisticas {
+  fondo: FondoConcursable
+  total_postulaciones: number
+  por_estado: Record<string, number>
+  monto_total_aprobado: number
+  puntaje_promedio: number | null
+}
+
+export interface PostulacionConsulta {
+  codigo: string
+  nombre_postulante: string
+  estado: string
+  puntaje?: number
+  monto_aprobado?: number
+  observaciones_evaluacion?: string
+  created_at: string
+  updated_at: string
+  // Campos adicionales si es borrador
+  contenido_json?: Record<string, unknown>
+  items_financiamiento?: PostulacionItemFinanciamiento[]
+  adjuntos?: PostulacionAdjunto[]
+  paso_actual?: number
+  fondo_id?: number
+  email_postulante?: string
+  telefono_postulante?: string
+}
+
 // Notificaciones
 export interface Notificacion {
   id: number

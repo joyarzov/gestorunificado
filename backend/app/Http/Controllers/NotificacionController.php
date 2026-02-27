@@ -23,6 +23,7 @@ class NotificacionController extends Controller
         $notificaciones = Notificacion::where('user_id', Auth::id())
             ->where('leida', false)
             ->orderBy('created_at', 'desc')
+            ->limit(10)
             ->get();
 
         return $this->successResponse($notificaciones);

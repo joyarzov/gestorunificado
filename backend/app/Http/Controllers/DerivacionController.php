@@ -182,7 +182,7 @@ class DerivacionController extends Controller
                 'tipo' => 'correspondencia_recibida',
                 'titulo' => 'Nueva correspondencia en tu bandeja',
                 'mensaje' => "Se ha derivado la correspondencia de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
-                'data' => ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id],
+                'data' => ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id],
             ]);
         }
 
@@ -281,7 +281,7 @@ class DerivacionController extends Controller
                     'tipo' => 'correspondencia_completada',
                     'titulo' => 'Correspondencia completada',
                     'mensaje' => "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
-                    'data' => ['correspondencia_id' => $correspondencia->id],
+                    'data' => ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id],
                 ]);
             }
         }

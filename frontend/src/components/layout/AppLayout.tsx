@@ -26,12 +26,14 @@ import {
   Forum as OirsIcon,
   Description as GestorIcon,
   Settings as AdminIcon,
+  Storefront as FomentoIcon,
   ExitToApp as LogoutIcon,
   Person as PersonIcon,
   ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import CorporateColorBar from '../branding/CorporateColorBar'
+import NotificacionesBell from './NotificacionesBell'
 
 const drawerWidth = 260
 
@@ -70,6 +72,8 @@ const AppLayout = () => {
         return 'Alcalde'
       case 'oficial':
         return 'Oficial de Partes'
+      case 'fomento_productivo':
+        return 'Fomento Productivo'
       default:
         return 'Usuario'
     }
@@ -99,6 +103,12 @@ const AppLayout = () => {
       icon: <GestorIcon />,
       path: '/gestor-documental',
       show: hasAplicacion('gestor_documental'),
+    },
+    {
+      text: 'Fomento Productivo',
+      icon: <FomentoIcon />,
+      path: '/fomento-productivo',
+      show: hasAplicacion('fomento_productivo'),
     },
     {
       text: 'Administración',
@@ -196,11 +206,13 @@ const AppLayout = () => {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />
+          <NotificacionesBell />
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               cursor: 'pointer',
+              ml: 1,
             }}
             onClick={handleMenuClick}
           >

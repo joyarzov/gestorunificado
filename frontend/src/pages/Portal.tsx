@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -8,60 +7,28 @@ import {
   Card,
   CardActionArea,
   Button,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Paper,
-  Skeleton,
-  Alert,
   IconButton,
   Tooltip,
-  Badge,
 } from '@mui/material'
 import {
   Mail as MailIcon,
   Description as DocumentIcon,
   Forum as OirsIcon,
   Settings as AdminIcon,
+  Storefront as FomentoIcon,
   Refresh as RefreshIcon,
-  Notifications as NotificacionesIcon,
-  DoneAll as DoneAllIcon,
-  Circle as CircleIcon,
   AccessTime as TimeIcon,
   ExitToApp as LogoutIcon,
   SwapHoriz as SwapRoleIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
-import { notificacionesAPI } from '../api/common'
-import { Notificacion } from '../types'
-import { parseISO, formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { useHoraOficial } from '../hooks/useHoraOficial'
+import NotificacionesBell from '../components/layout/NotificacionesBell'
 
 const Portal = () => {
   const navigate = useNavigate()
   const { user, selectedRole, hasAplicacion, isAdmin, logout, setShowRoleSelector } = useAuth()
-  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const notifRes = await notificacionesAPI.noLeidas().catch(() => ({ success: false, data: [] as Notificacion[], message: '' }))
-      if (notifRes.success) setNotificaciones(notifRes.data)
-    } catch {
-      setError('Error al cargar las notificaciones')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -75,19 +42,13 @@ const Portal = () => {
   const { hora, fecha } = useHoraOficial()
   const tieneMultiplesRoles = (user?.roles?.length ?? 0) > 1
 
-  const handleMarcarTodasLeidas = async () => {
-    try {
-      await notificacionesAPI.marcarTodasLeidas()
-      setNotificaciones([])
-    } catch { /* ignore */ }
-  }
-
   const getRolTexto = () => {
     switch (selectedRole) {
       case 'admin': return 'Administrador'
       case 'oficial': return 'Oficial de Partes'
       case 'oirs': return 'Administrador OIRS'
       case 'alcalde': return 'Alcalde'
+      case 'fomento_productivo': return 'Fomento Productivo'
       default: return 'Usuario'
     }
   }
@@ -134,6 +95,15 @@ const Portal = () => {
       color: '#8AC53E',
       ruta: '/gestor-documental',
       visible: hasAplicacion('gestor_documental'),
+    },
+    {
+      id: 'fomento_productivo',
+      nombre: 'Fomento Productivo',
+      descripcion: 'Gestión de fondos concursables y postulaciones',
+      icono: <FomentoIcon sx={{ fontSize: 40 }} />,
+      color: '#EB1B78',
+      ruta: '/fomento-productivo',
+      visible: hasAplicacion('fomento_productivo'),
     },
     {
       id: 'administracion',
@@ -207,8 +177,9 @@ const Portal = () => {
               </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <NotificacionesBell />
               <Tooltip title="Actualizar">
-                <IconButton onClick={fetchData} sx={{ color: 'white' }}>
+                <IconButton sx={{ color: 'white' }}>
                   <RefreshIcon />
                 </IconButton>
               </Tooltip>
@@ -259,14 +230,6 @@ const Portal = () => {
       </Box>
 
       <Container maxWidth="xl" sx={{ pb: 6 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} action={
-            <Button color="inherit" size="small" onClick={fetchData}>Reintentar</Button>
-          }>
-            {error}
-          </Alert>
-        )}
-
         {/* === SECCIÓN 1: MÓDULOS === */}
         <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
           Aplicaciones
@@ -320,85 +283,6 @@ const Portal = () => {
             </Grid>
           )}
         </Grid>
-
-        {/* === SECCIÓN 2: NOTIFICACIONES === */}
-        <Paper sx={{ p: 0, overflow: 'hidden' }} elevation={2}>
-          <Box sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Badge badgeContent={notificaciones.length} color="error" max={99}>
-                <NotificacionesIcon fontSize="small" color="action" />
-              </Badge>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Notificaciones
-              </Typography>
-            </Box>
-            {notificaciones.length > 0 && (
-              <Tooltip title="Marcar todas como leídas">
-                <IconButton size="small" onClick={handleMarcarTodasLeidas}>
-                  <DoneAllIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-
-          {loading ? (
-            <Box sx={{ p: 2 }}>
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={36} sx={{ mb: 0.5 }} />)}
-            </Box>
-          ) : notificaciones.length > 0 ? (
-            <List disablePadding dense sx={{ maxHeight: 280, overflow: 'auto' }}>
-              {notificaciones.slice(0, 8).map((notif, i) => (
-                <ListItem
-                  key={notif.id}
-                  divider={i < Math.min(notificaciones.length, 8) - 1}
-                  sx={{
-                    px: 2,
-                    py: 0.75,
-                    ...(notif.data?.url ? {
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    } : {}),
-                  }}
-                  onClick={async () => {
-                    if (notif.data?.url) {
-                      try { await notificacionesAPI.marcarLeida(notif.id) } catch { /* ignore */ }
-                      setNotificaciones(prev => prev.filter(n => n.id !== notif.id))
-                      navigate(notif.data.url as string)
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 24 }}>
-                    <CircleIcon sx={{ fontSize: 8, color: 'primary.main' }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 1 }}>
-                        <Typography variant="body2" fontWeight="medium" noWrap sx={{ flex: 1 }}>
-                          {notif.titulo}
-                        </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
-                          {formatDistanceToNow(parseISO(notif.created_at), { addSuffix: true, locale: es })}
-                        </Typography>
-                      </Box>
-                    }
-                    secondary={
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {notif.mensaje}
-                      </Typography>
-                    }
-                    sx={{ my: 0 }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Box sx={{ py: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Sin notificaciones nuevas
-              </Typography>
-            </Box>
-          )}
-        </Paper>
 
         {/* Footer */}
         <Box sx={{ textAlign: 'center', mt: 5 }}>
