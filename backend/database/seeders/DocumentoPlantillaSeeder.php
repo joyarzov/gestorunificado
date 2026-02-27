@@ -224,14 +224,12 @@ class DocumentoPlantillaSeeder extends Seeder
     {
         return '
 <div style="font-family: Times New Roman, serif; max-width: 800px; margin: 0 auto; padding: 40px; line-height: 1.6;">
-    <!-- Logo en la parte superior izquierda -->
-    <div style="margin-bottom: 40px;">
-        <div style="text-align: left; margin-bottom: 10px;">
+    <!-- Logo + Encabezado -->
+    <div style="margin-bottom: 20px;">
+        <div style="text-align: left;">
             <img src="/logo.png" alt="Logo Municipalidad" style="max-width: 200px; height: auto;" />
         </div>
-        <div style="text-align: center;">
-            <h2 style="margin: 0;"><strong>MEMORÁNDUM Nº {{numero}}/{{anio}}</strong></h2>
-        </div>
+        <h2 style="margin: 10px 0 0 0; text-align: center;"><strong>MEMORÁNDUM Nº {{numero}}/{{anio}}</strong></h2>
     </div>
 
     <!-- Referencia y Fecha alineados a la derecha (igual que decreto) -->
@@ -241,12 +239,16 @@ class DocumentoPlantillaSeeder extends Seeder
     </div>
 
     <!-- DE / PARA -->
-    <div style="margin-bottom: 30px;">
-        <p><strong>DE:</strong></p>
-        <p style="margin-left: 20px; white-space: pre-line;">{{de}}</p>
-        <p style="margin-top: 10px;"><strong>PARA:</strong></p>
-        <p style="margin-left: 20px; white-space: pre-line;">{{para}}</p>
-    </div>
+    <table style="margin-bottom: 30px; border-collapse: collapse;">
+        <tr>
+            <td style="vertical-align: top; padding: 0 10px 5px 0; white-space: nowrap;"><strong>DE:</strong></td>
+            <td style="vertical-align: top; padding: 0 0 5px 0; white-space: pre-line;">{{de}}</td>
+        </tr>
+        <tr>
+            <td style="vertical-align: top; padding: 0 10px 0 0; white-space: nowrap;"><strong>PARA:</strong></td>
+            <td style="vertical-align: top; padding: 0; white-space: pre-line;">{{para}}</td>
+        </tr>
+    </table>
 
     <!-- Contenido -->
     <div style="margin-bottom: 30px; text-align: justify;">

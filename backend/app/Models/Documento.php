@@ -247,8 +247,8 @@ class Documento extends Model
 
         $html = '<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
-    @page { margin: 3.4cm 2.5cm 3.4cm 3.4cm; }
-    body { font-family: serif; font-size: 12px; margin: 0; padding: 0; line-height: 1.6; }
+    @page { margin: 1.6cm 2.5cm 3.4cm 3.4cm; }
+    body { font-family: serif; font-size: 12pt; margin: 0; padding: 0; line-height: 1.6; }
     body > div { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
 </style>
 </head><body>' . $contenido . '</body></html>';

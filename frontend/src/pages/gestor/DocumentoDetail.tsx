@@ -533,7 +533,10 @@ const DocumentoDetail = () => {
                           minHeight: 1123 * docScale,
                           bgcolor: 'white',
                           boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                          p: '96px 72px 96px 96px',
+                          p: '60px 94px 128px 128px',
+                          fontFamily: 'serif',
+                          fontSize: '12pt',
+                          lineHeight: 1.6,
                           transform: `scale(${docScale})`,
                           transformOrigin: 'top center',
                           mb: docScale < 1 ? `${-(1 - docScale) * 1123}px` : 0,
@@ -541,7 +544,6 @@ const DocumentoDetail = () => {
                             maxWidth: '100% !important',
                             padding: '0 !important',
                             margin: '0 !important',
-                            lineHeight: '1.6 !important',
                           },
                         }}
                         dangerouslySetInnerHTML={{ __html: documento.contenido_html || '' }}
