@@ -287,9 +287,9 @@ const DocumentoNew = () => {
     }
 
     return filas.map(fila => `
-      <div style="display: flex; justify-content: space-around; margin: 40px 0;">
+      <div style="display: flex; justify-content: flex-start; gap: 0; margin: 40px 0;">
         ${fila.map(user => `
-          <div style="text-align: center; min-width: 200px;">
+          <div style="text-align: left; width: 33.33%;">
             <p>___________________________</p>
             <p><strong>${user.nombre}</strong></p>
             <p style="font-size: 10pt; color: #666;">${user.rut}</p>
