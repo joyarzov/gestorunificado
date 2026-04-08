@@ -1,18 +1,6 @@
-import { useState } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
 import { Box, Typography } from '@mui/material'
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
 
 export interface FirmaPagePreviewProps {
-  pdfUrl: string | null
-  pageMode: 'LAST' | 'FIRST' | 'NUM'
-  pageNum: number
   firmaYPos: number
   existingFirmas: Array<{
     col: number
@@ -41,26 +29,11 @@ function llyToCssTop(lly: number): number {
 }
 
 export default function FirmaPagePreview({
-  pdfUrl,
-  pageMode,
-  pageNum,
   firmaYPos,
   existingFirmas,
   newRow,
   newCol,
 }: FirmaPagePreviewProps) {
-  const [numPages, setNumPages] = useState<number>(0)
-
-  // Determine which page to render
-  let targetPage = 1
-  if (pageMode === 'LAST') {
-    targetPage = numPages > 0 ? numPages : 1
-  } else if (pageMode === 'FIRST') {
-    targetPage = 1
-  } else {
-    targetPage = pageNum
-  }
-
   // Calculate new stamp position
   const newFirmaY = Math.round(10 + (firmaYPos / 100) * 702)
   const newLly = newFirmaY + newRow * 80
@@ -81,31 +54,15 @@ export default function FirmaPagePreview({
           overflow: 'hidden',
         }}
       >
-        {/* PDF background or simulated page */}
-        {pdfUrl ? (
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-            loading={null}
-            error={null}
-          >
-            <Page
-              pageNumber={targetPage}
-              width={PREVIEW_W_PX}
-              renderAnnotationLayer={false}
-              renderTextLayer={false}
+        {/* Simulated page content */}
+        <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
+            <Box
+              key={i}
+              sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }}
             />
-          </Document>
-        ) : (
-          <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
-              <Box
-                key={i}
-                sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }}
-              />
-            ))}
-          </Box>
-        )}
+          ))}
+        </Box>
 
         {/* Existing firm stamps (grey semi-transparent) */}
         {existingFirmas.map((f, i) => (

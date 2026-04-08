@@ -124,7 +124,6 @@ const DocumentoDetail = () => {
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
   const [firmaPageNum, setFirmaPageNum] = useState(1)
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
-  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -175,28 +174,12 @@ const DocumentoDetail = () => {
     }
   }, [pdfUrl])
 
-  // Cleanup preview URL on unmount
-  useEffect(() => {
-    return () => {
-      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl)
-    }
-  }, [previewPdfUrl])
-
-  // Fetch PDF for firma dialog preview when it doesn't exist yet (e.g. pending docs without stored PDF)
+  // Auto-select next available column when firma dialog opens
   useEffect(() => {
     if (firmarDialogOpen) {
-      // Auto-select next available column when dialog opens
       const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
       setFirmaCol(existingCount % 3)
     }
-    if (!firmarDialogOpen || pdfUrl || previewPdfUrl || !id) return
-    documentosAPI.descargar(parseInt(id))
-      .then(blob => {
-        if (blob instanceof Blob && blob.type === 'application/pdf') {
-          setPreviewPdfUrl(URL.createObjectURL(blob))
-        }
-      })
-      .catch(() => {})
   }, [firmarDialogOpen, pdfUrl])
 
   const loadDocumento = async (docId: number) => {
@@ -839,9 +822,6 @@ const DocumentoDetail = () => {
 
                       {/* Preview a la izquierda */}
                       <FirmaPagePreview
-                        pdfUrl={pdfUrl ?? previewPdfUrl}
-                        pageMode={firmaPageMode}
-                        pageNum={firmaPageNum}
                         firmaYPos={firmaYPos}
                         existingFirmas={existingFirmaPositions}
                         newRow={Math.floor(newSlot / 3)}
