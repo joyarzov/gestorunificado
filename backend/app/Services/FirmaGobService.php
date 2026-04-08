@@ -44,6 +44,11 @@ class FirmaGobService
         ];
     }
 
+    public function isSimulate(): bool
+    {
+        return (bool) config('firmagob.simulate');
+    }
+
     public function sign(
         string $pdfContent,
         string $description,
@@ -54,6 +59,17 @@ class FirmaGobService
         array $coords = [30, 20, 210, 90],
         string $page = 'LAST'
     ): array {
+        // Modo simulación: no llama al API, devuelve respuesta ficticia
+        if ($this->isSimulate()) {
+            Log::info('FirmaGob SIMULATE: firma simulada localmente', ['signer' => $signerRun]);
+            return [
+                'content'         => $pdfContent, // PDF sin modificar
+                'session_token'   => 'SIM-' . strtoupper(substr(md5(uniqid()), 0, 12)),
+                'metadata'        => ['simulated' => true, 'signer' => $signerRun],
+                'checksum_signed' => hash('sha256', $pdfContent . $signerRun . time()),
+            ];
+        }
+
         // En modo sandbox usamos el run fijo; en producción el RUT real del firmante
         $run = config('firmagob.sandbox_mode')
             ? config('firmagob.sandbox_run', '11111111')
