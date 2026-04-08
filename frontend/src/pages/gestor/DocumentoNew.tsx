@@ -289,10 +289,10 @@ const DocumentoNew = () => {
     return filas.map(fila => `
       <div style="display: flex; justify-content: flex-start; gap: 0; margin: 40px 0;">
         ${fila.map(user => `
-          <div style="text-align: left; width: 33.33%;">
-            <p>___________________________</p>
-            <p><strong>${user.nombre}</strong></p>
-            <p style="font-size: 10pt; color: #666;">${user.rut}</p>
+          <div style="text-align: left; width: 33.33%; padding-right: 24px; box-sizing: border-box;">
+            <div style="border-bottom: 1px solid #000; width: 80%; margin-bottom: 6px;"></div>
+            <p style="margin: 0 0 2px 0;"><strong>${user.nombre}</strong></p>
+            <p style="margin: 0; font-size: 10pt; color: #666;">${user.rut}</p>
           </div>
         `).join('')}
       </div>
