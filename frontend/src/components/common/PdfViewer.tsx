@@ -6,9 +6,8 @@ interface PdfViewerProps {
 }
 
 export default function PdfViewer({ url, height = '85vh' }: PdfViewerProps) {
-  // #toolbar=0 oculta la barra de herramientas nativa del visor PDF (descarga, impresión)
-  // La descarga debe hacerse desde el botón explícito del sistema
-  const src = url.includes('#') ? url : `${url}#toolbar=0&navpanes=0`
+  // toolbar=0 oculta barra nativa; zoom=page-fit muestra la página completa sin scroll interno
+  const src = url.includes('#') ? url : `${url}#toolbar=0&navpanes=0&zoom=page-fit`
   return (
     <Box
       component="iframe"
