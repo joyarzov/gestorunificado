@@ -227,7 +227,17 @@ FIRMAGOB_SANDBOX_RUN=
 FIRMAGOB_TIMEOUT=30
 ```
 
-> **Importante:** No usar comillas en valores con espacios en el `.env` de Laravel — el parser falla. Ejemplo correcto: `FIRMAGOB_ENTITY=Ilustre Municipalidad de Cabo de Hornos` (sin comillas).
+> **Importante — encoding del `.env`:** Los valores con espacios SÍ deben ir entre comillas dobles. Los valores con caracteres especiales (tildes, ñ) deben editarse con Python para preservar UTF-8, no con `echo >>` ni `sed`. Usar siempre:
+> ```bash
+> python3 << 'PYEOF'
+> import re
+> with open('/srv/apps/correspondencia-unificada/backend/.env', 'r', encoding='utf-8') as f:
+>     content = f.read()
+> content = re.sub(r'^FIRMAGOB_ENTITY=.*$', 'FIRMAGOB_ENTITY="Valor con tildes ñ"', content, flags=re.MULTILINE)
+> with open('/srv/apps/correspondencia-unificada/backend/.env', 'w', encoding='utf-8') as f:
+>     f.write(content)
+> PYEOF
+> ```
 
 ### 2. Limpiar el cache de configuración de Laravel
 
@@ -241,9 +251,36 @@ No se necesita rebuild ni reinicio de contenedores — Laravel lee el `.env` en 
 
 Entrar al sistema, abrir un documento pendiente de firma y confirmar que el modal muestra el campo OTP y los controles de posición de firma.
 
-### Estado actual (sandbox)
+### Estado actual (sandbox funcional)
 
 Las variables actuales en producción usan el ambiente de certificación de FirmaGob:
 - `FIRMAGOB_SANDBOX_MODE=true` → llama a `api.firma.cert.digital.gob.cl`
 - `FIRMAGOB_SANDBOX_RUN=22222222` → RUT ficticio para pruebas sandbox
 - Las firmas generadas en sandbox **no tienen validez legal**
+- `FIRMAGOB_SIMULATE=false` → llama al API real de FirmaGob (sandbox)
+
+El servidor de producción **sí tiene acceso al sandbox de FirmaGob** — las firmas sandbox se procesan correctamente.
+
+### Pitfall: FIRMAGOB_ENTITY debe tener tilde exacta
+
+El campo `FIRMAGOB_ENTITY` en el JWT debe coincidir **exactamente** con el valor registrado en FirmaGob. Si tiene tilde (`Subsecretaría`) debe escribirse con tilde. Escribirlo sin tilde (`Subsecretaria`) causa HTTP 400 con el mensaje:
+
+> *"No se pudo completar la operación. El certificado no está registrado o la aplicación no tiene permisos."*
+
+Esto no es un problema de IP ni de credenciales — es solo el encoding del entity en el JWT.
+
+### Modo simulación (fallback)
+
+Si FirmaGob falla o no está disponible, se puede activar el modo simulación:
+```bash
+python3 << 'PYEOF'
+import re
+with open('/srv/apps/correspondencia-unificada/backend/.env', 'r', encoding='utf-8') as f:
+    content = f.read()
+content = re.sub(r'^FIRMAGOB_SIMULATE=.*$', 'FIRMAGOB_SIMULATE=true', content, flags=re.MULTILINE)
+with open('/srv/apps/correspondencia-unificada/backend/.env', 'w', encoding='utf-8') as f:
+    f.write(content)
+PYEOF
+docker exec unificada_backend php artisan config:clear
+```
+En este modo el modal FirmaGob funciona normalmente pero la firma se registra sin llamar al API (PDF no queda estampado). Útil para pruebas de flujo.
