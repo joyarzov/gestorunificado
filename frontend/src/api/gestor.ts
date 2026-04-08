@@ -238,10 +238,19 @@ export const documentosAPI = {
     return response.data
   },
 
-  firmar: async (id: number, observaciones?: string) => {
+  firmar: async (id: number, observaciones?: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number) => {
     const response = await api.post<ApiResponse<Documento>>(`/documentos/${id}/firmar`, {
       observaciones,
+      otp,
+      firma_y: firmaY,
+      firma_page: firmaPage,
+      firma_col: firmaCol,
     })
+    return response.data
+  },
+
+  firmaConfig: async () => {
+    const response = await api.get<ApiResponse<{ firma_gob_enabled: boolean; firma_gob_purpose: string }>>('/documentos/firma-config')
     return response.data
   },
 

@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Services\FirmaGobService;
+use App\Exceptions\FirmaGobException;
 
 class DocumentoController extends Controller
 {
@@ -460,7 +462,7 @@ class DocumentoController extends Controller
     }
 
     /**
-     * Firmar documento (simulado)
+     * Firmar documento
      */
     public function firmar(Request $request, Documento $documento)
     {
@@ -476,14 +478,72 @@ class DocumentoController extends Controller
 
         $request->validate([
             'observaciones' => 'nullable|string|max:500',
+            'otp'           => 'nullable|string|max:10',
+            'firma_y'       => 'nullable|integer|min:10|max:712',
+            'firma_page'    => 'nullable|string',
+            'firma_col'     => 'nullable|integer|in:0,1,2',
         ]);
+
+        // Columna: usar la elegida por el usuario o auto-calcular según firmas existentes
+        $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
+        $col  = $request->has('firma_col') ? (int)$request->firma_col : $existingCount % 3;
+        $row  = (int)floor($existingCount / 3);
+        $lly  = ($request->firma_y ?? 20) + $row * 80;
+        $ury  = $lly + 70;
+        $colXCoords = [[71, 231], [233, 393], [395, 555]]; // alineado con márgenes del doc (2.5cm izq, 2cm der)
+        [$llx, $urx] = $colXCoords[$col];
+        $coords = [$llx, $lly, $urx, $ury];
+
+        // Integración FirmaGob: llamar ANTES de abrir la transacción (llamada de red)
+        $firmaGobService     = app(FirmaGobService::class);
+        $firmaGobData        = null;
+        $firmaGobSignedContent = null;
+
+        if ($firmaGobService->isEnabled()) {
+            try {
+                $pdfContent = $this->obtenerPdfContent($documento);
+                $result = $firmaGobService->sign(
+                    $pdfContent,
+                    "Documento {$documento->numero}",
+                    $user->rut,
+                    $request->otp,
+                    $user->nombre,
+                    $user->cargo ?? null,
+                    $coords,
+                    $request->firma_page ?? 'LAST'
+                );
+                $firmaGobSignedContent = $result['content'];
+                $firmaGobData = [
+                    'firma_gob_id'   => $result['session_token'],
+                    'firma_gob_data' => [
+                        'session_token'   => $result['session_token'],
+                        'metadata'        => $result['metadata'],
+                        'checksum_signed' => $result['checksum_signed'],
+                        'firma_y'         => $lly,
+                        'firma_col'       => $col,
+                        'firma_page'      => $request->firma_page ?? 'LAST',
+                    ],
+                ];
+            } catch (FirmaGobException $e) {
+                $statusCode = $e->isRetryable() ? 503 : 502;
+                return $this->errorResponse($e->getMessage(), $statusCode);
+            }
+        }
 
         DB::beginTransaction();
         try {
-            $firma = $documento->registrarFirma($user, $request->observaciones);
+            $firma = $documento->registrarFirma($user, $request->observaciones, $firmaGobData);
+
+            // Guardar PDF firmado por FirmaGob (sobrescribe el generado por marcarComoFirmado si aplica)
+            if ($firmaGobSignedContent) {
+                $path = 'documentos/' . $documento->identificador . '_firmado_' . time() . '.pdf';
+                Storage::disk('public')->put($path, $firmaGobSignedContent);
+                $documento->update(['archivo_pdf' => $path]);
+            }
 
             DocumentoTrazabilidad::registrar($documento->id, 'firmado', "Documento firmado por {$user->nombre}", [
-                'observaciones' => $request->observaciones,
+                'observaciones'     => $request->observaciones,
+                'firma_electronica' => $firmaGobService->isEnabled(),
             ]);
 
             // Registrar actividad si hay expediente
@@ -599,6 +659,33 @@ class DocumentoController extends Controller
     }
 
     /**
+     * Obtiene el contenido binario del PDF del documento.
+     * Si no existe, lo genera primero.
+     */
+    private function obtenerPdfContent(Documento $documento): string
+    {
+        if ($documento->archivo_pdf && Storage::disk('public')->exists($documento->archivo_pdf)) {
+            return Storage::disk('public')->get($documento->archivo_pdf);
+        }
+
+        $documento->generarPdfFinal();
+        $documento->refresh();
+
+        return Storage::disk('public')->get($documento->archivo_pdf);
+    }
+
+    /**
+     * Retorna la configuración de FirmaGob al frontend.
+     */
+    public function firmaConfig()
+    {
+        return $this->successResponse([
+            'firma_gob_enabled' => config('firmagob.enabled'),
+            'firma_gob_purpose' => config('firmagob.purpose'),
+        ]);
+    }
+
+    /**
      * Agregar firmante a documento
      */
     public function agregarFirmante(Request $request, Documento $documento)
@@ -677,10 +764,10 @@ class DocumentoController extends Controller
             );
         }
 
-        // Solo generar PDF on-demand si el documento está firmado
-        // (el PDF oficial se genera al completarse todas las firmas)
-        if ($documento->estado === Documento::ESTADO_FIRMADO && !empty($documento->contenido_html)) {
+        // Generar PDF on-demand para cualquier documento con contenido HTML
+        if (!empty($documento->contenido_html)) {
             $documento->generarPdfFinal();
+            $documento->refresh();
 
             if ($documento->archivo_pdf && Storage::disk('public')->exists($documento->archivo_pdf)) {
                 $nombre = str_replace('/', '_', $documento->numero ?? $documento->identificador);
@@ -689,13 +776,6 @@ class DocumentoController extends Controller
                     $nombre . '.pdf'
                 );
             }
-        }
-
-        // Para documentos no firmados, devolver preview HTML
-        if (!empty($documento->contenido_html)) {
-            return response($documento->contenido_html)
-                ->header('Content-Type', 'text/html')
-                ->header('Content-Disposition', 'inline; filename="' . $documento->identificador . '.html"');
         }
 
         return response()->json(['message' => 'Documento sin contenido'], 404);

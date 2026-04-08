@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -18,6 +18,7 @@ import {
   MenuItem,
   useTheme,
   useMediaQuery,
+  Badge,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -30,10 +31,12 @@ import {
   ExitToApp as LogoutIcon,
   Person as PersonIcon,
   ChevronLeft as ChevronLeftIcon,
+  Create as FirmarIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import CorporateColorBar from '../branding/CorporateColorBar'
 import NotificacionesBell from './NotificacionesBell'
+import { documentosAPI } from '../../api/gestor'
 
 const drawerWidth = 260
 
@@ -45,6 +48,14 @@ const AppLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, selectedRole, logout, isAdmin, hasAplicacion } = useAuth()
+  const [pendientesFirmaCount, setPendientesFirmaCount] = useState(0)
+
+  useEffect(() => {
+    if (!hasAplicacion('gestor_documental')) return
+    documentosAPI.pendientesFirma({ page: 1, per_page: 1 })
+      .then(r => setPendientesFirmaCount(r.data?.total ?? 0))
+      .catch(() => {})
+  }, [user])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -102,6 +113,16 @@ const AppLayout = () => {
       text: 'Gestor Documental',
       icon: <GestorIcon />,
       path: '/gestor-documental',
+      show: hasAplicacion('gestor_documental'),
+    },
+    {
+      text: 'Pendientes de Firma',
+      icon: (
+        <Badge badgeContent={pendientesFirmaCount || 0} color="error" max={9}>
+          <FirmarIcon />
+        </Badge>
+      ),
+      path: '/pendientes-firma',
       show: hasAplicacion('gestor_documental'),
     },
     {

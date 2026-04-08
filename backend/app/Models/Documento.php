@@ -289,15 +289,22 @@ class Documento extends Model
         return !$yaFirmo;
     }
 
-    public function registrarFirma(User $user, ?string $observacion = null): DocumentoFirma
+    public function registrarFirma(User $user, ?string $observacion = null, ?array $firmaGobData = null): DocumentoFirma
     {
-        $firma = DocumentoFirma::create([
+        $fields = [
             'documento_id' => $this->id,
             'usuario_id' => $user->id,
             'fecha_firma' => now(),
             'observacion' => $observacion,
             'estado' => 'firmado',
-        ]);
+        ];
+
+        if ($firmaGobData) {
+            $fields['firma_gob_id']   = $firmaGobData['firma_gob_id'] ?? null;
+            $fields['firma_gob_data'] = $firmaGobData['firma_gob_data'] ?? null;
+        }
+
+        $firma = DocumentoFirma::create($fields);
 
         // Verificar si todos han firmado
         if ($this->todosHanFirmado()) {

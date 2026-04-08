@@ -266,6 +266,8 @@ export interface DocumentoFirma {
   observaciones?: string
   es_simulada?: boolean
   metadata_firma?: Record<string, unknown>
+  firma_gob_id?: string
+  firma_gob_data?: Record<string, unknown>
 }
 
 // Trazabilidad de documentos

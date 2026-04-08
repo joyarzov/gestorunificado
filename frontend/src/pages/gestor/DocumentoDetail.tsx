@@ -22,6 +22,9 @@ import {
   Autocomplete,
   TextField,
   Divider,
+  Slider,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -36,8 +39,11 @@ import {
   MarkEmailRead as MarkEmailReadIcon,
   PersonAdd as PersonAddIcon,
   Delete as DeleteIcon,
+  Verified as VerifiedIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
+import PdfViewer from '../../components/common/PdfViewer'
+import FirmaPagePreview from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
 import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, User } from '../../types'
 import { format } from 'date-fns'
@@ -111,6 +117,14 @@ const DocumentoDetail = () => {
   const [firmarDialogOpen, setFirmarDialogOpen] = useState(false)
   const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false)
   const [rechazoMotivo, setRechazoMotivo] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [firmaGobEnabled, setFirmaGobEnabled] = useState(false)
+  const [firmaGobPurpose, setFirmaGobPurpose] = useState('')
+  const [firmaYPos, setFirmaYPos] = useState(2)           // slider 0-100, default near bottom
+  const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
+  const [firmaPageNum, setFirmaPageNum] = useState(1)
+  const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -145,12 +159,45 @@ const DocumentoDetail = () => {
     }
   }, [id])
 
+  useEffect(() => {
+    documentosAPI.firmaConfig()
+      .then(r => {
+        setFirmaGobEnabled(r.data?.firma_gob_enabled ?? false)
+        setFirmaGobPurpose(r.data?.firma_gob_purpose ?? '')
+      })
+      .catch(() => {})
+  }, [])
+
   // Cleanup blob URL on unmount
   useEffect(() => {
     return () => {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
     }
   }, [pdfUrl])
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl)
+    }
+  }, [previewPdfUrl])
+
+  // Fetch PDF for firma dialog preview when it doesn't exist yet (e.g. pending docs without stored PDF)
+  useEffect(() => {
+    if (firmarDialogOpen) {
+      // Auto-select next available column when dialog opens
+      const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
+      setFirmaCol(existingCount % 3)
+    }
+    if (!firmarDialogOpen || pdfUrl || previewPdfUrl || !id) return
+    documentosAPI.descargar(parseInt(id))
+      .then(blob => {
+        if (blob instanceof Blob && blob.type === 'application/pdf') {
+          setPreviewPdfUrl(URL.createObjectURL(blob))
+        }
+      })
+      .catch(() => {})
+  }, [firmarDialogOpen, pdfUrl])
 
   const loadDocumento = async (docId: number) => {
     setLoading(true)
@@ -212,14 +259,18 @@ const DocumentoDetail = () => {
     if (!id) return
     setActionLoading(true)
     try {
-      await documentosAPI.firmar(parseInt(id))
+      const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
+      // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
+      const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
+      await documentosAPI.firmar(parseInt(id), undefined, otpCode || undefined, firmaY, firmaPage, firmaCol)
       setSnackbar({ open: true, message: 'Documento firmado exitosamente', severity: 'success' })
-      loadDocumento(parseInt(id))
+      setOtpCode('')
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al firmar'
       setSnackbar({ open: true, message: msg, severity: 'error' })
     } finally {
       setActionLoading(false)
+      loadDocumento(parseInt(id))
     }
   }
 
@@ -312,7 +363,7 @@ const DocumentoDetail = () => {
   const getFirmantesConEstado = () => {
     if (!documento) return []
 
-    const firmantes: Array<{ user: User; estado: 'pendiente' | 'firmado' | 'rechazado'; fecha?: string; observacion?: string }> = []
+    const firmantes: Array<{ user: User; estado: 'pendiente' | 'firmado' | 'rechazado'; fecha?: string; observacion?: string; firma_gob_id?: string }> = []
 
     const asignados = documento.firmantes_asignados || []
     // If no firmantes_asignados but there's firmante_asignado, use that
@@ -321,6 +372,7 @@ const DocumentoDetail = () => {
       firmantes.push({
         user: documento.firmante_asignado,
         estado: firma?.estado || 'pendiente',
+        firma_gob_id: firma?.firma_gob_id,
         fecha: firma?.fecha_firma,
         observacion: firma?.observacion || firma?.observaciones,
       })
@@ -332,6 +384,7 @@ const DocumentoDetail = () => {
       firmantes.push({
         user: asignado,
         estado: firma?.estado || 'pendiente',
+        firma_gob_id: firma?.firma_gob_id,
         fecha: firma?.fecha_firma,
         observacion: firma?.observacion || firma?.observaciones,
       })
@@ -503,17 +556,7 @@ const DocumentoDetail = () => {
                   Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
                 </Typography>
                 {pdfUrl ? (
-                  <Box
-                    component="iframe"
-                    src={`${pdfUrl}#navpanes=0`}
-                    sx={{
-                      width: '100%',
-                      height: { xs: '60vh', md: '85vh' },
-                      border: 'none',
-                      borderRadius: 1,
-                      bgcolor: 'white',
-                    }}
-                  />
+                  <PdfViewer url={pdfUrl} height={{ xs: '60vh', md: '85vh' }} />
                 ) : (
                   <Box
                     sx={{
@@ -595,12 +638,24 @@ const DocumentoDetail = () => {
                               : 'Pendiente de firma'
                         }
                       />
-                      <Chip
-                        label={item.estado === 'firmado' ? 'Firmado' : item.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
-                        size="small"
-                        color={item.estado === 'firmado' ? 'success' : item.estado === 'rechazado' ? 'error' : 'default'}
-                        variant="outlined"
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                        <Chip
+                          label={item.estado === 'firmado' ? 'Firmado' : item.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                          size="small"
+                          color={item.estado === 'firmado' ? 'success' : item.estado === 'rechazado' ? 'error' : 'default'}
+                          variant="outlined"
+                        />
+                        {item.firma_gob_id && (
+                          <Chip
+                            icon={<VerifiedIcon sx={{ fontSize: 14 }} />}
+                            label="FirmaGob"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ fontSize: 11 }}
+                          />
+                        )}
+                      </Box>
                     </ListItem>
                   ))}
                 </List>
@@ -743,8 +798,8 @@ const DocumentoDetail = () => {
       {/* Diálogo de confirmación de firma */}
       <Dialog
         open={firmarDialogOpen}
-        onClose={() => setFirmarDialogOpen(false)}
-        maxWidth="xs"
+        onClose={() => { setFirmarDialogOpen(false); setOtpCode('') }}
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>Confirmar Firma</DialogTitle>
@@ -752,9 +807,132 @@ const DocumentoDetail = () => {
           <Typography variant="body2" sx={{ mb: 1 }}>
             Está a punto de firmar electrónicamente el documento <strong>{documento.numero || documento.identificador}</strong>.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Esta acción tiene validez legal y no puede deshacerse. Al firmar, usted certifica que ha revisado y aprueba el contenido del documento.
           </Typography>
+          {firmaGobEnabled && (
+            <>
+              <Chip
+                icon={<VerifiedIcon />}
+                label="Firma Electrónica Avanzada (FirmaGob)"
+                color="primary"
+                size="small"
+                sx={{ mb: 2 }}
+              />
+              {/* Selector de posición del sello */}
+              {(() => {
+                const existingFirmaPositions = (documento.firmas || [])
+                  .filter(f => f.estado === 'firmado' && f.firma_gob_data)
+                  .map(f => ({
+                    col: (f.firma_gob_data as any)?.firma_col ?? 0,
+                    firmaY: (f.firma_gob_data as any)?.firma_y ?? 20,
+                    nombre: f.usuario?.nombre ?? '',
+                  }))
+                const newSlot = existingFirmaPositions.length
+
+                return (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" fontWeight="medium" sx={{ mb: 1.5 }}>
+                      Posición del sello de firma
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+
+                      {/* Preview a la izquierda */}
+                      <FirmaPagePreview
+                        pdfUrl={pdfUrl ?? previewPdfUrl}
+                        pageMode={firmaPageMode}
+                        pageNum={firmaPageNum}
+                        firmaYPos={firmaYPos}
+                        existingFirmas={existingFirmaPositions}
+                        newRow={Math.floor(newSlot / 3)}
+                        newCol={firmaCol}
+                      />
+
+                      {/* Controles a la derecha */}
+                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* Página */}
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                            Página
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <ToggleButtonGroup
+                              value={firmaPageMode}
+                              exclusive
+                              onChange={(_, v) => v && setFirmaPageMode(v)}
+                              size="small"
+                            >
+                              <ToggleButton value="LAST" sx={{ fontSize: 11, px: 1 }}>Última</ToggleButton>
+                              <ToggleButton value="FIRST" sx={{ fontSize: 11, px: 1 }}>Pág. 1</ToggleButton>
+                              <ToggleButton value="NUM" sx={{ fontSize: 11, px: 1 }}>Nro.</ToggleButton>
+                            </ToggleButtonGroup>
+                            {firmaPageMode === 'NUM' && (
+                              <TextField
+                                type="number"
+                                value={firmaPageNum}
+                                onChange={(e) => setFirmaPageNum(Math.max(1, parseInt(e.target.value) || 1))}
+                                size="small"
+                                inputProps={{ min: 1, style: { width: 48, textAlign: 'center' } }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+
+                        {/* Altura */}
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                            Altura del sello
+                          </Typography>
+                          <Box sx={{ px: 1 }}>
+                            <Slider
+                              value={firmaYPos}
+                              onChange={(_, v) => setFirmaYPos(v as number)}
+                              min={0}
+                              max={100}
+                              size="small"
+                              marks={[
+                                { value: 0,   label: 'Inferior' },
+                                { value: 100, label: 'Superior' },
+                              ]}
+                              sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
+                            />
+                          </Box>
+                        </Box>
+
+                        {/* Selector de columna */}
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                            Posición horizontal
+                          </Typography>
+                          <ToggleButtonGroup
+                            value={firmaCol}
+                            exclusive
+                            onChange={(_, v) => v !== null && setFirmaCol(v)}
+                            size="small"
+                          >
+                            <ToggleButton value={0} sx={{ fontSize: 11, px: 1.5 }}>Izquierda</ToggleButton>
+                            <ToggleButton value={1} sx={{ fontSize: 11, px: 1.5 }}>Centro</ToggleButton>
+                            <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>Derecha</ToggleButton>
+                          </ToggleButtonGroup>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                )
+              })()}
+              {firmaGobPurpose !== 'Desatendido' && (
+                <TextField
+                  fullWidth
+                  label="Código OTP (Google Authenticator)"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  size="small"
+                  inputProps={{ maxLength: 10 }}
+                  helperText="Abra Google Authenticator en su celular e ingrese el código de 6 dígitos."
+                />
+              )}
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setFirmarDialogOpen(false)}>Cancelar</Button>

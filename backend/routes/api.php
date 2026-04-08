@@ -193,6 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Documentos
     Route::prefix('documentos')->group(function () {
         Route::get('/estadisticas', [DocumentoController::class, 'estadisticas']);
+        Route::get('/firma-config', [DocumentoController::class, 'firmaConfig']);
         Route::get('/pendientes-firma', [DocumentoController::class, 'pendientesFirma']);
         Route::get('/plantillas', [DocumentoController::class, 'getPlantillas']);
         Route::post('/previsualizar', [DocumentoController::class, 'previsualizarPlantilla']);
