@@ -40,6 +40,7 @@ import {
   PersonAdd as PersonAddIcon,
   Delete as DeleteIcon,
   Verified as VerifiedIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
 import PdfViewer from '../../components/common/PdfViewer'
@@ -221,6 +222,21 @@ const DocumentoDetail = () => {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDescargar = async () => {
+    if (!id) return
+    try {
+      const blob = await documentosAPI.descargar(parseInt(id))
+      const url = URL.createObjectURL(blob as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${documento?.numero || documento?.identificador || 'documento'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSnackbar({ open: true, message: 'Error al descargar el documento', severity: 'error' })
     }
   }
 
@@ -536,9 +552,21 @@ const DocumentoDetail = () => {
           {(pdfUrl || documento.contenido_html) && (
             <Card sx={{ bgcolor: '#e0e0e0' }} ref={previewContainerRef}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="h6" gutterBottom>
-                  Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6">
+                    Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
+                  </Typography>
+                  {pdfUrl && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      onClick={handleDescargar}
+                    >
+                      Descargar PDF
+                    </Button>
+                  )}
+                </Box>
                 {pdfUrl ? (
                   <PdfViewer url={pdfUrl} height={{ xs: '60vh', md: '85vh' }} />
                 ) : (

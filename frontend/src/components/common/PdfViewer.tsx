@@ -6,10 +6,13 @@ interface PdfViewerProps {
 }
 
 export default function PdfViewer({ url, height = '85vh' }: PdfViewerProps) {
+  // #toolbar=0 oculta la barra de herramientas nativa del visor PDF (descarga, impresión)
+  // La descarga debe hacerse desde el botón explícito del sistema
+  const src = url.includes('#') ? url : `${url}#toolbar=0&navpanes=0`
   return (
     <Box
       component="iframe"
-      src={url}
+      src={src}
       sx={{
         width: '100%',
         height,
@@ -17,7 +20,7 @@ export default function PdfViewer({ url, height = '85vh' }: PdfViewerProps) {
         borderRadius: 1,
         bgcolor: '#525659',
       }}
-      title="Vista PDF"
+      title="Vista previa del documento"
     />
   )
 }
