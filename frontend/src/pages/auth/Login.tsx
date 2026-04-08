@@ -73,22 +73,26 @@ const Login = () => {
       sx={{
         minHeight: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         bgcolor: '#0071BC',
         p: 2,
+        gap: 3,
       }}
     >
+      {/* Logo blanco sobre el fondo azul */}
+      <Box
+        component="img"
+        src="/logo_blanco.png"
+        alt="Municipalidad de Cabo de Hornos"
+        sx={{ height: 80, width: 'auto' }}
+      />
+
       <Card sx={{ maxWidth: 400, width: '100%', overflow: 'hidden' }}>
         <CorporateColorBar height={5} />
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Box
-              component="img"
-              src="/logo.png"
-              alt="Municipalidad de Cabo de Hornos"
-              sx={{ height: 64, width: 'auto', mb: 2 }}
-            />
             <Typography variant="h5" fontWeight="bold" color="primary">
               Bienvenido
             </Typography>
