@@ -516,7 +516,7 @@ const DocumentoDetail = () => {
                   )}
                 </Box>
                 {pdfUrl ? (
-                  <PdfViewer url={pdfUrl} height={{ xs: '70vh', md: 'calc(100vh - 220px)' }} />
+                  <PdfViewer url={pdfUrl} height={{ xs: '80vh', md: '1100px' }} />
                 ) : (
                   <Box
                     sx={{
