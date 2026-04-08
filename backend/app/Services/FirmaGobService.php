@@ -100,6 +100,11 @@ class FirmaGobService
         $body = $response->json() ?? [];
 
         if (!$response->successful()) {
+            Log::error('FirmaGob API error', [
+                'status' => $response->status(),
+                'body'   => $body,
+                'raw'    => $response->body(),
+            ]);
             $this->handleApiError($response->status(), $body);
         }
 
