@@ -1,6 +1,7 @@
 import { Box, Typography } from '@mui/material'
 
 export interface FirmaPagePreviewProps {
+  pdfUrl?: string | null
   firmaYPos: number
   existingFirmas: Array<{
     col: number
@@ -29,6 +30,7 @@ function llyToCssTop(lly: number): number {
 }
 
 export default function FirmaPagePreview({
+  pdfUrl,
   firmaYPos,
   existingFirmas,
   newRow,
@@ -54,15 +56,28 @@ export default function FirmaPagePreview({
           overflow: 'hidden',
         }}
       >
-        {/* Simulated page content */}
-        <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-          {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
-            <Box
-              key={i}
-              sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }}
-            />
-          ))}
-        </Box>
+        {/* Fondo: PDF real o página simulada */}
+        {pdfUrl ? (
+          <Box
+            component="iframe"
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+            sx={{
+              position: 'absolute',
+              top: 0, left: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              pointerEvents: 'none',
+            }}
+            title="Preview documento"
+          />
+        ) : (
+          <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
+              <Box key={i} sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }} />
+            ))}
+          </Box>
+        )}
 
         {/* Existing firm stamps (grey semi-transparent) */}
         {existingFirmas.map((f, i) => (

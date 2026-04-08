@@ -823,6 +823,7 @@ const DocumentoDetail = () => {
 
                       {/* Preview a la izquierda */}
                       <FirmaPagePreview
+                        pdfUrl={pdfUrl}
                         firmaYPos={firmaYPos}
                         existingFirmas={existingFirmaPositions}
                         newRow={Math.floor(newSlot / 3)}
