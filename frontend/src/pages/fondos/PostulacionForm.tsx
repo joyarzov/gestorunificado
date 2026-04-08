@@ -327,7 +327,7 @@ const PostulacionForm = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box
               component="img"
-              src="/logo.png"
+              src="/logo_blanco.png"
               alt="Municipalidad"
               sx={{ height: 48, width: 'auto' }}
             />
