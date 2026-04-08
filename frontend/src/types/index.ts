@@ -327,6 +327,7 @@ export interface FondoConcursable {
   fecha_apertura?: string
   fecha_cierre?: string
   anio: number
+  activo: boolean
   postulaciones_count?: number
   created_at: string
   updated_at: string

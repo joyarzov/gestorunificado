@@ -11,6 +11,9 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Switch,
+  FormControlLabel,
+  Tooltip,
 } from '@mui/material'
 import {
   Assignment as PostulacionIcon,
@@ -26,6 +29,7 @@ const FomentoProductivoDashboard = () => {
   const [fondos, setFondos] = useState<FondoConcursable[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toggling, setToggling] = useState<number | null>(null)
 
   useEffect(() => {
     const cargar = async () => {
@@ -40,6 +44,23 @@ const FomentoProductivoDashboard = () => {
     }
     cargar()
   }, [])
+
+  const handleToggleActivo = async (e: React.MouseEvent, fondo: FondoConcursable) => {
+    e.stopPropagation()
+    if (toggling) return
+    setToggling(fondo.id)
+    // Optimistic update
+    setFondos(prev => prev.map(f => f.id === fondo.id ? { ...f, activo: !f.activo } : f))
+    try {
+      await fondosConcursablesAPI.toggleActivo(fondo.id)
+    } catch {
+      // Revert on error
+      setFondos(prev => prev.map(f => f.id === fondo.id ? { ...f, activo: fondo.activo } : f))
+      setError('Error al cambiar el estado del fondo')
+    } finally {
+      setToggling(null)
+    }
+  }
 
   const formatMonto = (monto: number) => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(monto)
@@ -78,7 +99,7 @@ const FomentoProductivoDashboard = () => {
         Gestión de fondos concursables y evaluación de postulaciones.
       </Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
       {/* Resumen rápido */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -131,6 +152,7 @@ const FomentoProductivoDashboard = () => {
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 },
                 borderTop: `4px solid ${estadoColor[fondo.estado] === 'success' ? '#2DC700' : estadoColor[fondo.estado] === 'warning' ? '#EE5825' : '#0071BC'}`,
+                opacity: fondo.activo ? 1 : 0.65,
               }}
             >
               <CardActionArea
@@ -162,6 +184,28 @@ const FomentoProductivoDashboard = () => {
                       Cierre: {new Date(fondo.fecha_cierre).toLocaleDateString('es-CL')}
                     </Typography>
                   )}
+
+                  {/* Toggle activo */}
+                  <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }} onClick={e => e.stopPropagation()}>
+                    <Tooltip title={fondo.activo ? 'Deshabilitar fondo (no visible en portal público)' : 'Habilitar fondo (visible en portal público)'}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={fondo.activo}
+                            onChange={(e) => handleToggleActivo(e as unknown as React.MouseEvent, fondo)}
+                            disabled={toggling === fondo.id}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Typography variant="caption" color={fondo.activo ? 'primary' : 'text.disabled'}>
+                            {fondo.activo ? 'Habilitado' : 'Deshabilitado'}
+                          </Typography>
+                        }
+                      />
+                    </Tooltip>
+                  </Box>
                 </CardContent>
               </CardActionArea>
             </Card>

@@ -22,6 +22,7 @@ class FondoConcursable extends Model
         'fecha_apertura',
         'fecha_cierre',
         'anio',
+        'activo',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class FondoConcursable extends Model
         'fecha_cierre' => 'date',
         'monto_total' => 'decimal:0',
         'monto_maximo_por_proyecto' => 'decimal:0',
+        'activo' => 'boolean',
     ];
 
     public function postulaciones()

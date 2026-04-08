@@ -271,6 +271,18 @@ class FondoConcursableController extends Controller
     }
 
     /**
+     * Activar o desactivar un fondo concursable.
+     */
+    public function toggleActivo(FondoConcursable $fondoConcursable)
+    {
+        $fondoConcursable->update(['activo' => !$fondoConcursable->activo]);
+
+        $estado = $fondoConcursable->activo ? 'activado' : 'desactivado';
+
+        return $this->successResponse($fondoConcursable, "Fondo {$estado} correctamente");
+    }
+
+    /**
      * Descargar ficha de postulación (JSON para ahora, PDF futuro).
      */
     public function ficha(int $id)

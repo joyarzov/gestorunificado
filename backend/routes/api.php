@@ -229,6 +229,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{fondoConcursable}', [FondoConcursableController::class, 'show']);
             Route::put('/{fondoConcursable}', [FondoConcursableController::class, 'update']);
             Route::post('/{fondoConcursable}/bases', [FondoConcursableController::class, 'subirBases']);
+            Route::patch('/{fondoConcursable}/toggle-activo', [FondoConcursableController::class, 'toggleActivo']);
             Route::get('/{id}/postulaciones', [FondoConcursableController::class, 'postulaciones']);
             Route::get('/{id}/estadisticas', [FondoConcursableController::class, 'estadisticas']);
         });

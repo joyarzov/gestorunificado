@@ -111,6 +111,11 @@ export const fondosConcursablesAPI = {
     return response.data
   },
 
+  toggleActivo: async (id: number) => {
+    const response = await api.patch<ApiResponse<FondoConcursable>>(`/fondos-concursables/${id}/toggle-activo`)
+    return response.data
+  },
+
   subirBases: async (id: number, archivo: File) => {
     const formData = new FormData()
     formData.append('archivo', archivo)

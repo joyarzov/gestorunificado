@@ -17,6 +17,7 @@ class FondoPublicoController extends Controller
     public function activo()
     {
         $fondo = FondoConcursable::where('estado', 'abierto')
+            ->where('activo', true)
             ->orderBy('fecha_cierre', 'desc')
             ->first();
 
