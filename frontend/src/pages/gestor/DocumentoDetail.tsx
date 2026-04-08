@@ -496,6 +496,69 @@ const DocumentoDetail = () => {
 
       <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={8}>
+          {/* Vista previa del contenido — primero para que sea visible sin scroll */}
+          {(pdfUrl || documento.contenido_html) && (
+            <Card sx={{ bgcolor: '#e0e0e0', mb: 3 }} ref={previewContainerRef}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6">
+                    Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
+                  </Typography>
+                  {pdfUrl && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      onClick={handleDescargar}
+                    >
+                      Descargar PDF
+                    </Button>
+                  )}
+                </Box>
+                {pdfUrl ? (
+                  <PdfViewer url={pdfUrl} height={{ xs: '60vh', md: '80vh' }} />
+                ) : (
+                  <Box
+                    sx={{
+                      maxHeight: '85vh',
+                      overflow: 'auto',
+                      pb: 2,
+                    }}
+                  >
+                    <Box sx={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                    }}>
+                      <Box
+                        sx={{
+                          width: 794,
+                          minHeight: 1056 * docScale,
+                          bgcolor: 'white',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                          p: '45px 76px 57px 94px',
+                          fontFamily: 'serif',
+                          fontSize: '12pt',
+                          lineHeight: 1.5,
+                          transform: `scale(${docScale})`,
+                          transformOrigin: 'top center',
+                          mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
+                          '& > div': {
+                            maxWidth: '100% !important',
+                            padding: '0 !important',
+                            margin: '0 !important',
+                          },
+                        }}
+                        dangerouslySetInnerHTML={{ __html: documento.contenido_html || '' }}
+                      />
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Información del Documento — debajo del visor */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -547,68 +610,6 @@ const DocumentoDetail = () => {
               </Grid>
             </CardContent>
           </Card>
-
-          {/* Vista previa del contenido */}
-          {(pdfUrl || documento.contenido_html) && (
-            <Card sx={{ bgcolor: '#e0e0e0' }} ref={previewContainerRef}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="h6">
-                    Contenido {pdfUrl && <Chip label="PDF" size="small" color="success" sx={{ ml: 1 }} />}
-                  </Typography>
-                  {pdfUrl && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDescargar}
-                    >
-                      Descargar PDF
-                    </Button>
-                  )}
-                </Box>
-                {pdfUrl ? (
-                  <PdfViewer url={pdfUrl} height={{ xs: '60vh', md: '85vh' }} />
-                ) : (
-                  <Box
-                    sx={{
-                      maxHeight: '85vh',
-                      overflow: 'auto',
-                      pb: 2,
-                    }}
-                  >
-                    <Box sx={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'center',
-                    }}>
-                      <Box
-                        sx={{
-                          width: 794,
-                          minHeight: 1056 * docScale,
-                          bgcolor: 'white',
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                          p: '45px 76px 57px 94px',
-                          fontFamily: 'serif',
-                          fontSize: '12pt',
-                          lineHeight: 1.5,
-                          transform: `scale(${docScale})`,
-                          transformOrigin: 'top center',
-                          mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
-                          '& > div': {
-                            maxWidth: '100% !important',
-                            padding: '0 !important',
-                            margin: '0 !important',
-                          },
-                        }}
-                        dangerouslySetInnerHTML={{ __html: documento.contenido_html || '' }}
-                      />
-                    </Box>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </Grid>
 
         <Grid item xs={12} md={4}>
