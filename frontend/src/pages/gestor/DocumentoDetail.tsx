@@ -496,7 +496,46 @@ const DocumentoDetail = () => {
 
       <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={8}>
-          {/* Vista previa del contenido — primero para que sea visible sin scroll */}
+          {/* Información del Documento */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Información del Documento
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">Título</Typography>
+                  <Typography fontWeight="medium">{documento.titulo}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">Tipo Documental</Typography>
+                  <Typography>{documento.tipo_documental?.nombre}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">Número</Typography>
+                  <Typography>{documento.numero || 'Pendiente'}</Typography>
+                </Grid>
+                {documento.expedientes && documento.expedientes.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">Expedientes</Typography>
+                    {documento.expedientes.map((exp) => (
+                      <Typography key={exp.id} sx={{ cursor: 'pointer', color: 'primary.main' }} onClick={() => navigate(`/expedientes/${exp.id}`)}>
+                        {exp.numero_expediente || exp.identificador} - {exp.titulo}
+                      </Typography>
+                    ))}
+                  </Grid>
+                )}
+                {documento.descripcion && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">Descripción</Typography>
+                    <Typography>{documento.descripcion}</Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Vista previa del contenido */}
           {(pdfUrl || documento.contenido_html) && (
             <Card sx={{ bgcolor: '#e0e0e0', mb: 3 }} ref={previewContainerRef}>
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -516,7 +555,7 @@ const DocumentoDetail = () => {
                   )}
                 </Box>
                 {pdfUrl ? (
-                  <PdfViewer url={pdfUrl} height={{ xs: '80vh', md: '1100px' }} />
+                  <PdfViewer url={pdfUrl} />
                 ) : (
                   <Box
                     sx={{
@@ -558,58 +597,6 @@ const DocumentoDetail = () => {
             </Card>
           )}
 
-          {/* Información del Documento — debajo del visor */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Información del Documento
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Título
-                  </Typography>
-                  <Typography fontWeight="medium">{documento.titulo}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Tipo Documental
-                  </Typography>
-                  <Typography>{documento.tipo_documental?.nombre}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Número
-                  </Typography>
-                  <Typography>{documento.numero || 'Pendiente'}</Typography>
-                </Grid>
-                {documento.expedientes && documento.expedientes.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">
-                      Expedientes
-                    </Typography>
-                    {documento.expedientes.map((exp) => (
-                      <Typography
-                        key={exp.id}
-                        sx={{ cursor: 'pointer', color: 'primary.main' }}
-                        onClick={() => navigate(`/expedientes/${exp.id}`)}
-                      >
-                        {exp.numero_expediente || exp.identificador} - {exp.titulo}
-                      </Typography>
-                    ))}
-                  </Grid>
-                )}
-                {documento.descripcion && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">
-                      Descripción
-                    </Typography>
-                    <Typography>{documento.descripcion}</Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
         </Grid>
 
         <Grid item xs={12} md={4}>
