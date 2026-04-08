@@ -167,3 +167,35 @@ docker exec -it corresp_mysql mysql -u unificada_user -p correspondencia_unifica
 - SPA fallback: `try_files $uri $uri/ /index.html`
 - Gzip habilitado
 - Cache de assets estáticos: 1 año con `immutable`
+
+---
+
+## Pitfalls conocidos
+
+### Dependencias npm que requieren compilación nativa (ej. `react-pdf`, `canvas`, `sharp`)
+
+**Problema:** La producción corre el frontend con `vite` en modo dev y un volumen mount que expone el código fuente del host. Si se agrega una dependencia npm que no está instalada en el host (o que requiere binarios nativos distintos), Vite falla al resolver el import con un error como:
+
+```
+[vite:import-analysis] Failed to resolve import "react-pdf" from "src/..."
+```
+
+**Causa raíz:** El `docker-compose.yml` monta el directorio del proyecto como volumen (`./frontend:/app`). Esto incluye `node_modules/` del host, que sobreescribe el `node_modules/` que Docker instaló al construir la imagen. Si la dependencia no existe en el host, no existe en el contenedor.
+
+**Regla:** Preferir dependencias que solo usen APIs del browser o código JS puro. Evitar librerías que requieran workers, WASM o binarios nativos si no están garantizadas en el host.
+
+**Ejemplos de alternativas seguras:**
+- Visor de PDF: usar `<iframe src={url} />` nativo en lugar de `react-pdf`
+- Procesamiento de imágenes: usar Canvas API nativo en lugar de `sharp`
+
+**Si igualmente se necesita agregar una dependencia pesada:** ejecutar `npm install` dentro del contenedor después del deploy:
+
+```bash
+docker exec unificada_frontend npm install nombre-paquete
+```
+
+O bien instalarla también en el host de desarrollo antes de hacer commit del `package-lock.json`.
+
+### No borrar usuarios de la BD al redesplegar
+
+El volumen MySQL (`unificada_mysql_data`) persiste entre deploys. El script `deploy.sh` corre `php artisan migrate` (no `migrate:fresh`), por lo que los datos existentes no se tocan. **Nunca correr `migrate:fresh` en producción.**
