@@ -132,9 +132,9 @@ const Portal = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
               <Box
                 component="img"
-                src="/logo.png"
+                src="/logo_blanco.png"
                 alt="Municipalidad de Cabo de Hornos"
-                sx={{ height: 52, width: 'auto', bgcolor: 'white', borderRadius: 1.5, p: 0.5 }}
+                sx={{ height: 52, width: 'auto' }}
               />
               <Box>
                 <Typography variant="h4" component="h1" fontWeight="bold">

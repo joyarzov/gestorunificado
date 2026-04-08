@@ -154,9 +154,9 @@ const AppLayout = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             component="img"
-            src="/logo.png"
+            src="/logo_blanco.png"
             alt="Municipalidad de Cabo de Hornos"
-            sx={{ height: 36, width: 'auto', bgcolor: 'white', borderRadius: 1, p: 0.5 }}
+            sx={{ height: 36, width: 'auto' }}
           />
           <Box>
             <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
