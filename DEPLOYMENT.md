@@ -199,3 +199,51 @@ O bien instalarla también en el host de desarrollo antes de hacer commit del `p
 ### No borrar usuarios de la BD al redesplegar
 
 El volumen MySQL (`unificada_mysql_data`) persiste entre deploys. El script `deploy.sh` corre `php artisan migrate` (no `migrate:fresh`), por lo que los datos existentes no se tocan. **Nunca correr `migrate:fresh` en producción.**
+
+---
+
+## Activar FirmaGob en producción (cuando se firme el convenio)
+
+Actualmente producción corre en **modo sandbox** (igual que local). Cuando se firme el convenio con FirmaGob y se obtengan las credenciales reales, hacer lo siguiente:
+
+### 1. Editar el `.env` del backend en el servidor
+
+```bash
+ssh root@doc.australbyte.cl
+nano /srv/apps/correspondencia-unificada/backend/.env
+```
+
+Reemplazar las variables FirmaGob por las reales:
+
+```env
+FIRMAGOB_ENABLED=true
+FIRMAGOB_SANDBOX_MODE=false
+FIRMAGOB_URL=https://api.firma.digital.gob.cl/firma/v2/files/tickets
+FIRMAGOB_API_TOKEN_KEY=<token real del convenio>
+FIRMAGOB_SECRET=<secret real del convenio>
+FIRMAGOB_ENTITY=Ilustre Municipalidad de Cabo de Hornos
+FIRMAGOB_PURPOSE=Propósito General
+FIRMAGOB_SANDBOX_RUN=
+FIRMAGOB_TIMEOUT=30
+```
+
+> **Importante:** No usar comillas en valores con espacios en el `.env` de Laravel — el parser falla. Ejemplo correcto: `FIRMAGOB_ENTITY=Ilustre Municipalidad de Cabo de Hornos` (sin comillas).
+
+### 2. Limpiar el cache de configuración de Laravel
+
+```bash
+docker exec unificada_backend php artisan config:clear
+```
+
+No se necesita rebuild ni reinicio de contenedores — Laravel lee el `.env` en cada request cuando no hay cache.
+
+### 3. Verificar
+
+Entrar al sistema, abrir un documento pendiente de firma y confirmar que el modal muestra el campo OTP y los controles de posición de firma.
+
+### Estado actual (sandbox)
+
+Las variables actuales en producción usan el ambiente de certificación de FirmaGob:
+- `FIRMAGOB_SANDBOX_MODE=true` → llama a `api.firma.cert.digital.gob.cl`
+- `FIRMAGOB_SANDBOX_RUN=22222222` → RUT ficticio para pruebas sandbox
+- Las firmas generadas en sandbox **no tienen validez legal**
