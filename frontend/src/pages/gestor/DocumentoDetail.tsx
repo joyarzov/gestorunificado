@@ -195,17 +195,18 @@ const DocumentoDetail = () => {
         } catch {
           // No es crítico si falla
         }
-        // Cargar PDF para vista previa
-        if (response.data.archivo_pdf) {
-          try {
-            const blob = await documentosAPI.descargar(docId)
-            if (blob instanceof Blob && blob.type === 'application/pdf') {
-              if (pdfUrl) URL.revokeObjectURL(pdfUrl)
-              setPdfUrl(URL.createObjectURL(blob))
-            }
-          } catch {
-            // Fallback a HTML si falla la carga del PDF
+      }
+      // Cargar PDF para vista previa (firmado, pendiente_firma o cualquier estado con contenido)
+      const necesitaPdf = response.data.archivo_pdf || response.data.contenido_html
+      if (necesitaPdf) {
+        try {
+          const blob = await documentosAPI.descargar(docId)
+          if (blob instanceof Blob && blob.type === 'application/pdf') {
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+            setPdfUrl(URL.createObjectURL(blob))
           }
+        } catch {
+          // Fallback a HTML si falla la carga del PDF
         }
       }
       // Cargar trazabilidad
