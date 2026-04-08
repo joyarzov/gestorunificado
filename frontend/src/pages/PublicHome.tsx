@@ -89,7 +89,7 @@ const PublicHome = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Box
                 component="img"
-                src="/logo.png"
+                src="/logo_blanco.png"
                 alt="Ilustre Municipalidad de Cabo de Hornos"
                 sx={{ height: 64, width: 'auto', flexShrink: 0 }}
               />
