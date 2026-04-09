@@ -12,7 +12,6 @@ import {
 } from '@mui/icons-material'
 import { firmaSelloAPI } from '../../api/firmaSello'
 import { FirmaSello } from '../../types'
-import api from '../../api/axios'
 
 const STORAGE_URL = '/storage/'
 
@@ -66,27 +65,37 @@ const FirmaSelloForm = () => {
       .finally(() => setLoading(false))
   }, [id, esEdicion])
 
-  // Preview con debounce
+  // Preview con debounce — fetch via Axios (incluye token auth) → blob URL
   const actualizarPreview = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      const params: Record<string, string | boolean> = {
-        color_primario:     form.color_primario,
-        color_secundario:   form.color_secundario,
-        color_fondo:        form.color_fondo,
-        mostrar_logo:       form.mostrar_logo,
-        nombre_institucion: form.nombre_institucion,
-        texto_linea1:       form.texto_linea1,
-        texto_linea2:       form.texto_linea2,
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const params: Record<string, string | boolean> = {
+          color_primario:     form.color_primario,
+          color_secundario:   form.color_secundario,
+          color_fondo:        form.color_fondo,
+          mostrar_logo:       form.mostrar_logo,
+          nombre_institucion: form.nombre_institucion,
+          texto_linea1:       form.texto_linea1,
+          texto_linea2:       form.texto_linea2,
+        }
+        if (logoActual && !logoNuevo) params.logo_path = logoActual
+        const blob = await firmaSelloAPI.preview(params)
+        const url = URL.createObjectURL(blob)
+        setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url })
+        setPreviewKey(k => k + 1)
+      } catch {
+        // preview no crítico
       }
-      if (logoActual && !logoNuevo) params.logo_path = logoActual
-      const url = firmaSelloAPI.previewUrl(params)
-      setPreviewUrl(url)
-      setPreviewKey(k => k + 1)
     }, 600)
   }, [form, logoActual, logoNuevo])
 
   useEffect(() => { actualizarPreview() }, [actualizarPreview])
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
+  }, [])
 
   const handleChange = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }))

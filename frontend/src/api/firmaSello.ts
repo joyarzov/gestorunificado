@@ -41,10 +41,11 @@ export const firmaSelloAPI = {
     return res.data
   },
 
-  previewUrl: (params: Record<string, string | boolean>) => {
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
-    ).toString()
-    return `/api/firma-sellos/preview?${qs}`
+  preview: async (params: Record<string, string | boolean>) => {
+    const res = await api.get('/firma-sellos/preview', {
+      params,
+      responseType: 'blob',
+    })
+    return res.data as Blob
   },
 }
