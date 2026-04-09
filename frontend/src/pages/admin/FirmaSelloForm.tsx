@@ -80,7 +80,7 @@ const FirmaSelloForm = () => {
           texto_linea2:       form.texto_linea2,
         }
         if (logoActual && !logoNuevo) params.logo_path = logoActual
-        const blob = await firmaSelloAPI.preview(params)
+        const blob = await firmaSelloAPI.preview(params, logoNuevo)
         const url = URL.createObjectURL(blob)
         setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url })
         setPreviewKey(k => k + 1)

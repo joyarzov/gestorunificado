@@ -253,7 +253,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('firma-sellos')->group(function () {
             Route::get('/', [FirmaSelloController::class, 'index']);
             Route::post('/', [FirmaSelloController::class, 'store']);
-            Route::get('/preview', [FirmaSelloController::class, 'preview']);
+            Route::post('/preview', [FirmaSelloController::class, 'preview']);
             Route::get('/{firmaSello}', [FirmaSelloController::class, 'show']);
             Route::put('/{firmaSello}', [FirmaSelloController::class, 'update']);
             Route::delete('/{firmaSello}', [FirmaSelloController::class, 'destroy']);

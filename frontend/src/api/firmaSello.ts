@@ -41,9 +41,20 @@ export const firmaSelloAPI = {
     return res.data
   },
 
-  preview: async (params: Record<string, string | boolean>) => {
-    const res = await api.get('/firma-sellos/preview', {
-      params,
+  preview: async (params: Record<string, string | boolean>, logoFile?: File | null) => {
+    if (logoFile) {
+      // Enviar como multipart para incluir el logo seleccionado localmente
+      const form = new FormData()
+      Object.entries(params).forEach(([k, v]) => form.append(k, String(v)))
+      form.append('logo_preview', logoFile)
+      const res = await api.post('/firma-sellos/preview', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+      })
+      return res.data as Blob
+    }
+    // Sin logo: POST JSON normal
+    const res = await api.post('/firma-sellos/preview', params, {
       responseType: 'blob',
     })
     return res.data as Blob

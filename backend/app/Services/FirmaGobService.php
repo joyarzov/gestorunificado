@@ -197,13 +197,14 @@ class FirmaGobService
             }
         }
 
-        $colorPrimario   = $config['color_primario']     ?? '#0071BC';
-        $colorSecundario = $config['color_secundario']   ?? '#00467E';
-        $colorFondo      = $config['color_fondo']        ?? '#EBF5FF';
-        $mostrarLogo     = (bool)($config['mostrar_logo'] ?? false);
-        $logoPath        = $config['logo_path']           ?? null;
-        $textoLinea1     = $config['texto_linea1']        ?? 'FIRMA ELECTRÓNICA AVANZADA';
-        $textoLinea2     = $config['texto_linea2']        ?? 'GOBIERNO DE CHILE';
+        $colorPrimario      = $config['color_primario']      ?? '#0071BC';
+        $colorSecundario    = $config['color_secundario']    ?? '#00467E';
+        $colorFondo         = $config['color_fondo']         ?? '#EBF5FF';
+        $mostrarLogo        = (bool)($config['mostrar_logo'] ?? false);
+        $logoPath           = $config['logo_path']            ?? null;
+        $textoLinea1        = $config['texto_linea1']         ?? 'FIRMA ELECTRÓNICA AVANZADA';
+        $textoLinea2        = $config['texto_linea2']         ?? 'GOBIERNO DE CHILE';
+        $nombreInstitucion  = $config['nombre_institucion']   ?? '';
 
         [$rP, $gP, $bP] = $this->hexToRgb($colorPrimario);
         [$rS, $gS, $bS] = $this->hexToRgb($colorSecundario);
@@ -261,19 +262,21 @@ class FirmaGobService
         $x = 120;
 
         if (function_exists('imagettftext') && file_exists($fontPath)) {
-            imagettftext($img, 8, 0, $x, 22,  $cPrimario, $fontPath,       $textoLinea1);
-            imagettftext($img, 7, 0, $x, 38,  $cSecund,   $fontPath,       $textoLinea2);
-            imagettftext($img, 9, 0, $x, 62,  $cGray,     $fontPath,       $signerName  ?? '');
-            imagettftext($img, 7, 0, $x, 78,  $cGray,     $fontPathNormal, $signerCargo ?? '');
+            imagettftext($img, 7, 0, $x, 18,  $cPrimario, $fontPath,       $textoLinea1);
+            imagettftext($img, 6, 0, $x, 31,  $cSecund,   $fontPathNormal, $nombreInstitucion);
+            imagettftext($img, 6, 0, $x, 43,  $cSecund,   $fontPathNormal, $textoLinea2);
+            imagettftext($img, 8, 0, $x, 63,  $cGray,     $fontPath,       $signerName  ?? '');
+            imagettftext($img, 7, 0, $x, 79,  $cGray,     $fontPathNormal, $signerCargo ?? '');
             imagettftext($img, 7, 0, $x, 95,  $cGray,     $fontPathNormal, 'RUT: ' . ($signerRun ?? ''));
-            imagettftext($img, 7, 0, $x, 112, $cGray,     $fontPathNormal, now()->timezone('America/Santiago')->format('d/m/Y H:i'));
+            imagettftext($img, 7, 0, $x, 111, $cGray,     $fontPathNormal, now()->timezone('America/Santiago')->format('d/m/Y H:i'));
         } else {
-            imagestring($img, 3, $x, 8,   $textoLinea1,                 $cPrimario);
-            imagestring($img, 2, $x, 28,  $textoLinea2,                 $cSecund);
-            imagestring($img, 4, $x, 52,  $signerName  ?? '',           $cGray);
-            imagestring($img, 2, $x, 72,  $signerCargo ?? '',           $cGray);
-            imagestring($img, 2, $x, 88,  'RUT: ' . ($signerRun ?? ''), $cGray);
-            imagestring($img, 2, $x, 104, now()->timezone('America/Santiago')->format('d/m/Y H:i'), $cGray);
+            imagestring($img, 3, $x, 5,   $textoLinea1,                 $cPrimario);
+            imagestring($img, 1, $x, 20,  $nombreInstitucion,           $cSecund);
+            imagestring($img, 1, $x, 30,  $textoLinea2,                 $cSecund);
+            imagestring($img, 4, $x, 50,  $signerName  ?? '',           $cGray);
+            imagestring($img, 2, $x, 70,  $signerCargo ?? '',           $cGray);
+            imagestring($img, 2, $x, 85,  'RUT: ' . ($signerRun ?? ''), $cGray);
+            imagestring($img, 2, $x, 100, now()->timezone('America/Santiago')->format('d/m/Y H:i'), $cGray);
         }
 
         ob_start();

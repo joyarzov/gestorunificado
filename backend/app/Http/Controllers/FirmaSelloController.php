@@ -131,16 +131,24 @@ class FirmaSelloController extends Controller
     public function preview(Request $request)
     {
         // Preview en tiempo real con parámetros del request (sin guardar)
+        // Acepta POST con multipart para recibir logo temporalmente
         $config = [
-            'color_primario'     => $request->get('color_primario',     '#0071BC'),
-            'color_secundario'   => $request->get('color_secundario',   '#00467E'),
-            'color_fondo'        => $request->get('color_fondo',        '#EBF5FF'),
-            'mostrar_logo'       => filter_var($request->get('mostrar_logo', true), FILTER_VALIDATE_BOOLEAN),
-            'nombre_institucion' => $request->get('nombre_institucion', 'Ilustre Municipalidad de Cabo de Hornos'),
-            'texto_linea1'       => $request->get('texto_linea1',       'FIRMA ELECTRÓNICA AVANZADA'),
-            'texto_linea2'       => $request->get('texto_linea2',       'GOBIERNO DE CHILE'),
-            'logo_path'          => $request->get('logo_path'),
+            'color_primario'     => $request->input('color_primario',     '#0071BC'),
+            'color_secundario'   => $request->input('color_secundario',   '#00467E'),
+            'color_fondo'        => $request->input('color_fondo',        '#EBF5FF'),
+            'mostrar_logo'       => filter_var($request->input('mostrar_logo', true), FILTER_VALIDATE_BOOLEAN),
+            'nombre_institucion' => $request->input('nombre_institucion', 'Ilustre Municipalidad de Cabo de Hornos'),
+            'texto_linea1'       => $request->input('texto_linea1',       'FIRMA ELECTRÓNICA AVANZADA'),
+            'texto_linea2'       => $request->input('texto_linea2',       'GOBIERNO DE CHILE'),
+            'logo_path'          => $request->input('logo_path'),
         ];
+
+        // Si viene un logo como archivo temporal, guardarlo en /tmp y apuntar a él
+        if ($request->hasFile('logo_preview')) {
+            $tmpPath = $request->file('logo_preview')->store('tmp-previews', 'public');
+            $config['logo_path'] = $tmpPath;
+            $config['logo_tmp']  = true; // marcar para borrar después
+        }
 
         $service = app(FirmaGobService::class);
         $pngBase64 = $service->generarStampPreview(
@@ -149,6 +157,11 @@ class FirmaSelloController extends Controller
             'Alcalde',
             '12345678-0'
         );
+
+        // Limpiar archivo temporal
+        if (!empty($config['logo_tmp']) && !empty($config['logo_path'])) {
+            Storage::disk('public')->delete($config['logo_path']);
+        }
 
         $pngData = base64_decode($pngBase64);
         return response($pngData, 200)->header('Content-Type', 'image/png');
