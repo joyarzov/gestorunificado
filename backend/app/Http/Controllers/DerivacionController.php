@@ -46,7 +46,10 @@ class DerivacionController extends Controller
             'observaciones' => 'nullable|string',
             'acciones_para' => 'nullable|array',
             'acciones_para.*' => 'string',
-            'otp' => 'nullable|string',
+            'otp'        => 'nullable|string',
+            'firma_y'    => 'nullable|integer|min:10|max:712',
+            'firma_page' => 'nullable|string',
+            'firma_col'  => 'nullable|integer|in:0,1,2',
         ]);
 
         $user = Auth::user();
@@ -126,6 +129,11 @@ class DerivacionController extends Controller
             if ($request->filled('otp') && config('firmagob.enabled')) {
                 try {
                     $firmaService = app(FirmaGobService::class);
+                    $coords = $this->calcularCoordenadas(
+                        $request->firma_y   ?? 20,
+                        $request->firma_col ?? 2
+                    );
+                    $firmaPage = $request->firma_page ?? 'LAST';
                     $signed = $firmaService->sign(
                         $pdfContent,
                         'Providencia ' . $folio,
@@ -133,13 +141,12 @@ class DerivacionController extends Controller
                         $request->otp,
                         $user->nombre,
                         $user->cargo ?? 'Alcalde',
-                        FirmaGobService::positions()['bottom-right'],
-                        'LAST'
+                        $coords,
+                        $firmaPage
                     );
                     Storage::put($path, $signed['content']);
                     Log::info('Providencia firmada con FirmaGob', ['folio' => $folio]);
                 } catch (FirmaGobException $e) {
-                    // Eliminar el PDF sin firmar
                     Storage::delete($path);
                     return $this->errorResponse($e->getMessage(), 422);
                 }
@@ -218,6 +225,50 @@ class DerivacionController extends Controller
             : 'Derivación creada correctamente';
 
         return $this->successResponse($derivacion, $message, 201);
+    }
+
+    /**
+     * Descarga el PDF asociado a una derivación (providencia o acuse de recibo).
+     */
+    public function pdf(Derivacion $derivacion)
+    {
+        $user = Auth::user();
+
+        // Verificar acceso: origen, destino o admin
+        $tieneAcceso = $user->isAdmin()
+            || $derivacion->usuario_origen_id === $user->id
+            || $derivacion->usuario_destino_id === $user->id
+            || $derivacion->departamento_origen_id === $user->departamento_id
+            || $derivacion->departamento_destino_id === $user->departamento_id
+            || $user->isAlcalde();
+
+        if (!$tieneAcceso) {
+            return $this->errorResponse('Sin acceso a este documento', 403);
+        }
+
+        if (!$derivacion->pdf_ruta) {
+            return $this->errorResponse('Esta derivación no tiene PDF generado', 404);
+        }
+
+        $fullPath = storage_path('app/public/' . $derivacion->pdf_ruta);
+        if (!file_exists($fullPath)) {
+            return $this->errorResponse('Archivo no encontrado', 404);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . basename($fullPath) . '"',
+        ]);
+    }
+
+    /**
+     * Calcula las coordenadas del sello [llx, lly, urx, ury] a partir de Y y columna.
+     */
+    private function calcularCoordenadas(int $firmaY, int $firmaCol): array
+    {
+        $colXCoords = [[71, 231], [233, 393], [395, 555]];
+        [$llx, $urx] = $colXCoords[$firmaCol] ?? $colXCoords[2];
+        return [$llx, $firmaY, $urx, $firmaY + 70];
     }
 
     private function generarFolioAcuse(): string
@@ -301,7 +352,12 @@ class DerivacionController extends Controller
 
         // Si es Alcalde, generar y firmar un Acuse de Recibo con FirmaGob
         if ($user->isAlcalde()) {
-            $request->validate(['otp' => 'required|string']);
+            $request->validate([
+                'otp'        => 'required|string',
+                'firma_y'    => 'nullable|integer|min:10|max:712',
+                'firma_page' => 'nullable|string',
+                'firma_col'  => 'nullable|integer|in:0,1,2',
+            ]);
 
             $correspondencia = $derivacion->correspondencia;
             $correspondencia->load(['departamento']);
@@ -352,6 +408,11 @@ class DerivacionController extends Controller
             if (config('firmagob.enabled')) {
                 try {
                     $firmaService = app(FirmaGobService::class);
+                    $coords = $this->calcularCoordenadas(
+                        $request->firma_y   ?? 20,
+                        $request->firma_col ?? 2
+                    );
+                    $firmaPage = $request->firma_page ?? 'LAST';
                     $signed = $firmaService->sign(
                         $pdfContent,
                         'Acuse de Recibo ' . $folio,
@@ -359,8 +420,8 @@ class DerivacionController extends Controller
                         $request->otp,
                         $user->nombre,
                         $user->cargo ?? 'Alcalde',
-                        FirmaGobService::positions()['bottom-right'],
-                        'LAST'
+                        $coords,
+                        $firmaPage
                     );
                     Storage::put($path, $signed['content']);
                     Log::info('Acuse de recibo firmado con FirmaGob', ['folio' => $folio]);

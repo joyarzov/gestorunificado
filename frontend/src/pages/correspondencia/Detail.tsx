@@ -39,7 +39,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 import DerivacionDialog from '../../components/correspondencia/DerivacionDialog'
-import FirmaGobModal from '../../components/correspondencia/FirmaGobModal'
+import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
 import Snackbar from '@mui/material/Snackbar'
 
 const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
@@ -82,6 +82,11 @@ const CorrespondenciaDetail = () => {
   const [firmaModalOpen, setFirmaModalOpen] = useState(false)
   const [firmaLoading, setFirmaLoading] = useState(false)
   const [firmaError, setFirmaError] = useState<string | null>(null)
+
+  // Diálogo de éxito con acuse de recibo descargable
+  const [acuseDialogOpen, setAcuseDialogOpen] = useState(false)
+  const [acuseDerivacionId, setAcuseDerivacionId] = useState<number | null>(null)
+  const [acuseLoading, setAcuseLoading] = useState(false)
 
   // PDF Viewer
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -197,20 +202,35 @@ const CorrespondenciaDetail = () => {
     }
   }
 
-  const handleFirmarRecepcion = async (otp: string) => {
+  const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
     const derivacion = derivacionPendienteParaAlcalde
     if (!derivacion) return
     setFirmaLoading(true)
     setFirmaError(null)
     try {
-      await correspondenciaAPI.recibirDerivacion(derivacion.id, otp)
+      await correspondenciaAPI.recibirDerivacion(derivacion.id, otp, firmaY, firmaPage, firmaCol)
       setFirmaModalOpen(false)
-      setSnackbar({ open: true, message: 'Correspondencia recibida y acuse firmado exitosamente' })
+      setAcuseDerivacionId(derivacion.id)
+      setAcuseDialogOpen(true)
       if (id) loadCorrespondencia(parseInt(id))
     } catch (err: any) {
       setFirmaError(err?.response?.data?.message || 'Error al firmar. Verifique el código OTP e intente nuevamente.')
     } finally {
       setFirmaLoading(false)
+    }
+  }
+
+  const handleVerAcuse = async () => {
+    if (!acuseDerivacionId) return
+    setAcuseLoading(true)
+    try {
+      const blob = await correspondenciaAPI.descargarPdfDerivacion(acuseDerivacionId)
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      setSnackbar({ open: true, message: 'Error al descargar el acuse de recibo' })
+    } finally {
+      setAcuseLoading(false)
     }
   }
 
@@ -564,12 +584,45 @@ const CorrespondenciaDetail = () => {
       <FirmaGobModal
         open={firmaModalOpen}
         titulo="Firmar Acuse de Recibo con FirmaGob"
-        descripcion="Se generará un Acuse de Recibo firmado electrónicamente. Ingrese su código OTP de Google Authenticator para completar la recepción."
+        descripcion="Se generará un Acuse de Recibo firmado electrónicamente. Seleccione la posición del sello e ingrese su OTP para completar la recepción."
         loading={firmaLoading}
         error={firmaError}
         onFirmar={handleFirmarRecepcion}
         onCancel={() => { setFirmaModalOpen(false); setFirmaError(null) }}
       />
+
+      {/* Diálogo de éxito: acuse de recibo firmado */}
+      <Dialog open={acuseDialogOpen} onClose={() => setAcuseDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircleIcon color="success" />
+          Recepción completada
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <CheckCircleIcon sx={{ fontSize: 56, color: 'success.main', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              Correspondencia marcada como recibida
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Se generó y firmó el Acuse de Recibo electrónicamente.
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={acuseLoading ? <CircularProgress size={18} /> : <PdfIcon />}
+              onClick={handleVerAcuse}
+              disabled={acuseLoading}
+            >
+              Ver Acuse de Recibo PDF
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setAcuseDialogOpen(false)}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

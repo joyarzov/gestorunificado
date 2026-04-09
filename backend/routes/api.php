@@ -122,6 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('derivaciones')->group(function () {
         Route::get('/pendientes', [DerivacionController::class, 'pendientes']);
         Route::post('/{derivacion}/recibir', [DerivacionController::class, 'recibir']);
+        Route::get('/{derivacion}/pdf', [DerivacionController::class, 'pdf']);
         Route::post('/{derivacion}/archivar', [DerivacionController::class, 'archivar']);
     });
     Route::apiResource('derivaciones', DerivacionController::class)->only(['index', 'store', 'show']);

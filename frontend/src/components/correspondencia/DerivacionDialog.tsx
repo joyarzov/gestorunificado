@@ -22,7 +22,7 @@ import {
 import { departamentosAPI, usersAPI } from '../../api/common'
 import { correspondenciaAPI, CreateDerivacionData } from '../../api/correspondencia'
 import { Departamento, User } from '../../types'
-import FirmaGobModal from './FirmaGobModal'
+import FirmaGobModal, { FirmaParams } from './FirmaGobModal'
 
 const ACCIONES_PARA_OPTIONS = [
   'Tomar conocimiento',
@@ -148,12 +148,12 @@ const DerivacionDialog = ({
     }
   }
 
-  const handleFirmarYDerivar = async (otp: string) => {
+  const handleFirmarYDerivar = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
     if (!pendingData) return
     setFirmaLoading(true)
     setFirmaError(null)
     try {
-      await correspondenciaAPI.derivar({ ...pendingData, otp })
+      await correspondenciaAPI.derivar({ ...pendingData, otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol })
       setShowFirmaModal(false)
       setProvidenciaCorrespondenciaId(correspondenciaId)
       setShowSuccess(true)
@@ -205,7 +205,7 @@ const DerivacionDialog = ({
         <FirmaGobModal
           open={showFirmaModal}
           titulo="Firmar Providencia con FirmaGob"
-          descripcion="La providencia será firmada electrónicamente antes de derivar la correspondencia. Ingrese su código OTP de Google Authenticator."
+          descripcion="La providencia será firmada electrónicamente antes de derivar la correspondencia. Seleccione la posición del sello e ingrese su código OTP."
           loading={firmaLoading}
           error={firmaError}
           onFirmar={handleFirmarYDerivar}

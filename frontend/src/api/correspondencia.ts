@@ -27,6 +27,9 @@ export interface CreateDerivacionData {
   observaciones?: string
   acciones_para?: string[]
   otp?: string
+  firma_y?: number
+  firma_page?: string
+  firma_col?: number
 }
 
 export interface AlcaldeInfo {
@@ -101,11 +104,18 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  recibirDerivacion: async (id: number, otp?: string) => {
+  recibirDerivacion: async (id: number, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number) => {
     const response = await api.post<ApiResponse<Derivacion>>(
       `/derivaciones/${id}/recibir`,
-      otp ? { otp } : {}
+      otp ? { otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol } : {}
     )
+    return response.data
+  },
+
+  descargarPdfDerivacion: async (derivacionId: number) => {
+    const response = await api.get(`/derivaciones/${derivacionId}/pdf`, {
+      responseType: 'blob',
+    })
     return response.data
   },
 

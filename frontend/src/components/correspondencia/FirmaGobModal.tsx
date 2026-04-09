@@ -2,9 +2,18 @@ import { useState, useEffect } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Typography, Alert, CircularProgress, Box,
+  ToggleButtonGroup, ToggleButton, Slider,
 } from '@mui/material'
 import { Verified as FirmaIcon, Warning as WarnIcon } from '@mui/icons-material'
 import { configuracionAPI } from '../../api/configuracion'
+import FirmaPagePreview from '../common/FirmaPagePreview'
+
+export interface FirmaParams {
+  otp: string
+  firmaY: number
+  firmaPage: string
+  firmaCol: number
+}
 
 interface FirmaGobModalProps {
   open: boolean
@@ -12,33 +21,42 @@ interface FirmaGobModalProps {
   descripcion: string
   loading: boolean
   error: string | null
-  onFirmar: (otp: string) => void
+  onFirmar: (params: FirmaParams) => void
   onCancel?: () => void
+  pdfUrl?: string | null
 }
 
 const FirmaGobModal = ({
-  open, titulo, descripcion, loading, error, onFirmar, onCancel,
+  open, titulo, descripcion, loading, error, onFirmar, onCancel, pdfUrl,
 }: FirmaGobModalProps) => {
   const [otp, setOtp] = useState('')
+  const [firmaYPos, setFirmaYPos] = useState(5) // slider 0-100, valor bajo = inferior
+  const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST'>('LAST')
+  const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(2) // default derecha
   const [simulate, setSimulate] = useState(false)
 
-  // Limpiar OTP y consultar estado simulación al abrir
   useEffect(() => {
     if (!open) return
     setOtp('')
+    setFirmaYPos(5)
+    setFirmaPageMode('LAST')
+    setFirmaCol(2)
     configuracionAPI.firmagobEstado()
       .then(res => setSimulate(res.data.simulate))
       .catch(() => setSimulate(false))
   }, [open])
 
   const handleSubmit = () => {
-    if (otp.length === 6) onFirmar(otp)
+    if (otp.length !== 6) return
+    const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
+    const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : '1'
+    onFirmar({ otp, firmaY, firmaPage, firmaCol })
   }
 
   return (
     <Dialog
       open={open}
-      maxWidth="xs"
+      maxWidth="md"
       fullWidth
       disableEscapeKeyDown={!onCancel}
     >
@@ -64,19 +82,93 @@ const FirmaGobModal = ({
           </Alert>
         )}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <TextField
-            label="Código OTP"
-            value={otp}
-            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            fullWidth
-            autoFocus
-            disabled={loading}
-            inputProps={{ inputMode: 'numeric', maxLength: 6 }}
-            placeholder="000000"
-            helperText="Ingrese el código de 6 dígitos de Google Authenticator"
-            onKeyDown={e => e.key === 'Enter' && otp.length === 6 && !loading && handleSubmit()}
-          />
+        {/* Selector de posición del sello */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight="medium" sx={{ mb: 1.5 }}>
+            Posición del sello de firma
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+
+            {/* Preview */}
+            <FirmaPagePreview
+              pdfUrl={pdfUrl}
+              firmaYPos={firmaYPos}
+              existingFirmas={[]}
+              newRow={0}
+              newCol={firmaCol}
+            />
+
+            {/* Controles */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Página */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  Página
+                </Typography>
+                <ToggleButtonGroup
+                  value={firmaPageMode}
+                  exclusive
+                  onChange={(_, v) => v && setFirmaPageMode(v)}
+                  size="small"
+                >
+                  <ToggleButton value="LAST" sx={{ fontSize: 11, px: 1 }}>Última</ToggleButton>
+                  <ToggleButton value="FIRST" sx={{ fontSize: 11, px: 1 }}>Pág. 1</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Altura */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                  Altura del sello
+                </Typography>
+                <Box sx={{ px: 1 }}>
+                  <Slider
+                    value={firmaYPos}
+                    onChange={(_, v) => setFirmaYPos(v as number)}
+                    min={0}
+                    max={100}
+                    size="small"
+                    marks={[
+                      { value: 0,   label: 'Inferior' },
+                      { value: 100, label: 'Superior' },
+                    ]}
+                    sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Columna */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  Posición horizontal
+                </Typography>
+                <ToggleButtonGroup
+                  value={firmaCol}
+                  exclusive
+                  onChange={(_, v) => v !== null && setFirmaCol(v)}
+                  size="small"
+                >
+                  <ToggleButton value={0} sx={{ fontSize: 11, px: 1.5 }}>Izquierda</ToggleButton>
+                  <ToggleButton value={1} sx={{ fontSize: 11, px: 1.5 }}>Centro</ToggleButton>
+                  <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>Derecha</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* OTP */}
+              <TextField
+                label="Código OTP (Google Authenticator)"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                fullWidth
+                autoFocus
+                disabled={loading}
+                inputProps={{ inputMode: 'numeric', maxLength: 6 }}
+                placeholder="000000"
+                helperText="Ingrese el código de 6 dígitos de Google Authenticator"
+                onKeyDown={e => e.key === 'Enter' && otp.length === 6 && !loading && handleSubmit()}
+              />
+            </Box>
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions>
