@@ -20,6 +20,7 @@ use App\Http\Controllers\DocumentoEnvioController;
 use App\Http\Controllers\VerificacionDocumentoController;
 use App\Http\Controllers\FondoPublicoController;
 use App\Http\Controllers\FondoConcursableController;
+use App\Http\Controllers\FirmaSelloController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -243,5 +244,21 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::get('/postulacion-adjuntos/{id}/descargar', [FondoConcursableController::class, 'descargarAdjunto']);
+    });
+
+    // =====================================================
+    // MÓDULO SELLO DE FIRMA (admin)
+    // =====================================================
+    Route::middleware('role:admin')->group(function () {
+        Route::prefix('firma-sellos')->group(function () {
+            Route::get('/', [FirmaSelloController::class, 'index']);
+            Route::post('/', [FirmaSelloController::class, 'store']);
+            Route::get('/preview', [FirmaSelloController::class, 'preview']);
+            Route::get('/{firmaSello}', [FirmaSelloController::class, 'show']);
+            Route::put('/{firmaSello}', [FirmaSelloController::class, 'update']);
+            Route::delete('/{firmaSello}', [FirmaSelloController::class, 'destroy']);
+            Route::post('/{firmaSello}/logo', [FirmaSelloController::class, 'subirLogo']);
+            Route::patch('/{firmaSello}/activar', [FirmaSelloController::class, 'activar']);
+        });
     });
 });

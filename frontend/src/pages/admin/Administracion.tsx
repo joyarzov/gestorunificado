@@ -12,6 +12,7 @@ import {
   Business as DeptosIcon,
   Settings as ConfigIcon,
   Archive as ArchiveIcon,
+  Verified as SelloIcon,
 } from '@mui/icons-material'
 
 const Administracion = () => {
@@ -46,6 +47,13 @@ const Administracion = () => {
       icono: <ArchiveIcon sx={{ fontSize: 48 }} />,
       color: '#0071BC',
       ruta: '/repositorio-documental',
+    },
+    {
+      titulo: 'Sello de Firma',
+      descripcion: 'Diseño del sello en documentos firmados electrónicamente',
+      icono: <SelloIcon sx={{ fontSize: 48 }} />,
+      color: '#EB1B78',
+      ruta: '/firma-sellos',
     },
   ]
 

@@ -411,6 +411,26 @@ export interface PostulacionConsulta {
   telefono_postulante?: string
 }
 
+// Sello de Firma
+export interface FirmaSello {
+  id: number
+  nombre: string
+  logo_path?: string
+  color_primario: string
+  color_secundario: string
+  color_fondo: string
+  mostrar_logo: boolean
+  nombre_institucion: string
+  texto_linea1: string
+  texto_linea2: string
+  activo: boolean
+  preview_path?: string
+  creado_por?: number
+  creador?: { id: number; nombre: string }
+  created_at: string
+  updated_at: string
+}
+
 // Notificaciones
 export interface Notificacion {
   id: number

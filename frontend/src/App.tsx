@@ -51,6 +51,8 @@ import PostulacionEvaluar from './pages/fondos/PostulacionEvaluar'
 import Administracion from './pages/admin/Administracion'
 import UsuariosManage from './pages/admin/UsuariosManage'
 import DepartamentosManage from './pages/admin/DepartamentosManage'
+import FirmaSellosPage from './pages/admin/FirmaSellosPage'
+import FirmaSelloForm from './pages/admin/FirmaSelloForm'
 import ChangePassword from './pages/auth/ChangePassword'
 
 function App() {
@@ -117,6 +119,9 @@ function App() {
             <Route path="/administracion" element={<Administracion />} />
             <Route path="/usuarios" element={<UsuariosManage />} />
             <Route path="/departamentos" element={<DepartamentosManage />} />
+            <Route path="/firma-sellos" element={<FirmaSellosPage />} />
+            <Route path="/firma-sellos/nuevo" element={<FirmaSelloForm />} />
+            <Route path="/firma-sellos/:id/editar" element={<FirmaSelloForm />} />
           </Route>
         </Route>
 

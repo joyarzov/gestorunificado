@@ -182,57 +182,98 @@ class FirmaGobService
      * En sandbox FirmaGob usa solo esta imagen.
      * En producción FirmaGob superpone el sello circular oficial encima.
      */
-    private function generateStampImage(?string $signerName, ?string $signerCargo, ?string $signerRun): string
+    public function generarStampPreview(array $config, ?string $signerName, ?string $signerCargo, ?string $signerRun): string
     {
+        return $this->generateStampImage($signerName, $signerCargo, $signerRun, $config);
+    }
+
+    private function generateStampImage(?string $signerName, ?string $signerCargo, ?string $signerRun, array $config = []): string
+    {
+        // Cargar sello activo si no se pasó config
+        if (empty($config)) {
+            $selloActivo = \App\Models\FirmaSello::obtenerActivo();
+            if ($selloActivo) {
+                $config = $selloActivo->toArray();
+            }
+        }
+
+        $colorPrimario   = $config['color_primario']     ?? '#0071BC';
+        $colorSecundario = $config['color_secundario']   ?? '#00467E';
+        $colorFondo      = $config['color_fondo']        ?? '#EBF5FF';
+        $mostrarLogo     = (bool)($config['mostrar_logo'] ?? false);
+        $logoPath        = $config['logo_path']           ?? null;
+        $textoLinea1     = $config['texto_linea1']        ?? 'FIRMA ELECTRÓNICA AVANZADA';
+        $textoLinea2     = $config['texto_linea2']        ?? 'GOBIERNO DE CHILE';
+
+        [$rP, $gP, $bP] = $this->hexToRgb($colorPrimario);
+        [$rS, $gS, $bS] = $this->hexToRgb($colorSecundario);
+        [$rF, $gF, $bF] = $this->hexToRgb($colorFondo);
+
         $w = 520;
         $h = 140;
-
         $img = imagecreatetruecolor($w, $h);
 
-        // Colores
-        $white   = imagecolorallocate($img, 255, 255, 255);
-        $blue    = imagecolorallocate($img, 0, 113, 188);    // #0071BC
-        $blueDark= imagecolorallocate($img, 0,  70, 130);
-        $gray    = imagecolorallocate($img, 80,  80,  80);
-        $lightBg = imagecolorallocate($img, 235, 245, 255);  // azul muy claro
+        $cFondo    = imagecolorallocate($img, $rF, $gF, $bF);
+        $cPrimario = imagecolorallocate($img, $rP, $gP, $bP);
+        $cSecund   = imagecolorallocate($img, $rS, $gS, $bS);
+        $cGray     = imagecolorallocate($img, 80, 80, 80);
 
-        // Fondo
-        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $lightBg);
+        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $cFondo);
+        imagerectangle($img, 0, 0, $w - 1, $h - 1, $cPrimario);
+        imagerectangle($img, 1, 1, $w - 2, $h - 2, $cPrimario);
+        imageline($img, 110, 4, 110, $h - 5, $cPrimario);
 
-        // Borde exterior azul (2px)
-        imagerectangle($img, 0, 0, $w - 1, $h - 1, $blue);
-        imagerectangle($img, 1, 1, $w - 2, $h - 2, $blue);
+        // Zona izquierda: logo o círculo FEA
+        $logoMostrado = false;
+        if ($mostrarLogo && $logoPath) {
+            $fullPath = storage_path('app/public/' . $logoPath);
+            if (file_exists($fullPath)) {
+                $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+                $logoImg = match($ext) {
+                    'png'  => imagecreatefrompng($fullPath),
+                    'jpg', 'jpeg' => imagecreatefromjpeg($fullPath),
+                    default => null,
+                };
+                if ($logoImg) {
+                    // Zona disponible: x=5..105, y=10..130 → 100×120px, centrar
+                    $lw = imagesx($logoImg);
+                    $lh = imagesy($logoImg);
+                    $maxW = 90; $maxH = 100;
+                    $scale = min($maxW / $lw, $maxH / $lh);
+                    $dw = (int)($lw * $scale);
+                    $dh = (int)($lh * $scale);
+                    $dx = 5 + (int)(($maxW - $dw) / 2);
+                    $dy = 10 + (int)(($maxH - $dh) / 2);
+                    imagecopyresampled($img, $logoImg, $dx, $dy, 0, 0, $dw, $dh, $lw, $lh);
+                    imagedestroy($logoImg);
+                    $logoMostrado = true;
+                }
+            }
+        }
+        if (!$logoMostrado) {
+            imagearc($img, 56, 70, 90, 90, 0, 360, $cPrimario);
+            imagearc($img, 56, 70, 78, 78, 0, 360, $cPrimario);
+            imagestring($img, 4, 30, 60, 'FEA', $cPrimario);
+        }
 
-        // Línea de separación izquierda (reserva espacio para el sello circular)
-        imageline($img, 110, 4, 110, $h - 5, $blue);
-
-        // Círculo simulado (sello) en el lado izquierdo
-        imagearc($img, 56, 70, 90, 90, 0, 360, $blue);
-        imagearc($img, 56, 70, 78, 78, 0, 360, $blue);
-        // Texto "FEA" dentro del círculo
-        imagestring($img, 4, 30, 60, 'FEA', $blue);
-
-        // Textos en el lado derecho (con imagettftext si hay fuente, si no imagestring)
-        $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+        $fontPath       = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         $fontPathNormal = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-
         $x = 120;
+
         if (function_exists('imagettftext') && file_exists($fontPath)) {
-            // Con FreeType: texto de calidad
-            imagettftext($img, 8,  0, $x, 22,  $blueDark, $fontPath,   'FIRMA ELECTRÓNICA AVANZADA');
-            imagettftext($img, 7,  0, $x, 38,  $blue,     $fontPath,   'GOBIERNO DE CHILE');
-            imagettftext($img, 9,  0, $x, 62,  $gray,     $fontPath,   $signerName  ?? '');
-            imagettftext($img, 7,  0, $x, 78,  $gray,     $fontPathNormal, $signerCargo ?? '');
-            imagettftext($img, 7,  0, $x, 95,  $gray,     $fontPathNormal, 'RUT: ' . ($signerRun ?? ''));
-            imagettftext($img, 7,  0, $x, 112, $gray,     $fontPathNormal, now()->timezone('America/Santiago')->format('d/m/Y H:i'));
+            imagettftext($img, 8, 0, $x, 22,  $cPrimario, $fontPath,       $textoLinea1);
+            imagettftext($img, 7, 0, $x, 38,  $cSecund,   $fontPath,       $textoLinea2);
+            imagettftext($img, 9, 0, $x, 62,  $cGray,     $fontPath,       $signerName  ?? '');
+            imagettftext($img, 7, 0, $x, 78,  $cGray,     $fontPathNormal, $signerCargo ?? '');
+            imagettftext($img, 7, 0, $x, 95,  $cGray,     $fontPathNormal, 'RUT: ' . ($signerRun ?? ''));
+            imagettftext($img, 7, 0, $x, 112, $cGray,     $fontPathNormal, now()->timezone('America/Santiago')->format('d/m/Y H:i'));
         } else {
-            // Sin FreeType: fuentes bitmap básicas
-            imagestring($img, 3, $x, 8,  'FIRMA ELECTRONICA AVANZADA',  $blueDark);
-            imagestring($img, 2, $x, 28, 'GOBIERNO DE CHILE',           $blue);
-            imagestring($img, 4, $x, 52, $signerName  ?? '',            $gray);
-            imagestring($img, 2, $x, 72, $signerCargo ?? '',            $gray);
-            imagestring($img, 2, $x, 88, 'RUT: ' . ($signerRun ?? ''), $gray);
-            imagestring($img, 2, $x, 104, now()->timezone('America/Santiago')->format('d/m/Y H:i'), $gray);
+            imagestring($img, 3, $x, 8,   $textoLinea1,                 $cPrimario);
+            imagestring($img, 2, $x, 28,  $textoLinea2,                 $cSecund);
+            imagestring($img, 4, $x, 52,  $signerName  ?? '',           $cGray);
+            imagestring($img, 2, $x, 72,  $signerCargo ?? '',           $cGray);
+            imagestring($img, 2, $x, 88,  'RUT: ' . ($signerRun ?? ''), $cGray);
+            imagestring($img, 2, $x, 104, now()->timezone('America/Santiago')->format('d/m/Y H:i'), $cGray);
         }
 
         ob_start();
@@ -241,6 +282,16 @@ class FirmaGobService
         imagedestroy($img);
 
         return base64_encode($pngData);
+    }
+
+    private function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        return [
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+        ];
     }
 
     /**
