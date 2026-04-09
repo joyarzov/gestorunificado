@@ -38,8 +38,7 @@ const Administracion = () => {
       descripcion: 'Configuración general del sistema',
       icono: <ConfigIcon sx={{ fontSize: 48 }} />,
       color: '#EE5825',
-      ruta: '#',
-      disabled: true,
+      ruta: '/configuracion',
     },
     {
       titulo: 'Repositorio Documental',

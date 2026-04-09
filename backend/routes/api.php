@@ -21,6 +21,7 @@ use App\Http\Controllers\VerificacionDocumentoController;
 use App\Http\Controllers\FondoPublicoController;
 use App\Http\Controllers\FondoConcursableController;
 use App\Http\Controllers\FirmaSelloController;
+use App\Http\Controllers\ConfiguracionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -247,6 +248,19 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // =====================================================
+    // =====================================================
+    // ESTADO FIRMAGOB (cualquier usuario autenticado)
+    // =====================================================
+    Route::get('/firmagob/estado', [ConfiguracionController::class, 'firmagobEstado']);
+
+    // =====================================================
+    // CONFIGURACIÓN DEL SISTEMA (solo admin)
+    // =====================================================
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/configuracion', [ConfiguracionController::class, 'index']);
+        Route::patch('/configuracion/{clave}', [ConfiguracionController::class, 'update']);
+    });
+
     // MÓDULO SELLO DE FIRMA (admin)
     // =====================================================
     Route::middleware('role:admin')->group(function () {

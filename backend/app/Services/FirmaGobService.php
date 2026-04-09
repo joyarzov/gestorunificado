@@ -46,6 +46,11 @@ class FirmaGobService
 
     public function isSimulate(): bool
     {
+        // La BD tiene prioridad sobre el .env
+        $dbValue = \App\Models\Configuracion::get('firmagob_simulate');
+        if ($dbValue !== null) {
+            return filter_var($dbValue, FILTER_VALIDATE_BOOLEAN);
+        }
         return (bool) config('firmagob.simulate');
     }
 
