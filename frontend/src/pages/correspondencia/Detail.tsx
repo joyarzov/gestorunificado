@@ -39,6 +39,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 import DerivacionDialog from '../../components/correspondencia/DerivacionDialog'
+import FirmaGobModal from '../../components/correspondencia/FirmaGobModal'
 import Snackbar from '@mui/material/Snackbar'
 
 const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
@@ -76,6 +77,11 @@ const CorrespondenciaDetail = () => {
 
   // Recibir derivación
   const [recibirLoading, setRecibirLoading] = useState(false)
+
+  // FirmaGob modal (para Alcalde al marcar como recibida)
+  const [firmaModalOpen, setFirmaModalOpen] = useState(false)
+  const [firmaLoading, setFirmaLoading] = useState(false)
+  const [firmaError, setFirmaError] = useState<string | null>(null)
 
   // PDF Viewer
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -169,6 +175,15 @@ const CorrespondenciaDetail = () => {
   const handleMarcarRecibida = async () => {
     const derivacion = derivacionPendienteParaUsuario || derivacionPendienteParaAlcalde
     if (!derivacion) return
+
+    if (isAlcalde()) {
+      // El Alcalde debe firmar con FirmaGob
+      setFirmaError(null)
+      setFirmaModalOpen(true)
+      return
+    }
+
+    // Funcionario: marcar directamente sin firma
     setRecibirLoading(true)
     try {
       await correspondenciaAPI.recibirDerivacion(derivacion.id)
@@ -179,6 +194,23 @@ const CorrespondenciaDetail = () => {
       setSnackbar({ open: true, message: 'Error al marcar como recibida' })
     } finally {
       setRecibirLoading(false)
+    }
+  }
+
+  const handleFirmarRecepcion = async (otp: string) => {
+    const derivacion = derivacionPendienteParaAlcalde
+    if (!derivacion) return
+    setFirmaLoading(true)
+    setFirmaError(null)
+    try {
+      await correspondenciaAPI.recibirDerivacion(derivacion.id, otp)
+      setFirmaModalOpen(false)
+      setSnackbar({ open: true, message: 'Correspondencia recibida y acuse firmado exitosamente' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setFirmaError(err?.response?.data?.message || 'Error al firmar. Verifique el código OTP e intente nuevamente.')
+    } finally {
+      setFirmaLoading(false)
     }
   }
 
@@ -527,6 +559,17 @@ const CorrespondenciaDetail = () => {
           <Button onClick={handleCloseViewer}>Cerrar</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal FirmaGob para Alcalde al marcar como recibida */}
+      <FirmaGobModal
+        open={firmaModalOpen}
+        titulo="Firmar Acuse de Recibo con FirmaGob"
+        descripcion="Se generará un Acuse de Recibo firmado electrónicamente. Ingrese su código OTP de Google Authenticator para completar la recepción."
+        loading={firmaLoading}
+        error={firmaError}
+        onFirmar={handleFirmarRecepcion}
+        onCancel={() => { setFirmaModalOpen(false); setFirmaError(null) }}
+      />
     </Box>
   )
 }

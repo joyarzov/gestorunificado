@@ -7,6 +7,8 @@ use App\Models\Correspondencia;
 use App\Models\Documento;
 use App\Models\Notificacion;
 use App\Models\User;
+use App\Services\FirmaGobService;
+use App\Exceptions\FirmaGobException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -44,6 +46,7 @@ class DerivacionController extends Controller
             'observaciones' => 'nullable|string',
             'acciones_para' => 'nullable|array',
             'acciones_para.*' => 'string',
+            'otp' => 'nullable|string',
         ]);
 
         $user = Auth::user();
@@ -116,7 +119,31 @@ class DerivacionController extends Controller
 
             $filename = 'providencia_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
             $path = 'public/providencias/' . $filename;
-            Storage::put($path, $pdf->output());
+            $pdfContent = $pdf->output();
+            Storage::put($path, $pdfContent);
+
+            // Firmar con FirmaGob si viene OTP
+            if ($request->filled('otp') && config('firmagob.enabled')) {
+                try {
+                    $firmaService = app(FirmaGobService::class);
+                    $signed = $firmaService->sign(
+                        $pdfContent,
+                        'Providencia ' . $folio,
+                        $user->rut,
+                        $request->otp,
+                        $user->nombre,
+                        $user->cargo ?? 'Alcalde',
+                        FirmaGobService::positions()['bottom-right'],
+                        'LAST'
+                    );
+                    Storage::put($path, $signed['content']);
+                    Log::info('Providencia firmada con FirmaGob', ['folio' => $folio]);
+                } catch (FirmaGobException $e) {
+                    // Eliminar el PDF sin firmar
+                    Storage::delete($path);
+                    return $this->errorResponse($e->getMessage(), 422);
+                }
+            }
 
             $derivacionData['pdf_ruta'] = 'providencias/' . $filename;
         }
@@ -193,6 +220,20 @@ class DerivacionController extends Controller
         return $this->successResponse($derivacion, $message, 201);
     }
 
+    private function generarFolioAcuse(): string
+    {
+        $anio = now()->year;
+        $ultimo = Derivacion::where('folio', 'like', "ACUSE-{$anio}-%")
+            ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
+            ->first();
+
+        $siguiente = $ultimo
+            ? (int) substr($ultimo->folio, strrpos($ultimo->folio, '-') + 1) + 1
+            : 1;
+
+        return sprintf('ACUSE-%d-%05d', $anio, $siguiente);
+    }
+
     private function generarFolioProvidencia(): string
     {
         $anio = now()->year;
@@ -250,12 +291,90 @@ class DerivacionController extends Controller
         return $this->successResponse($derivaciones);
     }
 
-    public function recibir(Derivacion $derivacion)
+    public function recibir(Request $request, Derivacion $derivacion)
     {
         $user = Auth::user();
 
         if ($derivacion->departamento_destino_id !== $user->departamento_id) {
             return $this->errorResponse('No tienes permiso para recibir esta derivación', 403);
+        }
+
+        // Si es Alcalde, generar y firmar un Acuse de Recibo con FirmaGob
+        if ($user->isAlcalde()) {
+            $request->validate(['otp' => 'required|string']);
+
+            $correspondencia = $derivacion->correspondencia;
+            $correspondencia->load(['departamento']);
+
+            $folio = $this->generarFolioAcuse();
+            $codigoVerificacion = Documento::generarCodigoVerificacion();
+
+            $logoPath = storage_path('app/public/logo.png');
+            $logoBase64 = '';
+            if (file_exists($logoPath)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            }
+
+            $appUrl = rtrim(config('app.url'), '/');
+            $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
+            $qrSvg = '';
+            try {
+                $qrSvg = (string) QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
+            } catch (\Exception $e) {
+                Log::warning('QR no generado para acuse de recibo: ' . $e->getMessage());
+            }
+
+            $pdfData = [
+                'folio'            => $folio,
+                'fecha'            => now()->format('d \d\e ') . $this->mesEnEspanol(now()->month) . now()->format(' \d\e Y'),
+                'remitente'        => $correspondencia->remitente,
+                'numero_documento' => $correspondencia->numero_documento,
+                'fecha_recepcion'  => $correspondencia->fecha_recibo
+                    ? $correspondencia->fecha_recibo->format('d/m/Y')
+                    : 'No especificada',
+                'descripcion'      => $correspondencia->descripcion,
+                'receptor'         => $user->nombre,
+                'logo_base64'      => $logoBase64,
+                'codigo_verificacion' => $codigoVerificacion,
+                'qr_svg'           => $qrSvg,
+                'verificar_url'    => $verificarUrl,
+            ];
+
+            $pdf = Pdf::loadView('pdf.acuse_recibo', $pdfData);
+            $pdf->setPaper('letter');
+
+            $filename = 'acuse_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
+            $path = 'public/providencias/' . $filename;
+            $pdfContent = $pdf->output();
+            Storage::put($path, $pdfContent);
+
+            // Firmar con FirmaGob
+            if (config('firmagob.enabled')) {
+                try {
+                    $firmaService = app(FirmaGobService::class);
+                    $signed = $firmaService->sign(
+                        $pdfContent,
+                        'Acuse de Recibo ' . $folio,
+                        $user->rut,
+                        $request->otp,
+                        $user->nombre,
+                        $user->cargo ?? 'Alcalde',
+                        FirmaGobService::positions()['bottom-right'],
+                        'LAST'
+                    );
+                    Storage::put($path, $signed['content']);
+                    Log::info('Acuse de recibo firmado con FirmaGob', ['folio' => $folio]);
+                } catch (FirmaGobException $e) {
+                    Storage::delete($path);
+                    return $this->errorResponse($e->getMessage(), 422);
+                }
+            }
+
+            $derivacion->update([
+                'folio'              => $folio,
+                'codigo_verificacion' => $codigoVerificacion,
+                'pdf_ruta'           => 'providencias/' . $filename,
+            ]);
         }
 
         $derivacion->update([

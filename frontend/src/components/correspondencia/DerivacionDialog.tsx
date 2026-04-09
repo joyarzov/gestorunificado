@@ -20,8 +20,9 @@ import {
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material'
 import { departamentosAPI, usersAPI } from '../../api/common'
-import { correspondenciaAPI } from '../../api/correspondencia'
+import { correspondenciaAPI, CreateDerivacionData } from '../../api/correspondencia'
 import { Departamento, User } from '../../types'
+import FirmaGobModal from './FirmaGobModal'
 
 const ACCIONES_PARA_OPTIONS = [
   'Tomar conocimiento',
@@ -64,6 +65,12 @@ const DerivacionDialog = ({
   const [loadingData, setLoadingData] = useState(true)
   const [showSuccess, setShowSuccess] = useState(false)
   const [providenciaCorrespondenciaId, setProvidenciaCorrespondenciaId] = useState<number | null>(null)
+
+  // FirmaGob modal
+  const [showFirmaModal, setShowFirmaModal] = useState(false)
+  const [firmaLoading, setFirmaLoading] = useState(false)
+  const [firmaError, setFirmaError] = useState<string | null>(null)
+  const [pendingData, setPendingData] = useState<CreateDerivacionData | null>(null)
 
   const esModoFuncionario = mode === 'funcionario'
 
@@ -111,26 +118,49 @@ const DerivacionDialog = ({
 
   const handleSubmit = async () => {
     if (!selectedDepto) return
+
+    const formData: CreateDerivacionData = {
+      correspondencia_id: correspondenciaId,
+      departamento_destino_id: selectedDepto.id,
+      usuario_destino_id: selectedUsuario?.id,
+      observaciones: observaciones || undefined,
+      acciones_para: esModoFuncionario && accionesPara.length > 0 ? accionesPara : undefined,
+    }
+
+    if (esModoFuncionario) {
+      // Alcalde derivando → pedir OTP antes de enviar
+      setPendingData(formData)
+      setFirmaError(null)
+      setShowFirmaModal(true)
+      return
+    }
+
+    // Modo no-alcalde: derivar directamente
     setLoading(true)
     try {
-      await correspondenciaAPI.derivar({
-        correspondencia_id: correspondenciaId,
-        departamento_destino_id: selectedDepto.id,
-        usuario_destino_id: selectedUsuario?.id,
-        observaciones: observaciones || undefined,
-        acciones_para: esModoFuncionario && accionesPara.length > 0 ? accionesPara : undefined,
-      })
-      if (esModoFuncionario) {
-        setProvidenciaCorrespondenciaId(correspondenciaId)
-        setShowSuccess(true)
-      } else {
-        onSuccess()
-        handleClose()
-      }
+      await correspondenciaAPI.derivar(formData)
+      onSuccess()
+      handleClose()
     } catch (err) {
       console.error('Error al derivar:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleFirmarYDerivar = async (otp: string) => {
+    if (!pendingData) return
+    setFirmaLoading(true)
+    setFirmaError(null)
+    try {
+      await correspondenciaAPI.derivar({ ...pendingData, otp })
+      setShowFirmaModal(false)
+      setProvidenciaCorrespondenciaId(correspondenciaId)
+      setShowSuccess(true)
+    } catch (err: any) {
+      setFirmaError(err?.response?.data?.message || 'Error al firmar. Verifique el código OTP e intente nuevamente.')
+    } finally {
+      setFirmaLoading(false)
     }
   }
 
@@ -141,6 +171,9 @@ const DerivacionDialog = ({
     setAccionesPara([])
     setShowSuccess(false)
     setProvidenciaCorrespondenciaId(null)
+    setShowFirmaModal(false)
+    setPendingData(null)
+    setFirmaError(null)
     onClose()
   }
 
@@ -163,6 +196,24 @@ const DerivacionDialog = ({
   const filteredUsuarios = selectedDepto
     ? usuarios.filter((u) => u.departamento_id === selectedDepto.id)
     : usuarios
+
+  // Modal FirmaGob (mientras el formulario principal permanece abierto detrás)
+  if (showFirmaModal) {
+    return (
+      <>
+        {/* Mantener el Dialog del formulario montado pero tapado por FirmaGobModal */}
+        <FirmaGobModal
+          open={showFirmaModal}
+          titulo="Firmar Providencia con FirmaGob"
+          descripcion="La providencia será firmada electrónicamente antes de derivar la correspondencia. Ingrese su código OTP de Google Authenticator."
+          loading={firmaLoading}
+          error={firmaError}
+          onFirmar={handleFirmarYDerivar}
+          onCancel={() => { setShowFirmaModal(false); setFirmaError(null) }}
+        />
+      </>
+    )
+  }
 
   // Success view after providencia generation
   if (showSuccess) {

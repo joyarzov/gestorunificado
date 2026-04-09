@@ -26,6 +26,7 @@ export interface CreateDerivacionData {
   usuario_destino_id?: number
   observaciones?: string
   acciones_para?: string[]
+  otp?: string
 }
 
 export interface AlcaldeInfo {
@@ -100,8 +101,11 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  recibirDerivacion: async (id: number) => {
-    const response = await api.post<ApiResponse<Derivacion>>(`/derivaciones/${id}/recibir`)
+  recibirDerivacion: async (id: number, otp?: string) => {
+    const response = await api.post<ApiResponse<Derivacion>>(
+      `/derivaciones/${id}/recibir`,
+      otp ? { otp } : {}
+    )
     return response.data
   },
 
