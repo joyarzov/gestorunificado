@@ -47,6 +47,7 @@ const OirsPublicConsult = () => {
   const navigate = useNavigate()
   const [folio, setFolio] = useState('')
   const [rut, setRut] = useState('')
+  const [codigoSeguimiento, setCodigoSeguimiento] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [solicitud, setSolicitud] = useState<OirsSolicitud | null>(null)
@@ -62,7 +63,10 @@ const OirsPublicConsult = () => {
     setSolicitud(null)
 
     try {
-      const response = await oirsPublicoAPI.consultar(folio, rut || undefined)
+      const credencial: { rut?: string; codigo_seguimiento?: string } = {}
+      if (rut.trim()) credencial.rut = rut.trim()
+      if (codigoSeguimiento.trim()) credencial.codigo_seguimiento = codigoSeguimiento.trim().toUpperCase()
+      const response = await oirsPublicoAPI.consultar(folio, credencial)
       setSolicitud(response.data)
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,7 +112,7 @@ const OirsPublicConsult = () => {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Número de Folio"
@@ -118,17 +122,29 @@ const OirsPublicConsult = () => {
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   label="RUT (opcional)"
                   placeholder="12345678-9"
                   value={rut}
                   onChange={(e) => setRut(e.target.value)}
-                  helperText="Para ver más detalles"
+                  helperText="O use el código"
                 />
               </Grid>
               <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Código seguimiento"
+                  placeholder="XXXX-XXXX"
+                  value={codigoSeguimiento}
+                  onChange={(e) => setCodigoSeguimiento(e.target.value.toUpperCase())}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  helperText="Útil si es anónimo"
+                  inputProps={{ style: { fontFamily: 'monospace', letterSpacing: 1 } }}
+                />
+              </Grid>
+              <Grid item xs={12} md={2}>
                 <Button
                   fullWidth
                   variant="contained"

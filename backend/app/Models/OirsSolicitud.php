@@ -13,6 +13,7 @@ class OirsSolicitud extends Model
 
     protected $fillable = [
         'folio',
+        'codigo_seguimiento',
         'tipo_solicitud',
         'nombre_solicitante',
         'rut_solicitante',

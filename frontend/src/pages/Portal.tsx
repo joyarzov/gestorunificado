@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { useHoraOficial } from '../hooks/useHoraOficial'
 import NotificacionesBell from '../components/layout/NotificacionesBell'
+import { version as APP_VERSION } from '../../package.json'
 
 const Portal = () => {
   const navigate = useNavigate()
@@ -290,7 +291,7 @@ const Portal = () => {
             Ilustre Municipalidad de Cabo de Hornos
           </Typography>
           <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="text.disabled">
-            Sistema de Gestión Municipal v1.1
+            Sistema de Gestión Municipal v{APP_VERSION}
           </Typography>
         </Box>
       </Container>

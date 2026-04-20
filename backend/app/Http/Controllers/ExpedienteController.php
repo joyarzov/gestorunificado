@@ -119,6 +119,14 @@ class ExpedienteController extends Controller
 
     public function update(Request $request, Expediente $expediente)
     {
+        if ($expediente->estaCerrado()) {
+            return $this->errorResponse('No se puede editar un expediente cerrado', 400);
+        }
+
+        if (!$this->puedeGestionarExpediente($expediente)) {
+            return $this->errorResponse('Solo el creador del expediente o un administrador puede editarlo', 403);
+        }
+
         $request->validate([
             'titulo' => 'sometimes|string|max:255',
             'asunto' => 'sometimes|string',

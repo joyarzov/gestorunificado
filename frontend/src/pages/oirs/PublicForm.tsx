@@ -48,7 +48,7 @@ const OirsPublicForm = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
-  const [success, setSuccess] = useState<{ folio: string } | null>(null)
+  const [success, setSuccess] = useState<{ folio: string; codigo_seguimiento?: string } | null>(null)
 
   const [formData, setFormData] = useState({
     tipo_solicitud: '',
@@ -75,7 +75,10 @@ const OirsPublicForm = () => {
 
     try {
       const response = await oirsPublicoAPI.crear(formData)
-      setSuccess({ folio: response.data.folio })
+      setSuccess({
+        folio: response.data.folio,
+        codigo_seguimiento: response.data.codigo_seguimiento,
+      })
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setError((err as any)?.response?.data?.message || 'Error al enviar la solicitud')
@@ -95,19 +98,48 @@ const OirsPublicForm = () => {
               <Typography variant="h4" color="success.main" gutterBottom>
                 ¡Solicitud Enviada!
               </Typography>
-              <Typography variant="h6" sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
                 Su número de folio es:
               </Typography>
               <Typography
                 variant="h3"
                 fontWeight="bold"
                 color="primary"
-                sx={{ mb: 4, p: 2, bgcolor: 'primary.light', borderRadius: 2, color: 'white' }}
+                sx={{ mb: 3, p: 2, bgcolor: 'primary.light', borderRadius: 2, color: 'white' }}
               >
                 {success.folio}
               </Typography>
+
+              {success.codigo_seguimiento && (
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    border: '2px dashed',
+                    borderColor: 'warning.main',
+                    borderRadius: 2,
+                    bgcolor: '#fffbeb',
+                  }}
+                >
+                  <Typography variant="caption" color="warning.dark" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>
+                    CÓDIGO DE SEGUIMIENTO
+                  </Typography>
+                  <Typography
+                    variant="h4"
+                    fontWeight="bold"
+                    sx={{ fontFamily: 'monospace', letterSpacing: 2, mt: 0.5, color: '#92400e' }}
+                  >
+                    {success.codigo_seguimiento}
+                  </Typography>
+                  <Typography variant="body2" color="warning.dark" sx={{ mt: 1, fontSize: 13 }}>
+                    <strong>Guarde este código.</strong> Le permitirá consultar su solicitud sin entregar su RUT.
+                    La Municipalidad no lo reemite si lo pierde.
+                  </Typography>
+                </Box>
+              )}
+
               <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                Guarde este número para consultar el estado de su solicitud
+                Puede consultar el estado de su solicitud usando el folio y su RUT o el código de seguimiento.
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                 <Button variant="outlined" onClick={() => navigate('/')}>

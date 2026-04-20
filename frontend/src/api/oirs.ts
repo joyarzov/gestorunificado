@@ -145,7 +145,7 @@ export const oirsPublicoAPI = {
       })
     }
 
-    const response = await api.post<ApiResponse<{ folio: string }>>('/oirs-publico', formData, {
+    const response = await api.post<ApiResponse<{ folio: string; codigo_seguimiento?: string }>>('/oirs-publico', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -153,9 +153,9 @@ export const oirsPublicoAPI = {
     return response.data
   },
 
-  consultar: async (folio: string, rut?: string) => {
+  consultar: async (folio: string, credencial?: { rut?: string; codigo_seguimiento?: string }) => {
     const response = await api.get<ApiResponse<OirsSolicitud>>('/oirs-publico/consultar', {
-      params: { folio, rut },
+      params: { folio, ...(credencial ?? {}) },
     })
     return response.data
   },

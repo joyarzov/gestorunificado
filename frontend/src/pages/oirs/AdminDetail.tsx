@@ -334,15 +334,20 @@ const OirsAdminDetail = () => {
 
       {/* Diálogo Asignar */}
       <Dialog open={asignarOpen} onClose={() => setAsignarOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Asignar Solicitud</DialogTitle>
+        <DialogTitle>Asignar / Derivar solicitud</DialogTitle>
         <DialogContent>
+          <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+            <strong>Funcionario</strong>: responsable directo de responder la solicitud.<br />
+            <strong>Unidad responsable</strong>: departamento al que se deriva. Si solo cambias la unidad sin elegir funcionario, la solicitud queda <em>derivada</em> a ese departamento.
+          </Alert>
           <TextField
             fullWidth
             select
             label="Funcionario"
             value={funcionarioId}
             onChange={(e) => setFuncionarioId(Number(e.target.value))}
-            sx={{ mt: 2, mb: 2 }}
+            sx={{ mt: 1, mb: 2 }}
+            helperText="Persona responsable de la respuesta"
           >
             {funcionarios.map((func) => (
               <MenuItem key={func.id} value={func.id}>
@@ -356,6 +361,7 @@ const OirsAdminDetail = () => {
             label="Unidad Responsable"
             value={unidadId}
             onChange={(e) => setUnidadId(Number(e.target.value))}
+            helperText="Departamento al que pertenece la solicitud"
           >
             <MenuItem value="">Sin asignar</MenuItem>
             {departamentos.map((depto) => (

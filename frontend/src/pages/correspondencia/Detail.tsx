@@ -57,7 +57,7 @@ const estadoLabels: Record<string, string> = {
   en_proceso: 'En Proceso',
   derivada_funcionario: 'Derivada a Funcionario',
   completada: 'Completada',
-  archivado: 'Archivado',
+  archivado: 'Archivada',
 }
 
 const CorrespondenciaDetail = () => {

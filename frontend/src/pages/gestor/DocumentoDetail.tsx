@@ -424,6 +424,13 @@ const DocumentoDetail = () => {
           <Typography variant="h4" fontWeight="bold">
             {documento.numero || documento.identificador}
           </Typography>
+          {documento.tipo_documental?.nombre && (
+            <Chip
+              label={documento.tipo_documental.nombre}
+              color="primary"
+              variant="outlined"
+            />
+          )}
           <Chip
             label={estadoLabels[documento.estado] || documento.estado}
             color={estadoColors[documento.estado]}

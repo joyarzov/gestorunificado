@@ -368,10 +368,21 @@ class DocumentoController extends Controller
     private function procesarPlantilla(DocumentoPlantilla $plantilla, array $variables): string
     {
         $html = $plantilla->contenido_html;
+        $placeholder = function (string $nombre): string {
+            return '<span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-style:italic;font-size:0.9em;">[ falta: ' . e($nombre) . ' ]</span>';
+        };
 
+        // Reemplazar variables con valor; si el valor está vacío, dejar marcador visible
         foreach ($variables as $key => $value) {
-            $html = str_replace('{{' . $key . '}}', $value ?? '', $html);
+            $valor = is_scalar($value) ? (string) $value : '';
+            $reemplazo = trim($valor) === '' ? $placeholder((string) $key) : $valor;
+            $html = str_replace('{{' . $key . '}}', $reemplazo, $html);
         }
+
+        // Variables declaradas en la plantilla pero nunca enviadas también deben marcarse
+        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function ($m) use ($placeholder) {
+            return $placeholder($m[1]);
+        }, $html);
 
         return $html;
     }

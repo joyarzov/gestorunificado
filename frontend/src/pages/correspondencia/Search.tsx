@@ -44,7 +44,7 @@ const estadoLabels: Record<string, string> = {
   en_proceso: 'En Proceso',
   derivada_funcionario: 'Derivada a Funcionario',
   completada: 'Completada',
-  archivado: 'Archivado',
+  archivado: 'Archivada',
 }
 
 const CorrespondenciaSearch = () => {
@@ -116,7 +116,7 @@ const CorrespondenciaSearch = () => {
                 <MenuItem value="en_proceso">En Proceso</MenuItem>
                 <MenuItem value="derivada_funcionario">Derivada a Funcionario</MenuItem>
                 <MenuItem value="completada">Completada</MenuItem>
-                <MenuItem value="archivado">Archivado</MenuItem>
+                <MenuItem value="archivado">Archivada</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} md={2}>

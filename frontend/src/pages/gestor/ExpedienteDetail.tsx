@@ -379,13 +379,15 @@ const ExpedienteDetail = () => {
                 Reabrir
               </Button>
             )}
-            <Button
-              variant="contained"
-              startIcon={<EditIcon />}
-              onClick={() => navigate(`/expedientes/${id}/editar`)}
-            >
-              Editar
-            </Button>
+            {!estaCerrado && (
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
+                onClick={() => navigate(`/expedientes/${id}/editar`)}
+              >
+                Editar
+              </Button>
+            )}
           </Box>
         )}
       </Box>

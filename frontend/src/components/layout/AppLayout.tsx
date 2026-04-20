@@ -288,18 +288,6 @@ const AppLayout = () => {
         )}
       </List>
 
-      {/* Footer: volver al portal */}
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', p: 1 }}>
-        <ListItemButton
-          onClick={() => navigate('/portal')}
-          sx={{ borderRadius: 2, color: 'text.secondary' }}
-        >
-          <ListItemIcon sx={{ minWidth: 40 }}>
-            <HomeIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Volver al portal" primaryTypographyProps={{ fontSize: 13 }} />
-        </ListItemButton>
-      </Box>
     </Box>
   )
 

@@ -43,8 +43,9 @@ Route::prefix('oirs-publico')->group(function () {
     Route::post('/adjuntar', [OirsPublicoController::class, 'adjuntar']);
 });
 
-// Verificación pública de documentos
-Route::get('/verificar-documento/{codigo}', [VerificacionDocumentoController::class, 'verificar']);
+// Verificación pública de documentos (rate-limit 30 req/min por IP para evitar enumeración)
+Route::get('/verificar-documento/{codigo}', [VerificacionDocumentoController::class, 'verificar'])
+    ->middleware('throttle:30,1');
 
 // Hora Oficial de Chile - sincronizada con ntp.shoa.cl (America/Punta_Arenas UTC-3)
 Route::get('/hora-oficial', function () {

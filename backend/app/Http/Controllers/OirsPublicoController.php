@@ -6,6 +6,7 @@ use App\Models\OirsSolicitud;
 use App\Models\OirsAdjunto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class OirsPublicoController extends Controller
 {
@@ -28,7 +29,13 @@ class OirsPublicoController extends Controller
 
         $esAnonimo = $request->boolean('anonimo', false);
 
+        // Código de seguimiento único (para consultas posteriores sin RUT).
+        do {
+            $codigoSeguimiento = strtoupper(Str::random(4) . '-' . Str::random(4));
+        } while (OirsSolicitud::where('codigo_seguimiento', $codigoSeguimiento)->exists());
+
         $solicitud = OirsSolicitud::create([
+            'codigo_seguimiento' => $codigoSeguimiento,
             'tipo_solicitud' => $request->tipo_solicitud,
             'categoria' => $request->categoria,
             'asunto' => $request->asunto,
@@ -48,6 +55,7 @@ class OirsPublicoController extends Controller
 
         return $this->successResponse([
             'folio' => $solicitud->folio,
+            'codigo_seguimiento' => $codigoSeguimiento,
             'mensaje' => 'Su solicitud ha sido recibida exitosamente',
         ], 'Solicitud creada', 201);
     }
@@ -57,20 +65,21 @@ class OirsPublicoController extends Controller
         $request->validate([
             'folio' => 'required|string',
             'rut' => 'nullable|string',
+            'codigo_seguimiento' => 'nullable|string',
         ]);
 
-        $query = OirsSolicitud::where('folio', $request->folio);
-
-        // Si proporciona RUT, verificar que coincida
-        if ($request->filled('rut')) {
-            $query->where('rut_solicitante', $request->rut);
-        }
-
-        $solicitud = $query->first();
+        $solicitud = OirsSolicitud::where('folio', $request->folio)->first();
 
         if (!$solicitud) {
             return $this->errorResponse('Solicitud no encontrada', 404);
         }
+
+        $rutCoincide = $request->filled('rut') && $solicitud->rut_solicitante === $request->rut;
+        $codigoCoincide = $request->filled('codigo_seguimiento')
+            && $solicitud->codigo_seguimiento
+            && hash_equals($solicitud->codigo_seguimiento, strtoupper(trim($request->codigo_seguimiento)));
+
+        $propietarioAcreditado = $rutCoincide || $codigoCoincide;
 
         // Datos públicos limitados
         $datosPublicos = [
@@ -83,18 +92,15 @@ class OirsPublicoController extends Controller
             'fecha_limite_respuesta' => $solicitud->fecha_limite_respuesta,
         ];
 
-        // Si proporciona RUT correcto, mostrar más datos
-        if ($request->filled('rut') && $solicitud->rut_solicitante === $request->rut) {
+        if ($propietarioAcreditado) {
             $datosPublicos['descripcion'] = $solicitud->descripcion;
             $datosPublicos['respuesta'] = $solicitud->respuesta;
             $datosPublicos['fecha_respuesta'] = $solicitud->fecha_respuesta;
             $datosPublicos['unidad_responsable'] = $solicitud->unidadResponsable;
-        } else {
-            // Sin RUT, solo mostrar respuesta si existe
-            if ($solicitud->respuesta) {
-                $datosPublicos['respuesta'] = $solicitud->respuesta;
-                $datosPublicos['fecha_respuesta'] = $solicitud->fecha_respuesta;
-            }
+        } elseif ($solicitud->respuesta) {
+            // Sin acreditación, solo mostrar respuesta si ya existe
+            $datosPublicos['respuesta'] = $solicitud->respuesta;
+            $datosPublicos['fecha_respuesta'] = $solicitud->fecha_respuesta;
         }
 
         return $this->successResponse($datosPublicos);
@@ -104,16 +110,25 @@ class OirsPublicoController extends Controller
     {
         $request->validate([
             'folio' => 'required|string',
-            'rut' => 'required|string',
+            'rut' => 'nullable|string',
+            'codigo_seguimiento' => 'nullable|string',
             'archivo' => 'required|file|max:10240', // 10MB máximo
         ]);
 
-        $solicitud = OirsSolicitud::where('folio', $request->folio)
-            ->where('rut_solicitante', $request->rut)
-            ->first();
+        if (!$request->filled('rut') && !$request->filled('codigo_seguimiento')) {
+            return $this->errorResponse('Debe proporcionar RUT o código de seguimiento', 422);
+        }
 
-        if (!$solicitud) {
-            return $this->errorResponse('Solicitud no encontrada o RUT incorrecto', 404);
+        $solicitud = OirsSolicitud::where('folio', $request->folio)->first();
+        $acreditado = $solicitud && (
+            ($request->filled('rut') && $solicitud->rut_solicitante === $request->rut)
+            || ($request->filled('codigo_seguimiento')
+                && $solicitud->codigo_seguimiento
+                && hash_equals($solicitud->codigo_seguimiento, strtoupper(trim($request->codigo_seguimiento))))
+        );
+
+        if (!$solicitud || !$acreditado) {
+            return $this->errorResponse('Solicitud no encontrada o credenciales incorrectas', 404);
         }
 
         if ($solicitud->estado !== 'recibido') {
