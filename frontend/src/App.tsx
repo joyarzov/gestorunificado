@@ -9,6 +9,7 @@ import PublicHome from './pages/PublicHome'
 import Portal from './pages/Portal'
 
 // Correspondencia
+import CorrespondenciaDashboard from './pages/correspondencia/Dashboard'
 import CorrespondenciaList from './pages/correspondencia/List'
 import CorrespondenciaCreate from './pages/correspondencia/Create'
 import CorrespondenciaDetail from './pages/correspondencia/Detail'
@@ -21,6 +22,7 @@ import VerificarDocumento from './pages/verificacion/VerificarDocumento'
 // OIRS
 import OirsPublicForm from './pages/oirs/PublicForm'
 import OirsPublicConsult from './pages/oirs/PublicConsult'
+import OirsDashboard from './pages/oirs/Dashboard'
 import OirsAdminList from './pages/oirs/AdminList'
 import OirsAdminDetail from './pages/oirs/AdminDetail'
 import OirsFuncionarioList from './pages/oirs/FuncionarioList'
@@ -54,6 +56,7 @@ import DepartamentosManage from './pages/admin/DepartamentosManage'
 import FirmaSellosPage from './pages/admin/FirmaSellosPage'
 import FirmaSelloForm from './pages/admin/FirmaSelloForm'
 import Configuracion from './pages/admin/Configuracion'
+import Organigrama from './pages/admin/Organigrama'
 import ChangePassword from './pages/auth/ChangePassword'
 
 function App() {
@@ -81,7 +84,8 @@ function App() {
             <Route path="/cambiar-password" element={<ChangePassword />} />
 
             {/* Correspondencia */}
-            <Route path="/correspondencia" element={<CorrespondenciaList />} />
+            <Route path="/correspondencia" element={<CorrespondenciaDashboard />} />
+            <Route path="/correspondencia/listar" element={<CorrespondenciaList />} />
             <Route path="/bandeja" element={<BandejaEntrada />} />
             <Route path="/ingresar" element={<CorrespondenciaCreate />} />
             <Route path="/correspondencia/:id" element={<CorrespondenciaDetail />} />
@@ -89,7 +93,10 @@ function App() {
             <Route path="/buscar" element={<CorrespondenciaSearch />} />
 
             {/* OIRS Admin */}
-            <Route path="/oirs-admin" element={<OirsAdminList />} />
+            <Route path="/oirs-admin" element={<OirsDashboard />} />
+            <Route path="/oirs-admin/listar" element={<OirsAdminList />} />
+            <Route path="/oirs-admin/asignadas" element={<OirsAdminList />} />
+            <Route path="/oirs-admin/cerradas" element={<OirsAdminList />} />
             <Route path="/oirs-admin/:id" element={<OirsAdminDetail />} />
 
             {/* OIRS Funcionario */}
@@ -124,6 +131,7 @@ function App() {
             <Route path="/firma-sellos" element={<FirmaSellosPage />} />
             <Route path="/firma-sellos/nuevo" element={<FirmaSelloForm />} />
             <Route path="/firma-sellos/:id/editar" element={<FirmaSelloForm />} />
+            <Route path="/organigrama" element={<Organigrama />} />
           </Route>
         </Route>
 

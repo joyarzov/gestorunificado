@@ -20,6 +20,7 @@ class User extends Authenticatable
         'roles',
         'aplicaciones_permitidas',
         'departamento_id',
+        'subrogante_id',
         'activo',
         'visador',
     ];
@@ -72,6 +73,21 @@ class User extends Authenticatable
     public function firmas()
     {
         return $this->hasMany(DocumentoFirma::class, 'usuario_id');
+    }
+
+    public function subrogante()
+    {
+        return $this->belongsTo(User::class, 'subrogante_id');
+    }
+
+    public function subrogados()
+    {
+        return $this->hasMany(User::class, 'subrogante_id');
+    }
+
+    public function jefaturas()
+    {
+        return $this->hasMany(Departamento::class, 'jefe_id');
     }
 
     // Helpers

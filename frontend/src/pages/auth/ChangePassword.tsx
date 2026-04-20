@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -9,10 +9,14 @@ import {
   Button,
   Alert,
   CircularProgress,
+  MenuItem,
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon } from '@mui/icons-material'
+import { Save as SaveIcon, ArrowBack as BackIcon, SwapHoriz as SubroganteIcon } from '@mui/icons-material'
 import { authAPI } from '../../api/auth'
 import { useAuth } from '../../contexts/AuthContext'
+import { usersAPI } from '../../api/common'
+import { organigramaAPI } from '../../api/organigrama'
+import { User } from '../../types'
 
 const ChangePassword = () => {
   const navigate = useNavigate()
@@ -24,6 +28,38 @@ const ChangePassword = () => {
   // Profile form
   const [cargo, setCargo] = useState(user?.cargo || '')
   const [profileLoading, setProfileLoading] = useState(false)
+
+  // Subrogante
+  const [funcionarios, setFuncionarios] = useState<User[]>([])
+  const [subroganteId, setSubroganteId] = useState<number | ''>(user?.subrogante_id ?? '')
+  const [subroganteLoading, setSubroganteLoading] = useState(false)
+
+  useEffect(() => {
+    setSubroganteId(user?.subrogante_id ?? '')
+  }, [user?.subrogante_id])
+
+  useEffect(() => {
+    usersAPI.funcionarios()
+      .then((r) => setFuncionarios((r.data ?? []).filter((u) => u.id !== user?.id && u.activo)))
+      .catch(() => {})
+  }, [user?.id])
+
+  const handleUpdateSubrogante = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    setSubroganteLoading(true)
+    try {
+      await organigramaAPI.actualizarMiSubrogante(subroganteId === '' ? null : Number(subroganteId))
+      await checkAuth()
+      setSuccess('Subrogante actualizado')
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any)?.response?.data?.message || 'Error al actualizar subrogante')
+    } finally {
+      setSubroganteLoading(false)
+    }
+  }
 
   // Password form
   const [formData, setFormData] = useState({
@@ -153,6 +189,49 @@ const ChangePassword = () => {
               disabled={profileLoading}
             >
               {profileLoading ? 'Guardando...' : 'Guardar Cargo'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Subrogante Section */}
+      <Card sx={{ maxWidth: 500, mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <SubroganteIcon color="primary" />
+            <Typography variant="h6">Mi subrogante</Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Funcionario que te reemplazará en tus funciones cuando no estés disponible.
+          </Typography>
+
+          <Box component="form" onSubmit={handleUpdateSubrogante}>
+            <TextField
+              select
+              fullWidth
+              label="Subrogante"
+              value={subroganteId}
+              onChange={(e) => setSubroganteId(e.target.value === '' ? '' : Number(e.target.value))}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">— Sin asignar —</MenuItem>
+              {funcionarios.map((f) => (
+                <MenuItem key={f.id} value={f.id}>
+                  {f.nombre}
+                  {f.cargo ? ` · ${f.cargo}` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              startIcon={subroganteLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+              disabled={subroganteLoading}
+            >
+              {subroganteLoading ? 'Guardando…' : 'Guardar subrogante'}
             </Button>
           </Box>
         </CardContent>

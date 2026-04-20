@@ -167,6 +167,10 @@ class ExpedienteController extends Controller
 
     public function cerrar(Expediente $expediente)
     {
+        if (!$this->puedeGestionarExpediente($expediente)) {
+            return $this->errorResponse('Solo el creador del expediente o un administrador puede cerrarlo', 403);
+        }
+
         if ($expediente->estaCerrado()) {
             return $this->errorResponse('El expediente ya está cerrado', 400);
         }
@@ -189,6 +193,10 @@ class ExpedienteController extends Controller
 
     public function reabrir(Expediente $expediente)
     {
+        if (!$this->puedeGestionarExpediente($expediente)) {
+            return $this->errorResponse('Solo el creador del expediente o un administrador puede reabrirlo', 403);
+        }
+
         if (!$expediente->estaCerrado()) {
             return $this->errorResponse('El expediente no está cerrado', 400);
         }
@@ -393,5 +401,20 @@ class ExpedienteController extends Controller
         ];
 
         return $this->successResponse($stats);
+    }
+
+    private function puedeGestionarExpediente(Expediente $expediente): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        $roles = is_array($user->roles) ? $user->roles : [];
+        if (in_array('admin', $roles, true)) {
+            return true;
+        }
+
+        return $expediente->creado_por === $user->id;
     }
 }

@@ -290,7 +290,7 @@ const Portal = () => {
             Ilustre Municipalidad de Cabo de Hornos
           </Typography>
           <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="text.disabled">
-            Sistema de Gestión Municipal v1.0
+            Sistema de Gestión Municipal v1.1
           </Typography>
         </Box>
       </Container>

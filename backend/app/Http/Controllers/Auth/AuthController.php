@@ -78,7 +78,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        $user->load('departamento');
+        $user->load(['departamento', 'subrogante:id,nombre,cargo']);
 
         return $this->successResponse([
             'id' => $user->id,
@@ -90,7 +90,14 @@ class AuthController extends Controller
             'aplicaciones_permitidas' => $user->aplicaciones_permitidas,
             'departamento_id' => $user->departamento_id,
             'departamento' => $user->departamento?->nombre,
+            'subrogante_id' => $user->subrogante_id,
+            'subrogante' => $user->subrogante ? [
+                'id' => $user->subrogante->id,
+                'nombre' => $user->subrogante->nombre,
+                'cargo' => $user->subrogante->cargo,
+            ] : null,
             'visador' => $user->visador,
+            'activo' => $user->activo,
         ]);
     }
 

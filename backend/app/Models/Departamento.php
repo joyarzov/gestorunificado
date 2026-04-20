@@ -12,16 +12,36 @@ class Departamento extends Model
     protected $fillable = [
         'nombre',
         'codigo',
+        'parent_id',
+        'jefe_id',
+        'tipo',
+        'orden',
         'activo',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'orden' => 'integer',
     ];
 
     public function usuarios()
     {
         return $this->hasMany(User::class);
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Departamento::class, 'parent_id');
+    }
+
+    public function hijos()
+    {
+        return $this->hasMany(Departamento::class, 'parent_id')->orderBy('orden')->orderBy('nombre');
+    }
+
+    public function jefe()
+    {
+        return $this->belongsTo(User::class, 'jefe_id');
     }
 
     public function correspondencias()

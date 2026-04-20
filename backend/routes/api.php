@@ -22,6 +22,7 @@ use App\Http\Controllers\FondoPublicoController;
 use App\Http\Controllers\FondoConcursableController;
 use App\Http\Controllers\FirmaSelloController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\OrganigramaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -88,6 +89,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Departamentos
     Route::apiResource('departamentos', DepartamentoController::class);
+
+    // Organigrama
+    Route::prefix('organigrama')->group(function () {
+        Route::get('/', [OrganigramaController::class, 'index']);
+        Route::post('/departamentos', [OrganigramaController::class, 'crearDepartamento']);
+        Route::patch('/departamentos/{departamento}', [OrganigramaController::class, 'actualizarDepartamento']);
+        Route::patch('/departamentos/{departamento}/parent', [OrganigramaController::class, 'actualizarParent']);
+        Route::patch('/departamentos/{departamento}/jefe', [OrganigramaController::class, 'actualizarJefe']);
+        Route::patch('/usuarios/{user}/departamento', [OrganigramaController::class, 'moverUsuarioDepartamento']);
+        Route::patch('/mi-subrogante', [OrganigramaController::class, 'actualizarMiSubrogante']);
+    });
 
     // Usuarios
     Route::prefix('users')->group(function () {

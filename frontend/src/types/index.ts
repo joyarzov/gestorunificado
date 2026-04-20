@@ -17,6 +17,8 @@ export interface User {
   aplicaciones_permitidas?: string[]
   departamento_id?: number
   departamento?: Departamento
+  subrogante_id?: number | null
+  subrogante?: { id: number; nombre: string; cargo?: string | null } | null
   visador: boolean
   activo: boolean
 }
