@@ -27,6 +27,7 @@ const ModuleSwitcher = () => {
   const handleClose = () => setAnchorEl(null)
 
   const modulosVisibles = MODULES.filter((m) => {
+    if (m.id === 'perfil') return false // el perfil no es un módulo de trabajo
     if (m.id === 'administracion') return isAdmin()
     return hasAplicacion(m.id)
   })

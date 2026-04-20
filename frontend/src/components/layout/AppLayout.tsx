@@ -372,7 +372,7 @@ const AppLayout = () => {
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
               </ListItemIcon>
-              Cambiar contraseña
+              Mi perfil
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>

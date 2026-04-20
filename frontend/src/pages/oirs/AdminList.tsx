@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -44,8 +44,11 @@ const prioridadColors: Record<string, 'warning' | 'info' | 'error'> = {
   alta: 'error',
 }
 
+type Modo = 'todas' | 'asignadas' | 'cerradas'
+
 const OirsAdminList = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [solicitudes, setSolicitudes] = useState<OirsSolicitud[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -58,19 +61,42 @@ const OirsAdminList = () => {
     prioridad: '',
   })
 
+  const modo: Modo = useMemo(() => {
+    if (location.pathname.startsWith('/oirs-admin/asignadas')) return 'asignadas'
+    if (location.pathname.startsWith('/oirs-admin/cerradas')) return 'cerradas'
+    return 'todas'
+  }, [location.pathname])
+
+  const titulo = modo === 'asignadas'
+    ? 'Mis solicitudes asignadas'
+    : modo === 'cerradas'
+      ? 'Solicitudes cerradas'
+      : 'Administración OIRS'
+
+  // Al cambiar de modo, resetear página y filtros dependientes
+  useEffect(() => {
+    setPage(0)
+    setFilters((f) => ({ ...f, estado: '' }))
+  }, [modo])
+
   useEffect(() => {
     loadSolicitudes()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage])
+  }, [page, rowsPerPage, modo])
 
   const loadSolicitudes = async () => {
     setLoading(true)
     try {
-      const response = await oirsAPI.listar({
+      const params = {
         page: page + 1,
         per_page: rowsPerPage,
         ...filters,
-      })
+        // Si estamos en "cerradas", forzar estado=cerrado sin importar el filtro
+        ...(modo === 'cerradas' ? { estado: 'cerrado' } : {}),
+      }
+      const response = modo === 'asignadas'
+        ? await oirsAPI.misAsignadas(params)
+        : await oirsAPI.listar(params)
       setSolicitudes(response.data.data)
       setTotal(response.data.total)
     } catch (error) {
@@ -92,7 +118,7 @@ const OirsAdminList = () => {
   return (
     <Box>
       <Typography variant="h4" fontWeight="bold" gutterBottom>
-        Administración OIRS
+        {titulo}
       </Typography>
 
       {/* Filtros */}
@@ -121,8 +147,10 @@ const OirsAdminList = () => {
               size="small"
               select
               label="Estado"
-              value={filters.estado}
+              value={modo === 'cerradas' ? 'cerrado' : filters.estado}
               onChange={(e) => handleFilterChange('estado', e.target.value)}
+              disabled={modo === 'cerradas'}
+              helperText={modo === 'cerradas' ? 'Fijo en esta vista' : ''}
             >
               <MenuItem value="">Todos</MenuItem>
               <MenuItem value="recibido">Recibido</MenuItem>

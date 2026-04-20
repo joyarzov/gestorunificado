@@ -92,13 +92,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Organigrama
     Route::prefix('organigrama')->group(function () {
+        // Visible para cualquier autenticado
         Route::get('/', [OrganigramaController::class, 'index']);
-        Route::post('/departamentos', [OrganigramaController::class, 'crearDepartamento']);
-        Route::patch('/departamentos/{departamento}', [OrganigramaController::class, 'actualizarDepartamento']);
-        Route::patch('/departamentos/{departamento}/parent', [OrganigramaController::class, 'actualizarParent']);
-        Route::patch('/departamentos/{departamento}/jefe', [OrganigramaController::class, 'actualizarJefe']);
-        Route::patch('/usuarios/{user}/departamento', [OrganigramaController::class, 'moverUsuarioDepartamento']);
         Route::patch('/mi-subrogante', [OrganigramaController::class, 'actualizarMiSubrogante']);
+
+        // Mutaciones estructurales: solo admin
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/departamentos', [OrganigramaController::class, 'crearDepartamento']);
+            Route::patch('/departamentos/{departamento}', [OrganigramaController::class, 'actualizarDepartamento']);
+            Route::patch('/departamentos/{departamento}/parent', [OrganigramaController::class, 'actualizarParent']);
+            Route::patch('/departamentos/{departamento}/jefe', [OrganigramaController::class, 'actualizarJefe']);
+            Route::patch('/usuarios/{user}/departamento', [OrganigramaController::class, 'moverUsuarioDepartamento']);
+        });
     });
 
     // Usuarios

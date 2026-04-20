@@ -92,6 +92,18 @@ class CorrespondenciaController extends Controller
 
     public function update(Request $request, Correspondencia $correspondencia)
     {
+        // Solo oficial de partes o admin pueden editar, y solo mientras siga pendiente.
+        $user = Auth::user();
+        $roles = is_array($user->roles ?? null) ? $user->roles : [];
+        $puedeEditar = in_array('admin', $roles, true) || in_array('oficial', $roles, true);
+        if (!$puedeEditar) {
+            return $this->errorResponse('Solo la Oficina de Partes o un administrador pueden editar la correspondencia', 403);
+        }
+
+        if ($correspondencia->estado !== 'pendiente') {
+            return $this->errorResponse('Solo se puede editar correspondencia en estado pendiente', 400);
+        }
+
         $request->validate([
             'remitente' => 'sometimes|required|string|max:200',
             'fecha_recibo' => 'sometimes|required|date',

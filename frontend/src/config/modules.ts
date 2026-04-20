@@ -19,6 +19,7 @@ import {
   Gesture as GestureIcon,
   Tune as TuneIcon,
   AccountTree as OrganigramaIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -29,6 +30,7 @@ export type ModuleId =
   | 'oirs'
   | 'fomento_productivo'
   | 'administracion'
+  | 'perfil'
 
 export interface ModuleDefinition {
   id: ModuleId
@@ -107,6 +109,15 @@ export const MODULES: ModuleDefinition[] = [
       '/configuracion',
       '/firma-sellos',
     ],
+  },
+  {
+    id: 'perfil',
+    nombre: 'Mi perfil',
+    descripcion: 'Datos personales, subrogante y contraseña',
+    color: '#607d8b',
+    icono: PersonIcon,
+    rootPath: '/cambiar-password',
+    urlPrefixes: ['/cambiar-password'],
   },
 ]
 
@@ -198,6 +209,11 @@ export const getSidebarItems = (
         { text: 'Departamentos', path: '/departamentos', icon: BusinessIcon },
         { text: 'Firma y sellos', path: '/firma-sellos', icon: GestureIcon },
         { text: 'Configuración', path: '/configuracion', icon: TuneIcon },
+      ]
+
+    case 'perfil':
+      return [
+        { text: 'Mi información', path: '/cambiar-password', icon: PersonIcon },
       ]
   }
 }

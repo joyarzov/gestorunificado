@@ -289,6 +289,10 @@ class ExpedienteController extends Controller
 
     public function asociarDocumento(Request $request, Expediente $expediente)
     {
+        if ($expediente->estaCerrado()) {
+            return $this->errorResponse('No se pueden asociar documentos a un expediente cerrado', 400);
+        }
+
         $request->validate([
             'documento_id' => 'required|integer|exists:documentos,id',
         ]);
@@ -320,6 +324,10 @@ class ExpedienteController extends Controller
 
     public function subirDocumento(Request $request, Expediente $expediente)
     {
+        if ($expediente->estaCerrado()) {
+            return $this->errorResponse('No se pueden subir documentos a un expediente cerrado', 400);
+        }
+
         $request->validate([
             'archivo' => 'required|file|mimes:pdf|max:20480',
             'titulo' => 'required|string|max:255',
@@ -365,6 +373,10 @@ class ExpedienteController extends Controller
 
     public function reordenarDocumentos(Request $request, Expediente $expediente)
     {
+        if ($expediente->estaCerrado()) {
+            return $this->errorResponse('No se puede reordenar un expediente cerrado', 400);
+        }
+
         $request->validate([
             'documentos' => 'required|array|min:1',
             'documentos.*.id' => 'required|integer|exists:documentos,id',
