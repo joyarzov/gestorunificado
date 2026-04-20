@@ -110,6 +110,19 @@ docker compose -f docker-compose.prod.yml up -d
 docker exec corresp_backend php artisan migrate --force
 ```
 
+### Cargar el organigrama oficial (solo primera vez)
+
+La migración `2026_04_19_000001_add_organigrama_fields` agrega las columnas (`parent_id`, `jefe_id`, `tipo`, `orden` en `departamentos`; `subrogante_id` en `users`) pero deja todo en `NULL`. Para poblar la estructura oficial de la Municipalidad de Cabo de Hornos según el organigrama 2016:
+
+```bash
+docker exec unificada_backend php artisan db:seed --class=OrganigramaSeeder --force
+```
+
+El seeder:
+- Es idempotente: usa `updateOrCreate` por código, no duplica departamentos existentes.
+- No toca usuarios ni los mueve de departamento.
+- Marca como `activo=false` los códigos obsoletos que no existen en el organigrama oficial (`ASEO`, `CULTURA`, `DEPO`, `FOMENTO`, `EDIF`, `JUR`).
+
 ### Limpiar caches de Laravel
 
 ```bash
@@ -195,6 +208,14 @@ docker exec unificada_frontend npm install nombre-paquete
 ```
 
 O bien instalarla también en el host de desarrollo antes de hacer commit del `package-lock.json`.
+
+**Caso documentado (2026-04-20):** al introducir `reactflow` y `dagre` (v1.1.0 — organigrama interactivo), el deploy rebuildó la imagen pero el volumen anónimo `/app/node_modules` persistió el estado anterior. Vite arrojó `Failed to resolve import "reactflow"`. Solución aplicada:
+
+```bash
+# En el servidor, tras el deploy
+docker exec unificada_frontend npm install
+docker restart unificada_frontend
+```
 
 ### No borrar usuarios de la BD al redesplegar
 
