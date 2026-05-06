@@ -121,7 +121,8 @@ const AppLayout = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          p: 2,
+          px: 2,
+          minHeight: { xs: 56, sm: 64 }, // mismo alto que la AppBar (Toolbar)
           bgcolor: '#0071BC',
           color: 'white',
         }}
