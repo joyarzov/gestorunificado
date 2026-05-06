@@ -139,6 +139,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Derivaciones
     Route::prefix('derivaciones')->group(function () {
         Route::get('/pendientes', [DerivacionController::class, 'pendientes']);
+        Route::post('/preview-derivar', [DerivacionController::class, 'previewDerivar']);
+        Route::post('/{derivacion}/preview-recibir', [DerivacionController::class, 'previewRecibir']);
         Route::post('/{derivacion}/recibir', [DerivacionController::class, 'recibir']);
         Route::get('/{derivacion}/pdf', [DerivacionController::class, 'pdf']);
         Route::post('/{derivacion}/archivar', [DerivacionController::class, 'archivar']);

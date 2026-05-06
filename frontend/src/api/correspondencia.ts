@@ -30,6 +30,20 @@ export interface CreateDerivacionData {
   firma_y?: number
   firma_page?: string
   firma_col?: number
+  preview_token?: string
+}
+
+export interface PreviewDerivarData {
+  correspondencia_id: number
+  departamento_destino_id: number
+  usuario_destino_id?: number
+  observaciones?: string
+  acciones_para?: string[]
+}
+
+export interface PreviewResult {
+  blob: Blob
+  token: string
 }
 
 export interface AlcaldeInfo {
@@ -104,12 +118,38 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  recibirDerivacion: async (id: number, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number) => {
+  recibirDerivacion: async (
+    id: number,
+    otp?: string,
+    firmaY?: number,
+    firmaPage?: string,
+    firmaCol?: number,
+    previewToken?: string,
+  ) => {
     const response = await api.post<ApiResponse<Derivacion>>(
       `/derivaciones/${id}/recibir`,
-      otp ? { otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol } : {}
+      otp
+        ? { otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol, preview_token: previewToken }
+        : {}
     )
     return response.data
+  },
+
+  // Previsualización de providencia (no persiste; cachea por 15 min con un token)
+  previewDerivar: async (data: PreviewDerivarData): Promise<PreviewResult> => {
+    const response = await api.post('/derivaciones/preview-derivar', data, {
+      responseType: 'blob',
+    })
+    const token = (response.headers['x-preview-token'] || response.headers['X-Preview-Token']) as string
+    return { blob: response.data as Blob, token }
+  },
+
+  previewRecibir: async (derivacionId: number): Promise<PreviewResult> => {
+    const response = await api.post(`/derivaciones/${derivacionId}/preview-recibir`, null, {
+      responseType: 'blob',
+    })
+    const token = (response.headers['x-preview-token'] || response.headers['X-Preview-Token']) as string
+    return { blob: response.data as Blob, token }
   },
 
   descargarPdfDerivacion: async (derivacionId: number) => {

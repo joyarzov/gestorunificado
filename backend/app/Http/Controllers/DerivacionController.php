@@ -4,20 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\Derivacion;
 use App\Models\Correspondencia;
-use App\Models\Documento;
 use App\Models\Notificacion;
 use App\Models\User;
 use App\Services\FirmaGobService;
+use App\Services\ProvidenciaPdfService;
 use App\Exceptions\FirmaGobException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Barryvdh\DomPDF\Facade\Pdf;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Str;
 
 class DerivacionController extends Controller
 {
+    private const PREVIEW_CACHE_PREFIX = 'derivacion_preview:';
+    private const PREVIEW_TTL_MINUTES = 15;
+
     public function index(Request $request)
     {
         $query = Derivacion::with([
@@ -50,6 +53,7 @@ class DerivacionController extends Controller
             'firma_y'    => 'nullable|integer|min:10|max:712',
             'firma_page' => 'nullable|string',
             'firma_col'  => 'nullable|integer|in:0,1,2',
+            'preview_token' => 'nullable|string',
         ]);
 
         $user = Auth::user();
@@ -67,63 +71,27 @@ class DerivacionController extends Controller
             'estado' => 'pendiente',
         ];
 
-        // Si es alcalde derivando a funcionario, generar providencia PDF
+        // Si es alcalde derivando a funcionario, obtener providencia (de cache si vino preview_token)
         if ($esAlcaldeDerivando) {
-            $folio = $this->generarFolioProvidencia();
-            $derivacionData['folio'] = $folio;
-
-            // Generar código de verificación
-            $codigoVerificacion = Documento::generarCodigoVerificacion();
-            $derivacionData['codigo_verificacion'] = $codigoVerificacion;
-
-            // Cargar relaciones necesarias para el PDF
             $correspondencia->load(['departamento']);
-            $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
-            $usuarioDestino = $request->usuario_destino_id ? User::find($request->usuario_destino_id) : null;
 
-            // Embeber logo en base64 para dompdf
-            $logoPath = storage_path('app/public/logo.png');
-            $logoBase64 = '';
-            if (file_exists($logoPath)) {
-                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            $resolved = $this->resolverProvidencia(
+                $request->preview_token,
+                $user,
+                $correspondencia,
+                fn () => $this->paramsProvidenciaDerivar($request, $user)
+            );
+
+            if ($resolved === null) {
+                return $this->errorResponse(
+                    'La vista previa de la providencia expiró. Vuelve a derivar para regenerarla.',
+                    422
+                );
             }
 
-            // Generar QR SVG
-            $appUrl = rtrim(config('app.url'), '/');
-            $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
-            $qrSvg = '';
-            try {
-                $qrSvg = (string) QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
-            } catch (\Exception $e) {
-                Log::warning('No se pudo generar QR para providencia: ' . $e->getMessage());
-            }
-
-            $pdfData = [
-                'folio' => $folio,
-                'fecha' => now()->format('d \d\e ') . $this->mesEnEspanol(now()->month) . now()->format(' \d\e Y'),
-                'remitente' => $correspondencia->remitente,
-                'numero_documento' => $correspondencia->numero_documento,
-                'fecha_recepcion' => $correspondencia->fecha_recibo ? $correspondencia->fecha_recibo->format('d/m/Y') : 'No especificada',
-                'descripcion' => $correspondencia->descripcion,
-                'usuario_origen' => $user->nombre,
-                'departamento_origen' => $user->departamento?->nombre ?? 'Alcaldía',
-                'departamento_destino' => $deptoDestino?->nombre ?? '',
-                'usuario_destino' => $usuarioDestino?->nombre ?? '',
-                'acciones_para' => $request->acciones_para ?? [],
-                'observaciones' => $request->observaciones,
-                'logo_base64' => $logoBase64,
-                'codigo_verificacion' => $codigoVerificacion,
-                'qr_svg' => $qrSvg,
-                'verificar_url' => $verificarUrl,
-            ];
-
-            $pdf = Pdf::loadView('pdf.providencia', $pdfData);
-            $pdf->setPaper('letter');
-
-            $filename = 'providencia_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
-            $path = 'public/providencias/' . $filename;
-            $pdfContent = $pdf->output();
-            Storage::put($path, $pdfContent);
+            $pdfContent = $resolved['pdf_content'];
+            $folio = $resolved['folio'];
+            $codigoVerificacion = $resolved['codigo_verificacion'];
 
             // Firmar con FirmaGob si viene OTP
             if ($request->filled('otp') && config('firmagob.enabled')) {
@@ -144,15 +112,23 @@ class DerivacionController extends Controller
                         $coords,
                         $firmaPage
                     );
-                    Storage::put($path, $signed['content']);
+                    $pdfContent = $signed['content'];
                     Log::info('Providencia firmada con FirmaGob', ['folio' => $folio]);
                 } catch (FirmaGobException $e) {
-                    Storage::delete($path);
                     return $this->errorResponse($e->getMessage(), 422);
                 }
             }
 
+            // Persistir PDF (firmado o no) sólo después de que la firma haya tenido éxito
+            $filename = 'providencia_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
+            $path = 'public/providencias/' . $filename;
+            Storage::put($path, $pdfContent);
+
+            $derivacionData['folio'] = $folio;
+            $derivacionData['codigo_verificacion'] = $codigoVerificacion;
             $derivacionData['pdf_ruta'] = 'providencias/' . $filename;
+
+            $this->descartarPreview($request->preview_token);
         }
 
         $derivacion = Derivacion::create($derivacionData);
@@ -271,45 +247,158 @@ class DerivacionController extends Controller
         return [$llx, $firmaY, $urx, $firmaY + 70];
     }
 
-    private function generarFolioAcuse(): string
-    {
-        $anio = now()->year;
-        $ultimo = Derivacion::where('folio', 'like', "ACUSE-{$anio}-%")
-            ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
-            ->first();
-
-        $siguiente = $ultimo
-            ? (int) substr($ultimo->folio, strrpos($ultimo->folio, '-') + 1) + 1
-            : 1;
-
-        return sprintf('ACUSE-%d-%05d', $anio, $siguiente);
-    }
-
-    private function generarFolioProvidencia(): string
-    {
-        $anio = now()->year;
-        $ultimaDerivacion = Derivacion::where('folio', 'like', "PROV-{$anio}-%")
-            ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
-            ->first();
-
-        if ($ultimaDerivacion) {
-            $ultimoNumero = (int) substr($ultimaDerivacion->folio, strrpos($ultimaDerivacion->folio, '-') + 1);
-            $siguiente = $ultimoNumero + 1;
-        } else {
-            $siguiente = 1;
+    /**
+     * Si viene preview_token y es válido, retorna el PDF cacheado.
+     * Si no viene token, genera un PDF fresco usando el callback de parámetros.
+     * Retorna null si el token vino pero no es válido (expirado o de otro usuario/correspondencia).
+     *
+     * @return array{pdf_content: string, folio: string, codigo_verificacion: string}|null
+     */
+    private function resolverProvidencia(
+        ?string $token,
+        User $user,
+        Correspondencia $correspondencia,
+        callable $paramsBuilder
+    ): ?array {
+        if (!empty($token)) {
+            $cached = Cache::get(self::PREVIEW_CACHE_PREFIX . $token);
+            if (!$cached
+                || ($cached['user_id'] ?? null) !== $user->id
+                || ($cached['correspondencia_id'] ?? null) !== $correspondencia->id) {
+                return null;
+            }
+            return [
+                'pdf_content'         => base64_decode($cached['pdf_content']),
+                'folio'               => $cached['folio'],
+                'codigo_verificacion' => $cached['codigo_verificacion'],
+            ];
         }
 
-        return sprintf('PROV-%d-%05d', $anio, $siguiente);
+        return app(ProvidenciaPdfService::class)->generar($correspondencia, $paramsBuilder());
     }
 
-    private function mesEnEspanol(int $mes): string
+    private function descartarPreview(?string $token): void
     {
-        $meses = [
-            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
-            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
-            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        if (!empty($token)) {
+            Cache::forget(self::PREVIEW_CACHE_PREFIX . $token);
+        }
+    }
+
+    /**
+     * Construye los parámetros para una providencia generada al derivar (alcalde → funcionario).
+     */
+    private function paramsProvidenciaDerivar(Request $request, User $user): array
+    {
+        $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
+        $usuarioDestino = $request->usuario_destino_id ? User::find($request->usuario_destino_id) : null;
+
+        return [
+            'usuario_origen'       => $user->nombre,
+            'departamento_origen'  => $user->departamento?->nombre ?? 'Alcaldía',
+            'departamento_destino' => $deptoDestino?->nombre ?? '',
+            'usuario_destino'      => $usuarioDestino?->nombre ?? '',
+            'acciones_para'        => $request->acciones_para ?? [],
+            'observaciones'        => $request->observaciones,
         ];
-        return $meses[$mes] ?? '';
+    }
+
+    /**
+     * Construye los parámetros para una providencia generada al marcar como recibida.
+     * Por defecto la providencia queda dirigida a Alcaldía.
+     */
+    private function paramsProvidenciaRecibir(User $user): array
+    {
+        $deptoNombre = $user->departamento?->nombre ?? 'Alcaldía';
+        return [
+            'usuario_origen'       => $user->nombre,
+            'departamento_origen'  => $deptoNombre,
+            'departamento_destino' => $deptoNombre,
+            'usuario_destino'      => '',
+            'acciones_para'        => [],
+            'observaciones'        => null,
+        ];
+    }
+
+    /**
+     * Genera la providencia, la cachea con un token UUID y la retorna como blob.
+     * No persiste nada en disco ni base de datos.
+     */
+    public function previewDerivar(Request $request)
+    {
+        $request->validate([
+            'correspondencia_id'      => 'required|exists:correspondencia,id',
+            'departamento_destino_id' => 'required|exists:departamentos,id',
+            'usuario_destino_id'      => 'nullable|exists:users,id',
+            'observaciones'           => 'nullable|string',
+            'acciones_para'           => 'nullable|array',
+            'acciones_para.*'         => 'string',
+        ]);
+
+        $user = Auth::user();
+        $correspondencia = Correspondencia::find($request->correspondencia_id);
+
+        if (!$user->isAlcalde() || $correspondencia->estado !== 'derivada_alcaldia') {
+            return $this->errorResponse('Sólo el Alcalde puede generar una providencia desde una correspondencia derivada a Alcaldía', 403);
+        }
+
+        $correspondencia->load(['departamento']);
+
+        $generated = app(ProvidenciaPdfService::class)->generar(
+            $correspondencia,
+            $this->paramsProvidenciaDerivar($request, $user)
+        );
+
+        return $this->cachearYDevolverPreview($generated, $user, $correspondencia);
+    }
+
+    /**
+     * Genera la providencia de "marcar como recibida" (dirigida a Alcaldía por defecto),
+     * la cachea y retorna el blob.
+     */
+    public function previewRecibir(Derivacion $derivacion)
+    {
+        $user = Auth::user();
+
+        if (!$user->isAlcalde()) {
+            return $this->errorResponse('Sólo el Alcalde puede previsualizar la providencia de recepción', 403);
+        }
+
+        if ($derivacion->departamento_destino_id !== $user->departamento_id) {
+            return $this->errorResponse('No tienes permiso para esta derivación', 403);
+        }
+
+        $correspondencia = $derivacion->correspondencia;
+        $correspondencia->load(['departamento']);
+
+        $generated = app(ProvidenciaPdfService::class)->generar(
+            $correspondencia,
+            $this->paramsProvidenciaRecibir($user)
+        );
+
+        return $this->cachearYDevolverPreview($generated, $user, $correspondencia);
+    }
+
+    private function cachearYDevolverPreview(array $generated, User $user, Correspondencia $correspondencia)
+    {
+        $token = (string) Str::uuid();
+        Cache::put(
+            self::PREVIEW_CACHE_PREFIX . $token,
+            [
+                'pdf_content'         => base64_encode($generated['pdf_content']),
+                'folio'               => $generated['folio'],
+                'codigo_verificacion' => $generated['codigo_verificacion'],
+                'user_id'             => $user->id,
+                'correspondencia_id'  => $correspondencia->id,
+            ],
+            now()->addMinutes(self::PREVIEW_TTL_MINUTES)
+        );
+
+        return response($generated['pdf_content'], 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="providencia-preview.pdf"',
+            'X-Preview-Token'     => $token,
+            'Access-Control-Expose-Headers' => 'X-Preview-Token',
+        ]);
     }
 
     public function show(Derivacion $derivacion)
@@ -350,59 +439,36 @@ class DerivacionController extends Controller
             return $this->errorResponse('No tienes permiso para recibir esta derivación', 403);
         }
 
-        // Si es Alcalde, generar y firmar un Acuse de Recibo con FirmaGob
+        // Si es Alcalde, generar y firmar una Providencia (dirigida a Alcaldía por defecto) con FirmaGob
         if ($user->isAlcalde()) {
             $request->validate([
                 'otp'        => 'required|string',
                 'firma_y'    => 'nullable|integer|min:10|max:712',
                 'firma_page' => 'nullable|string',
                 'firma_col'  => 'nullable|integer|in:0,1,2',
+                'preview_token' => 'nullable|string',
             ]);
 
             $correspondencia = $derivacion->correspondencia;
             $correspondencia->load(['departamento']);
 
-            $folio = $this->generarFolioAcuse();
-            $codigoVerificacion = Documento::generarCodigoVerificacion();
+            $resolved = $this->resolverProvidencia(
+                $request->preview_token,
+                $user,
+                $correspondencia,
+                fn () => $this->paramsProvidenciaRecibir($user)
+            );
 
-            $logoPath = storage_path('app/public/logo.png');
-            $logoBase64 = '';
-            if (file_exists($logoPath)) {
-                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            if ($resolved === null) {
+                return $this->errorResponse(
+                    'La vista previa de la providencia expiró. Vuelve a marcar como recibida para regenerarla.',
+                    422
+                );
             }
 
-            $appUrl = rtrim(config('app.url'), '/');
-            $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
-            $qrSvg = '';
-            try {
-                $qrSvg = (string) QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
-            } catch (\Exception $e) {
-                Log::warning('QR no generado para acuse de recibo: ' . $e->getMessage());
-            }
-
-            $pdfData = [
-                'folio'            => $folio,
-                'fecha'            => now()->format('d \d\e ') . $this->mesEnEspanol(now()->month) . now()->format(' \d\e Y'),
-                'remitente'        => $correspondencia->remitente,
-                'numero_documento' => $correspondencia->numero_documento,
-                'fecha_recepcion'  => $correspondencia->fecha_recibo
-                    ? $correspondencia->fecha_recibo->format('d/m/Y')
-                    : 'No especificada',
-                'descripcion'      => $correspondencia->descripcion,
-                'receptor'         => $user->nombre,
-                'logo_base64'      => $logoBase64,
-                'codigo_verificacion' => $codigoVerificacion,
-                'qr_svg'           => $qrSvg,
-                'verificar_url'    => $verificarUrl,
-            ];
-
-            $pdf = Pdf::loadView('pdf.acuse_recibo', $pdfData);
-            $pdf->setPaper('letter');
-
-            $filename = 'acuse_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
-            $path = 'public/providencias/' . $filename;
-            $pdfContent = $pdf->output();
-            Storage::put($path, $pdfContent);
+            $pdfContent = $resolved['pdf_content'];
+            $folio = $resolved['folio'];
+            $codigoVerificacion = $resolved['codigo_verificacion'];
 
             // Firmar con FirmaGob
             if (config('firmagob.enabled')) {
@@ -415,7 +481,7 @@ class DerivacionController extends Controller
                     $firmaPage = $request->firma_page ?? 'LAST';
                     $signed = $firmaService->sign(
                         $pdfContent,
-                        'Acuse de Recibo ' . $folio,
+                        'Providencia ' . $folio,
                         $user->rut,
                         $request->otp,
                         $user->nombre,
@@ -423,19 +489,31 @@ class DerivacionController extends Controller
                         $coords,
                         $firmaPage
                     );
-                    Storage::put($path, $signed['content']);
-                    Log::info('Acuse de recibo firmado con FirmaGob', ['folio' => $folio]);
+                    $pdfContent = $signed['content'];
+                    Log::info('Providencia (recepción) firmada con FirmaGob', ['folio' => $folio]);
                 } catch (FirmaGobException $e) {
-                    Storage::delete($path);
                     return $this->errorResponse($e->getMessage(), 422);
                 }
             }
+
+            // Persistir PDF en disco sólo después de firma exitosa
+            $filename = 'providencia_' . str_replace('-', '', $folio) . '_' . time() . '.pdf';
+            $path = 'public/providencias/' . $filename;
+            Storage::put($path, $pdfContent);
 
             $derivacion->update([
                 'folio'              => $folio,
                 'codigo_verificacion' => $codigoVerificacion,
                 'pdf_ruta'           => 'providencias/' . $filename,
             ]);
+
+            // Reflejar en la correspondencia que ya hay providencia generada
+            $correspondencia->update([
+                'providencia_pdf'      => 'providencias/' . $filename,
+                'providencia_generada' => true,
+            ]);
+
+            $this->descartarPreview($request->preview_token);
         }
 
         $derivacion->update([

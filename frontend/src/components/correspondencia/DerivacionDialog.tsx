@@ -71,6 +71,9 @@ const DerivacionDialog = ({
   const [firmaLoading, setFirmaLoading] = useState(false)
   const [firmaError, setFirmaError] = useState<string | null>(null)
   const [pendingData, setPendingData] = useState<CreateDerivacionData | null>(null)
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
+  const [previewToken, setPreviewToken] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const esModoFuncionario = mode === 'funcionario'
 
@@ -128,10 +131,28 @@ const DerivacionDialog = ({
     }
 
     if (esModoFuncionario) {
-      // Alcalde derivando → pedir OTP antes de enviar
+      // Alcalde derivando → primero generar preview de la providencia y luego pedir OTP
       setPendingData(formData)
       setFirmaError(null)
-      setShowFirmaModal(true)
+      setPreviewLoading(true)
+      try {
+        const { blob, token } = await correspondenciaAPI.previewDerivar({
+          correspondencia_id: correspondenciaId,
+          departamento_destino_id: selectedDepto.id,
+          usuario_destino_id: selectedUsuario?.id,
+          observaciones: observaciones || undefined,
+          acciones_para: accionesPara.length > 0 ? accionesPara : undefined,
+        })
+        const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+        setPreviewPdfUrl(url)
+        setPreviewToken(token)
+        setShowFirmaModal(true)
+      } catch (err: any) {
+        setFirmaError(err?.response?.data?.message || 'No se pudo generar la vista previa de la providencia.')
+        setShowFirmaModal(true)
+      } finally {
+        setPreviewLoading(false)
+      }
       return
     }
 
@@ -153,8 +174,16 @@ const DerivacionDialog = ({
     setFirmaLoading(true)
     setFirmaError(null)
     try {
-      await correspondenciaAPI.derivar({ ...pendingData, otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol })
+      await correspondenciaAPI.derivar({
+        ...pendingData,
+        otp,
+        firma_y: firmaY,
+        firma_page: firmaPage,
+        firma_col: firmaCol,
+        preview_token: previewToken ?? undefined,
+      })
       setShowFirmaModal(false)
+      revokePreview()
       setProvidenciaCorrespondenciaId(correspondenciaId)
       setShowSuccess(true)
     } catch (err: any) {
@@ -164,7 +193,16 @@ const DerivacionDialog = ({
     }
   }
 
+  const revokePreview = () => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl)
+    }
+    setPreviewPdfUrl(null)
+    setPreviewToken(null)
+  }
+
   const handleClose = () => {
+    revokePreview()
     setSelectedDepto(null)
     setSelectedUsuario(null)
     setObservaciones('')
@@ -206,10 +244,15 @@ const DerivacionDialog = ({
           open={showFirmaModal}
           titulo="Firmar Providencia con FirmaGob"
           descripcion="La providencia será firmada electrónicamente antes de derivar la correspondencia. Seleccione la posición del sello e ingrese su código OTP."
-          loading={firmaLoading}
+          loading={firmaLoading || previewLoading}
           error={firmaError}
+          pdfUrl={previewPdfUrl}
           onFirmar={handleFirmarYDerivar}
-          onCancel={() => { setShowFirmaModal(false); setFirmaError(null) }}
+          onCancel={() => {
+            setShowFirmaModal(false)
+            setFirmaError(null)
+            revokePreview()
+          }}
         />
       </>
     )
@@ -322,15 +365,15 @@ const DerivacionDialog = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
+        <Button onClick={handleClose} disabled={loading || previewLoading}>
           Cancelar
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || !selectedDepto}
+          disabled={loading || previewLoading || !selectedDepto}
         >
-          {loading ? <CircularProgress size={20} /> : 'Derivar'}
+          {loading || previewLoading ? <CircularProgress size={20} /> : 'Derivar'}
         </Button>
       </DialogActions>
     </Dialog>

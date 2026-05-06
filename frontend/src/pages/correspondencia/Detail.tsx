@@ -82,8 +82,10 @@ const CorrespondenciaDetail = () => {
   const [firmaModalOpen, setFirmaModalOpen] = useState(false)
   const [firmaLoading, setFirmaLoading] = useState(false)
   const [firmaError, setFirmaError] = useState<string | null>(null)
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
+  const [previewToken, setPreviewToken] = useState<string | null>(null)
 
-  // Diálogo de éxito con acuse de recibo descargable
+  // Diálogo de éxito con providencia descargable
   const [acuseDialogOpen, setAcuseDialogOpen] = useState(false)
   const [acuseDerivacionId, setAcuseDerivacionId] = useState<number | null>(null)
   const [acuseLoading, setAcuseLoading] = useState(false)
@@ -106,6 +108,12 @@ const CorrespondenciaDetail = () => {
       if (viewerUrl) URL.revokeObjectURL(viewerUrl)
     }
   }, [viewerUrl])
+
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl)
+    }
+  }, [previewPdfUrl])
 
   const loadCorrespondencia = async (correspondenciaId: number) => {
     setLoading(true)
@@ -182,9 +190,21 @@ const CorrespondenciaDetail = () => {
     if (!derivacion) return
 
     if (isAlcalde()) {
-      // El Alcalde debe firmar con FirmaGob
+      // El Alcalde debe firmar con FirmaGob — primero generar la vista previa de la providencia
       setFirmaError(null)
-      setFirmaModalOpen(true)
+      setRecibirLoading(true)
+      try {
+        const { blob, token } = await correspondenciaAPI.previewRecibir(derivacion.id)
+        const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+        setPreviewPdfUrl(url)
+        setPreviewToken(token)
+        setFirmaModalOpen(true)
+      } catch (err: any) {
+        setFirmaError(err?.response?.data?.message || 'No se pudo generar la vista previa de la providencia.')
+        setFirmaModalOpen(true)
+      } finally {
+        setRecibirLoading(false)
+      }
       return
     }
 
@@ -202,14 +222,30 @@ const CorrespondenciaDetail = () => {
     }
   }
 
+  const revokePreview = () => {
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl)
+    }
+    setPreviewPdfUrl(null)
+    setPreviewToken(null)
+  }
+
   const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
     const derivacion = derivacionPendienteParaAlcalde
     if (!derivacion) return
     setFirmaLoading(true)
     setFirmaError(null)
     try {
-      await correspondenciaAPI.recibirDerivacion(derivacion.id, otp, firmaY, firmaPage, firmaCol)
+      await correspondenciaAPI.recibirDerivacion(
+        derivacion.id,
+        otp,
+        firmaY,
+        firmaPage,
+        firmaCol,
+        previewToken ?? undefined,
+      )
       setFirmaModalOpen(false)
+      revokePreview()
       setAcuseDerivacionId(derivacion.id)
       setAcuseDialogOpen(true)
       if (id) loadCorrespondencia(parseInt(id))
@@ -228,7 +264,7 @@ const CorrespondenciaDetail = () => {
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
       window.open(url, '_blank')
     } catch {
-      setSnackbar({ open: true, message: 'Error al descargar el acuse de recibo' })
+      setSnackbar({ open: true, message: 'Error al descargar la providencia' })
     } finally {
       setAcuseLoading(false)
     }
@@ -583,15 +619,20 @@ const CorrespondenciaDetail = () => {
       {/* Modal FirmaGob para Alcalde al marcar como recibida */}
       <FirmaGobModal
         open={firmaModalOpen}
-        titulo="Firmar Acuse de Recibo con FirmaGob"
-        descripcion="Se generará un Acuse de Recibo firmado electrónicamente. Seleccione la posición del sello e ingrese su OTP para completar la recepción."
+        titulo="Firmar Providencia con FirmaGob"
+        descripcion="Se generará una Providencia (dirigida a Alcaldía) firmada electrónicamente. Seleccione la posición del sello e ingrese su OTP para completar la recepción."
         loading={firmaLoading}
         error={firmaError}
+        pdfUrl={previewPdfUrl}
         onFirmar={handleFirmarRecepcion}
-        onCancel={() => { setFirmaModalOpen(false); setFirmaError(null) }}
+        onCancel={() => {
+          setFirmaModalOpen(false)
+          setFirmaError(null)
+          revokePreview()
+        }}
       />
 
-      {/* Diálogo de éxito: acuse de recibo firmado */}
+      {/* Diálogo de éxito: providencia firmada */}
       <Dialog open={acuseDialogOpen} onClose={() => setAcuseDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CheckCircleIcon color="success" />
@@ -604,7 +645,7 @@ const CorrespondenciaDetail = () => {
               Correspondencia marcada como recibida
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Se generó y firmó el Acuse de Recibo electrónicamente.
+              Se generó y firmó la Providencia electrónicamente.
             </Typography>
             <Button
               variant="outlined"
@@ -613,7 +654,7 @@ const CorrespondenciaDetail = () => {
               onClick={handleVerAcuse}
               disabled={acuseLoading}
             >
-              Ver Acuse de Recibo PDF
+              Ver Providencia PDF
             </Button>
           </Box>
         </DialogContent>
