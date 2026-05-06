@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\DocumentoPlantilla;
 use App\Models\TipoDocumental;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
 class DocumentoPlantillaSeeder extends Seeder
 {
@@ -271,6 +272,9 @@ class DocumentoPlantillaSeeder extends Seeder
             'PLT_CONVENIO_001',
             'PLT_CERTIFICADO_001',
         ])->update(['activo' => false]);
+
+        // Invalidar cache de plantillas activas (DocumentoController@getPlantillas tiene TTL 1h).
+        Cache::forget('plantillas_activas');
 
         $this->command->info('✅ Plantillas de documentos sincronizadas');
     }
