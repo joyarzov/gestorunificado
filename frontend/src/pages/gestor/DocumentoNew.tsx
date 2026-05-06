@@ -58,6 +58,27 @@ const NIVELES_ACCESO = [
 
 const steps = ['Seleccionar Plantilla', 'Completar Datos', 'Revisar y Guardar']
 
+// Campos que reciben mucho texto y se renderizan en una sección full-width debajo del split layout.
+const LONG_TEXT_FIELDS = new Set([
+  'vistos', 'considerando', 'resuelvo', 'texto_decreto',
+  'contenido', 'objeto', 'obligaciones', 'vigencia',
+  'antecedentes', 'desarrollo', 'conclusiones', 'recomendaciones',
+  'asistentes', 'temas_tratados', 'acuerdos',
+])
+
+// Orden lógico de los campos por plantilla. Necesario porque MySQL JSON no preserva el orden de las claves.
+// Las claves no listadas (firmas_html, distribucion_html, articulos_html) son auto-generadas y no se renderizan como campos.
+const FIELD_ORDER: Record<string, string[]> = {
+  PLT_DECRETO_001:    ['numero', 'fecha', 'referencia', 'vistos', 'texto_decreto'],
+  PLT_MEMO_001:       ['numero', 'anio', 'fecha', 'referencia', 'de', 'para', 'contenido'],
+  PLT_OFICIO_001:     ['numero', 'anio', 'fecha', 'antecedentes', 'materia', 'destinatario', 'cargo_destinatario', 'institucion', 'contenido'],
+  PLT_ORDINARIO_001:  ['numero', 'anio', 'fecha', 'antecedentes', 'materia', 'de', 'para', 'contenido'],
+  PLT_CIRCULAR_001:   ['numero', 'anio', 'fecha', 'materia', 'dirigida_a', 'contenido'],
+  PLT_CARTA_001:      ['numero', 'anio', 'fecha', 'destinatario', 'cargo_destinatario', 'institucion', 'saludo', 'contenido', 'despedida'],
+  PLT_ACTA_001:       ['numero', 'anio', 'tipo_reunion', 'fecha', 'hora', 'lugar', 'asistentes', 'temas_tratados', 'acuerdos'],
+  PLT_INFORME_001:    ['numero', 'anio', 'fecha', 'asunto', 'antecedentes', 'desarrollo', 'conclusiones', 'recomendaciones'],
+}
+
 interface ArticuloDecreto {
   id: string
   contenido: string
@@ -92,19 +113,59 @@ const DocumentoNew = () => {
   const [docScale, setDocScale] = useState(1)
   const observerRef = useRef<ResizeObserver | null>(null)
 
+  // Carta (Letter): 8.5" × 11" → 794 × 1056 px @ 96dpi
+  const PAGE_W = 794
+  const PAGE_H = 1056
+  const PAGE_ASPECT = PAGE_W / PAGE_H
+  // Márgenes interiores tipo carta (procurador top, márgenes laterales y bottom)
+  const PAD_T = 45
+  const PAD_R = 76
+  const PAD_B = 57
+  const PAD_L = 94
+  const USABLE_W = PAGE_W - PAD_L - PAD_R // 624
+  const USABLE_H = PAGE_H - PAD_T - PAD_B // 954
+
+  // Paginación del preview: medir alto del contenido para calcular cuántas páginas caben
+  const [contentHeight, setContentHeight] = useState(USABLE_H)
+  const measureRef = useRef<HTMLDivElement | null>(null)
+  const measureObserverRef = useRef<ResizeObserver | null>(null)
+
+  const pageCount = Math.max(1, Math.ceil(contentHeight / USABLE_H))
+
+  useEffect(() => {
+    const node = measureRef.current
+    if (measureObserverRef.current) {
+      measureObserverRef.current.disconnect()
+      measureObserverRef.current = null
+    }
+    if (!node) return
+    const update = () => setContentHeight(Math.max(USABLE_H, node.scrollHeight))
+    update()
+    measureObserverRef.current = new ResizeObserver(update)
+    measureObserverRef.current.observe(node)
+    return () => {
+      measureObserverRef.current?.disconnect()
+    }
+  }, [previewHtml])
+
+  // Mide el ANCHO de la columna del preview (el contenedor gris se ajusta a la hoja)
   const previewContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (observerRef.current) {
       observerRef.current.disconnect()
     }
     if (node) {
       const update = () => {
-        // p: 1 (theme spacing 1) = 8px each side = 16 total
-        const containerWidth = node.clientWidth - 16
-        setDocScale(Math.min(1, containerWidth / 794))
+        const colWidth = node.clientWidth
+        const availHeight = window.innerHeight - 200 // viewport menos chrome (header + padding)
+        // Hoja debe entrar por ancho y alto manteniendo aspecto Letter
+        const renderWidth = Math.min(colWidth, availHeight * PAGE_ASPECT, PAGE_W)
+        setDocScale(renderWidth / PAGE_W)
       }
       update()
       observerRef.current = new ResizeObserver(update)
       observerRef.current.observe(node)
+      window.addEventListener('resize', update)
+      return () => window.removeEventListener('resize', update)
     }
   }, [])
 
@@ -704,6 +765,61 @@ const DocumentoNew = () => {
     )
   }
 
+  // Render N hojas carta paginadas. Cada hoja tiene márgenes propios (top/bottom/sides)
+  // y un viewport interior que muestra una "ventana" de USABLE_H del contenido completo.
+  const renderPaginatedPreview = () => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {Array.from({ length: pageCount }).map((_, i) => (
+        <Box
+          key={i}
+          sx={{
+            width: PAGE_W,
+            height: PAGE_H,
+            bgcolor: 'white',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+            position: 'relative',
+            zoom: docScale,
+            fontFamily: 'serif',
+            fontSize: '12pt',
+            lineHeight: 1.5,
+            flexShrink: 0,
+          }}
+        >
+          {/* Viewport: área de contenido dentro de los márgenes de la hoja */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: PAD_T,
+              left: PAD_L,
+              width: USABLE_W,
+              height: USABLE_H,
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                marginTop: `${-i * USABLE_H}px`,
+                width: USABLE_W,
+                '& > div': {
+                  maxWidth: '100% !important',
+                  padding: '0 !important',
+                  margin: '0 !important',
+                },
+                // Convertir position:fixed (usado por dompdf para QR en cada hoja)
+                // a position:absolute para que el QR quede pegado al viewport en el preview.
+                '& [style*="position:fixed"], & [style*="position: fixed"]': {
+                  position: 'absolute !important',
+                },
+              }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  )
+
   // Renderizar paso 2: Completar datos (split layout: form izquierda, preview derecha sticky)
   const renderStep2 = () => {
     if (!selectedPlantilla) return null
@@ -826,82 +942,25 @@ const DocumentoNew = () => {
           />
         </Grid>
 
-        {/* Variables de la plantilla */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="h6" gutterBottom>
-            Campos de la Plantilla
-          </Typography>
-        </Grid>
-
-        {/* Para decretos: mostrar variables antes de texto_decreto, luego artículos, luego texto_decreto */}
-        {esDecreto && selectedPlantilla?.variables_json ? (
-          <>
-            {/* Variables excepto texto_decreto */}
-            {Object.entries(selectedPlantilla.variables_json)
-              .filter(([key]) => key !== 'texto_decreto')
-              .map(([key, descripcion]) => renderVariableField(key, descripcion))}
-
-            {/* Artículos del Decreto */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="h6">
-                  Artículos del Decreto
-                </Typography>
-                <Button
-                  startIcon={<AddIcon />}
-                  onClick={agregarArticulo}
-                  variant="outlined"
-                  size="small"
-                >
-                  Agregar Artículo
-                </Button>
-              </Box>
-            </Grid>
-
-            {articulos.map((articulo, index) => (
-              <Grid item xs={12} key={articulo.id}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2">
-                      {ORDINAL_NAMES[index] || `${index + 1}°`}:
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {renderAlignmentToolbar(`articulo_${articulo.id}`)}
-                      <IconButton
-                        onClick={() => eliminarArticulo(articulo.id)}
-                        disabled={articulos.length <= 1}
-                        color="error"
-                        size="small"
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    value={articulo.contenido}
-                    onChange={(e) => actualizarArticulo(articulo.id, e.target.value)}
-                    placeholder="Contenido del artículo..."
-                    sx={{ '& textarea': { textAlign: getAlignment(`articulo_${articulo.id}`) } }}
-                  />
-                </Paper>
-              </Grid>
-            ))}
-
-            {/* Texto del decreto (después de artículos) */}
-            {selectedPlantilla.variables_json['texto_decreto'] &&
-              renderVariableField('texto_decreto', selectedPlantilla.variables_json['texto_decreto'])}
-          </>
-        ) : (
-          /* Para otros tipos de documento: mostrar todas las variables normalmente */
-          selectedPlantilla.variables_json && Object.entries(selectedPlantilla.variables_json).map(
-            ([key, descripcion]) => renderVariableField(key, descripcion)
+        {/* Campos cortos de la plantilla (los largos van al final, full-width) */}
+        {(() => {
+          const order = FIELD_ORDER[selectedPlantilla.codigo] || Object.keys(selectedPlantilla.variables_json || {})
+          const shortKeys = order.filter(
+            (k) => selectedPlantilla.variables_json?.[k] && !LONG_TEXT_FIELDS.has(k)
           )
-        )}
+          if (shortKeys.length === 0) return null
+          return (
+            <>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Campos de la Plantilla
+                </Typography>
+              </Grid>
+              {shortKeys.map((key) => renderVariableField(key, selectedPlantilla.variables_json![key] as string))}
+            </>
+          )
+        })()}
 
         {/* Distribución */}
         {usaDistribucion && (
@@ -959,63 +1018,154 @@ const DocumentoNew = () => {
             Actualizar
           </Button>
         </Box>
-        <Box
-          ref={previewContainerRef}
-          sx={{
-            bgcolor: '#e0e0e0',
-            borderRadius: 1,
-            p: 1,
-            maxHeight: { xs: '60vh', md: 'calc(100vh - 180px)' },
-            overflow: 'auto',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-          }}
-        >
-          {previewHtml ? (
-            <Box
-              sx={{
-                width: 794,
-                bgcolor: 'white',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                p: '45px 76px 57px 94px',
-                fontFamily: 'serif',
-                fontSize: '12pt',
-                lineHeight: 1.5,
-                zoom: docScale, // escala layout y contenido proporcionalmente (Letter 794×1056)
-                '& > div': {
-                  maxWidth: '100% !important',
-                  padding: '0 !important',
-                  margin: '0 !important',
-                },
-              }}
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
-          ) : (
-            <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
-              Complete los campos para ver la previsualización
-            </Typography>
-          )}
+        {/* Wrapper toma el ancho de la columna; sirve para medir el ancho disponible */}
+        <Box ref={previewContainerRef} sx={{ width: '100%' }}>
+          {/* Contenedor gris ajustado a 1 hoja; las hojas siguientes se ven al scrollear */}
+          <Box
+            sx={{
+              width: PAGE_W * docScale + 16,
+              height: PAGE_H * docScale + 16,
+              maxWidth: '100%',
+              mx: 'auto',
+              bgcolor: '#e0e0e0',
+              borderRadius: 1,
+              p: 1,
+              overflow: 'auto',
+            }}
+          >
+            {previewHtml ? renderPaginatedPreview() : (
+              <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
+                Complete los campos para ver la previsualización
+              </Typography>
+            )}
+          </Box>
         </Box>
+        {/* Div oculto para medir el alto real del contenido renderizado al ancho útil de la hoja */}
+        {previewHtml && (
+          <Box
+            ref={measureRef}
+            sx={{
+              position: 'absolute',
+              top: -99999,
+              left: -99999,
+              width: USABLE_W,
+              visibility: 'hidden',
+              fontFamily: 'serif',
+              fontSize: '12pt',
+              lineHeight: 1.5,
+              '& > div': {
+                maxWidth: '100% !important',
+                padding: '0 !important',
+                margin: '0 !important',
+              },
+            }}
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        )}
       </Box>
     )
 
-    return (
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={5} lg={4}>
-          {formContent}
+    // Sección full-width con campos largos (textareas) + artículos del decreto.
+    // Va debajo del split layout y "pasa por debajo" del visualizador.
+    const order = FIELD_ORDER[selectedPlantilla.codigo] || Object.keys(selectedPlantilla.variables_json || {})
+    const longKeys = order.filter(
+      (k) => selectedPlantilla.variables_json?.[k] && LONG_TEXT_FIELDS.has(k)
+    )
+    const tieneContenidoExtenso = longKeys.length > 0 || esDecreto
+
+    const longContent = tieneContenidoExtenso ? (
+      <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid item xs={12}>
+          <Divider sx={{ mb: 2 }} />
+          <Typography variant="h6" gutterBottom>
+            Contenido del Documento
+          </Typography>
         </Grid>
-        <Grid item xs={12} md={7} lg={8}>
-          <Box
-            sx={{
-              position: { md: 'sticky' },
-              top: { md: 80 },
-            }}
-          >
-            {previewContent}
-          </Box>
-        </Grid>
+
+        {esDecreto ? (
+          <>
+            {/* Vistos primero (long, antes de artículos) */}
+            {longKeys
+              .filter((k) => k !== 'texto_decreto')
+              .map((k) => renderVariableField(k, selectedPlantilla.variables_json![k] as string))}
+
+            {/* Artículos del Decreto */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6">Artículos del Decreto</Typography>
+                <Button
+                  startIcon={<AddIcon />}
+                  onClick={agregarArticulo}
+                  variant="outlined"
+                  size="small"
+                >
+                  Agregar Artículo
+                </Button>
+              </Box>
+            </Grid>
+
+            {articulos.map((articulo, index) => (
+              <Grid item xs={12} key={articulo.id}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2">
+                      {ORDINAL_NAMES[index] || `${index + 1}°`}:
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {renderAlignmentToolbar(`articulo_${articulo.id}`)}
+                      <IconButton
+                        onClick={() => eliminarArticulo(articulo.id)}
+                        disabled={articulos.length <= 1}
+                        color="error"
+                        size="small"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={articulo.contenido}
+                    onChange={(e) => actualizarArticulo(articulo.id, e.target.value)}
+                    placeholder="Contenido del artículo..."
+                    sx={{ '& textarea': { textAlign: getAlignment(`articulo_${articulo.id}`) } }}
+                  />
+                </Paper>
+              </Grid>
+            ))}
+
+            {/* Texto del decreto al final */}
+            {selectedPlantilla.variables_json?.['texto_decreto'] &&
+              renderVariableField('texto_decreto', selectedPlantilla.variables_json['texto_decreto'] as string)}
+          </>
+        ) : (
+          longKeys.map((k) => renderVariableField(k, selectedPlantilla.variables_json![k] as string))
+        )}
       </Grid>
+    ) : null
+
+    return (
+      <Box>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={5} lg={4}>
+            {formContent}
+          </Grid>
+          <Grid item xs={12} md={7} lg={8}>
+            <Box
+              sx={{
+                position: { md: 'sticky' },
+                top: { md: 80 },
+              }}
+            >
+              {previewContent}
+            </Box>
+          </Grid>
+        </Grid>
+        {longContent}
+      </Box>
     )
   }
 
@@ -1054,44 +1204,25 @@ const DocumentoNew = () => {
         <Typography variant="h6" gutterBottom>
           Previsualización del Documento
         </Typography>
-        <Box
-          ref={previewContainerRef}
-          sx={{
-            bgcolor: '#e0e0e0',
-            borderRadius: 1,
-            p: 1,
-            maxHeight: '75vh',
-            overflow: 'auto',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-          }}
-        >
-          {previewHtml ? (
-            <Box
-              sx={{
-                width: 794,
-                bgcolor: 'white',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                p: '45px 76px 57px 94px',
-                fontFamily: 'serif',
-                fontSize: '12pt',
-                lineHeight: 1.5,
-                zoom: docScale,
-                '& > div': {
-                  maxWidth: '100% !important',
-                  padding: '0 !important',
-                  margin: '0 !important',
-                  lineHeight: '1.5 !important',
-                },
-              }}
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
-          ) : (
-            <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
-              Sin previsualización
-            </Typography>
-          )}
+        <Box ref={previewContainerRef} sx={{ width: '100%' }}>
+          <Box
+            sx={{
+              width: PAGE_W * docScale + 16,
+              height: PAGE_H * docScale + 16,
+              maxWidth: '100%',
+              mx: 'auto',
+              bgcolor: '#e0e0e0',
+              borderRadius: 1,
+              p: 1,
+              overflow: 'auto',
+            }}
+          >
+            {previewHtml ? renderPaginatedPreview() : (
+              <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
+                Sin previsualización
+              </Typography>
+            )}
+          </Box>
         </Box>
       </Grid>
     </Grid>
