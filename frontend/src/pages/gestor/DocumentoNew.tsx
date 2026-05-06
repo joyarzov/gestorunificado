@@ -98,7 +98,8 @@ const DocumentoNew = () => {
     }
     if (node) {
       const update = () => {
-        const containerWidth = node.clientWidth - 32
+        // p: 1 (theme spacing 1) = 8px each side = 16 total
+        const containerWidth = node.clientWidth - 16
         setDocScale(Math.min(1, containerWidth / 794))
       }
       update()
@@ -515,7 +516,7 @@ const DocumentoNew = () => {
     // Memo: "de" es read-only (usuario logueado)
     if (esMemo && key === 'de') {
       return (
-        <Grid item xs={12} md={6} key={key}>
+        <Grid item xs={12} key={key}>
           <TextField
             fullWidth
             label="Remitente (De)"
@@ -531,7 +532,7 @@ const DocumentoNew = () => {
     // Memo: "para" es selector de funcionarios con cargo
     if (esMemo && key === 'para') {
       return (
-        <Grid item xs={12} md={6} key={key}>
+        <Grid item xs={12} key={key}>
           <Autocomplete
             options={funcionarios}
             getOptionLabel={(option) => `${option.nombre}${option.cargo ? ` - ${option.cargo}` : option.departamento ? ` - ${option.departamento.nombre}` : ''}`}
@@ -659,7 +660,11 @@ const DocumentoNew = () => {
       )
     }
 
-    const esMultilinea = ['vistos', 'contenido', 'objeto', 'obligaciones', 'vigencia', 'considerando', 'resuelvo', 'texto_decreto'].includes(key)
+    const esMultilinea = [
+      'vistos', 'contenido', 'objeto', 'obligaciones', 'vigencia', 'considerando',
+      'resuelvo', 'texto_decreto', 'antecedentes', 'desarrollo', 'conclusiones',
+      'recomendaciones', 'asistentes', 'temas_tratados', 'acuerdos',
+    ].includes(key)
 
     // Overrides para decreto y memo
     const esNumeroEspecial = (esDecreto || esMemo) && key === 'numero'
@@ -672,7 +677,7 @@ const DocumentoNew = () => {
     if (esTextoDecreto) label = 'DECRETO'
 
     return (
-      <Grid item xs={12} md={esMultilinea ? 12 : 6} key={key}>
+      <Grid item xs={12} key={key}>
         {tieneAlineacion && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
             {renderAlignmentToolbar(key)}
@@ -699,11 +704,11 @@ const DocumentoNew = () => {
     )
   }
 
-  // Renderizar paso 2: Completar datos
+  // Renderizar paso 2: Completar datos (split layout: form izquierda, preview derecha sticky)
   const renderStep2 = () => {
     if (!selectedPlantilla) return null
 
-    return (
+    const formContent = (
       <Grid container spacing={3}>
         {/* Datos generales */}
         <Grid item xs={12}>
@@ -712,7 +717,7 @@ const DocumentoNew = () => {
           </Typography>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <TextField
             fullWidth
             required
@@ -723,7 +728,7 @@ const DocumentoNew = () => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           {expedienteDesdeParam ? (
             <TextField
               fullWidth
@@ -760,7 +765,7 @@ const DocumentoNew = () => {
           )}
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <FormControl fullWidth required>
             <InputLabel>Nivel de Acceso</InputLabel>
             <Select
@@ -777,7 +782,7 @@ const DocumentoNew = () => {
           </FormControl>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <TextField
             fullWidth
             label="Palabras clave"
@@ -935,63 +940,79 @@ const DocumentoNew = () => {
             </Grid>
           </>
         )}
+      </Grid>
+    )
 
-        {/* Preview */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 2 }} />
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">
-              Previsualización
+    const previewContent = (
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6">
+            Previsualización
+          </Typography>
+          <Button
+            startIcon={previewLoading ? <CircularProgress size={16} /> : <PreviewIcon />}
+            onClick={handlePreview}
+            variant="outlined"
+            size="small"
+            disabled={previewLoading}
+          >
+            Actualizar
+          </Button>
+        </Box>
+        <Box
+          ref={previewContainerRef}
+          sx={{
+            bgcolor: '#e0e0e0',
+            borderRadius: 1,
+            p: 1,
+            maxHeight: { xs: '60vh', md: 'calc(100vh - 180px)' },
+            overflow: 'auto',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+          }}
+        >
+          {previewHtml ? (
+            <Box
+              sx={{
+                width: 794,
+                bgcolor: 'white',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                p: '45px 76px 57px 94px',
+                fontFamily: 'serif',
+                fontSize: '12pt',
+                lineHeight: 1.5,
+                zoom: docScale, // escala layout y contenido proporcionalmente (Letter 794×1056)
+                '& > div': {
+                  maxWidth: '100% !important',
+                  padding: '0 !important',
+                  margin: '0 !important',
+                },
+              }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          ) : (
+            <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
+              Complete los campos para ver la previsualización
             </Typography>
-            <Button
-              startIcon={previewLoading ? <CircularProgress size={16} /> : <PreviewIcon />}
-              onClick={handlePreview}
-              variant="outlined"
-              disabled={previewLoading}
-            >
-              Actualizar Preview
-            </Button>
-          </Box>
+          )}
+        </Box>
+      </Box>
+    )
+
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={5} lg={4}>
+          {formContent}
+        </Grid>
+        <Grid item xs={12} md={7} lg={8}>
           <Box
-            ref={previewContainerRef}
             sx={{
-              bgcolor: '#e0e0e0',
-              borderRadius: 1,
-              p: 2,
-              maxHeight: '75vh',
-              overflow: 'auto',
-              pb: 2,
+              position: { md: 'sticky' },
+              top: { md: 80 },
             }}
           >
-            {previewHtml ? (
-              <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                <Box
-                  sx={{
-                    width: 794,
-                    minHeight: 1056 * docScale,
-                    bgcolor: 'white',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                    p: '45px 76px 57px 94px',
-                    fontFamily: 'serif',
-                    fontSize: '12pt',
-                    lineHeight: 1.5,
-                    transform: `scale(${docScale})`,
-                    transformOrigin: 'top center',
-                    mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
-                    '& > div': {
-                      maxWidth: '100% !important',
-                      padding: '0 !important',
-                      margin: '0 !important',
-                    },
-                  }}
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-              </Box>
-            ) : (
-              <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
-                Complete los campos para ver la previsualización
-              </Typography>
-            )}
+            {previewContent}
           </Box>
         </Grid>
       </Grid>
@@ -1038,34 +1059,34 @@ const DocumentoNew = () => {
           sx={{
             bgcolor: '#e0e0e0',
             borderRadius: 1,
-            p: 2,
+            p: 1,
             maxHeight: '75vh',
             overflow: 'auto',
-            pb: 2,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
           }}
         >
           {previewHtml ? (
-            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <Box
-                sx={{
-                  width: 794,
-                  minHeight: 1056 * docScale,
-                  bgcolor: 'white',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                  p: '45px 76px 57px 94px',
-                  transform: `scale(${docScale})`,
-                  transformOrigin: 'top center',
-                  mb: docScale < 1 ? `${-(1 - docScale) * 1056}px` : 0,
-                  '& > div': {
-                    maxWidth: '100% !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    lineHeight: '1.5 !important',
-                  },
-                }}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            </Box>
+            <Box
+              sx={{
+                width: 794,
+                bgcolor: 'white',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                p: '45px 76px 57px 94px',
+                fontFamily: 'serif',
+                fontSize: '12pt',
+                lineHeight: 1.5,
+                zoom: docScale,
+                '& > div': {
+                  maxWidth: '100% !important',
+                  padding: '0 !important',
+                  margin: '0 !important',
+                  lineHeight: '1.5 !important',
+                },
+              }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
           ) : (
             <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
               Sin previsualización
