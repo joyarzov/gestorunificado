@@ -801,26 +801,48 @@ class DocumentoController extends Controller
     public function analizarUpload(Request $request, PdfSignatureDetector $detector)
     {
         $request->validate([
-            'archivo' => 'required|file|mimetypes:application/pdf|max:20480', // 20 MB
+            'archivo' => 'required|file|mimes:pdf|max:20480', // 20 MB
+        ], [
+            'archivo.mimes' => 'El archivo debe tener extensión .pdf',
+            'archivo.max' => 'El archivo supera el tamaño máximo permitido (20 MB)',
+            'archivo.uploaded' => 'No se pudo subir el archivo. Verifica que tenga menos de 20 MB.',
         ]);
 
         $file = $request->file('archivo');
-        $token = bin2hex(random_bytes(16));
-        $relativePath = "uploads/temp/{$token}.pdf";
 
-        Storage::disk('public')->putFileAs('uploads/temp', $file, "{$token}.pdf");
+        // Verificar magic bytes para asegurar que es un PDF real (independiente de la extensión)
+        $handle = fopen($file->getRealPath(), 'rb');
+        $magic = $handle ? fread($handle, 5) : '';
+        if ($handle) fclose($handle);
+        if (strpos($magic, '%PDF') !== 0) {
+            return $this->errorResponse('El archivo no es un PDF válido (encabezado inválido)', 422);
+        }
 
-        $absolutePath = Storage::disk('public')->path($relativePath);
-        $deteccion = $detector->detect($absolutePath);
+        try {
+            $token = bin2hex(random_bytes(16));
+            $relativePath = "uploads/temp/{$token}.pdf";
 
-        return $this->successResponse([
-            'token' => $token,
-            'nombre_original' => $file->getClientOriginalName(),
-            'tamanio_bytes' => $file->getSize(),
-            'has_signatures' => $deteccion['has_signatures'],
-            'signatures' => $deteccion['signatures'],
-            'detector_error' => $deteccion['error'],
-        ]);
+            Storage::disk('public')->putFileAs('uploads/temp', $file, "{$token}.pdf");
+
+            $absolutePath = Storage::disk('public')->path($relativePath);
+            $deteccion = $detector->detect($absolutePath);
+
+            return $this->successResponse([
+                'token' => $token,
+                'nombre_original' => $file->getClientOriginalName(),
+                'tamanio_bytes' => $file->getSize(),
+                'has_signatures' => $deteccion['has_signatures'],
+                'signatures' => $deteccion['signatures'],
+                'detector_error' => $deteccion['error'],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al analizar upload de PDF', [
+                'error' => $e->getMessage(),
+                'archivo' => $file->getClientOriginalName(),
+                'tamanio' => $file->getSize(),
+            ]);
+            return $this->errorResponse('No se pudo procesar el PDF: ' . $e->getMessage(), 500);
+        }
     }
 
     /**

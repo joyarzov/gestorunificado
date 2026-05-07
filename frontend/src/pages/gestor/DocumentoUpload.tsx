@@ -110,8 +110,9 @@ const DocumentoUpload = () => {
 
   const handleArchivo = async (file: File) => {
     setError(null)
-    if (file.type !== 'application/pdf') {
-      setError('El archivo debe ser un PDF')
+    // Validar extensión por nombre (los PDFs pueden venir con MIME no estándar)
+    if (!/\.pdf$/i.test(file.name)) {
+      setError('El archivo debe tener extensión .pdf')
       return
     }
     if (file.size > 20 * 1024 * 1024) {
@@ -124,7 +125,6 @@ const DocumentoUpload = () => {
       const res = await documentosAPI.analizarUpload(file)
       if (res.success) {
         setAnalisis(res.data)
-        // Pre-llenar título con el nombre del archivo (sin extensión)
         if (!titulo) {
           setTitulo(file.name.replace(/\.pdf$/i, ''))
         }
@@ -133,8 +133,15 @@ const DocumentoUpload = () => {
         setArchivo(null)
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } }
-      setError(err.response?.data?.message || 'Error al subir el archivo')
+      const err = e as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+      const data = err.response?.data
+      // Si hay errores de validación, mostrar el primer error específico
+      let mensaje = data?.message || 'Error al subir el archivo'
+      if (data?.errors) {
+        const primerError = Object.values(data.errors)[0]?.[0]
+        if (primerError) mensaje = primerError
+      }
+      setError(mensaje)
       setArchivo(null)
     } finally {
       setAnalizando(false)
