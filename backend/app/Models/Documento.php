@@ -31,6 +31,10 @@ class Documento extends Model
     const MECANISMO_FISICO = 1;     // Digitalizado desde físico
     const MECANISNO_DIGITAL = 2;    // Nativo digital
 
+    // Origen del documento
+    const ORIGEN_CREADO = 'creado';   // Generado desde plantilla en la plataforma
+    const ORIGEN_SUBIDO = 'subido';   // PDF subido externamente
+
     protected $fillable = [
         'identificador',
         'codigo_verificacion',
@@ -59,6 +63,8 @@ class Documento extends Model
         'completado',
         'fecha_creacion',
         'mecanismo_incorporacion',
+        'origen_carga',
+        'firmas_externas',
         'orden_expediente',
         'folio_inicio',
         'folio_fin',
@@ -68,6 +74,7 @@ class Documento extends Model
     protected $casts = [
         'contenido_json' => 'array',
         'metadata_pdfa' => 'array',
+        'firmas_externas' => 'array',
         'firmado' => 'boolean',
         'completado' => 'boolean',
         'fecha_firma' => 'datetime',

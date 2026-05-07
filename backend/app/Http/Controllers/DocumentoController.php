@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Services\FirmaGobService;
+use App\Services\PdfSignatureDetector;
 use App\Exceptions\FirmaGobException;
 
 class DocumentoController extends Controller
@@ -790,6 +791,200 @@ class DocumentoController extends Controller
         }
 
         return response()->json(['message' => 'Documento sin contenido'], 404);
+    }
+
+    /**
+     * Analiza un PDF recién subido (antes de crear el documento) y devuelve si contiene firmas
+     * electrónicas embebidas. Guarda el archivo en storage temporal y retorna un token para
+     * referenciarlo en el siguiente paso (subirDocumento).
+     */
+    public function analizarUpload(Request $request, PdfSignatureDetector $detector)
+    {
+        $request->validate([
+            'archivo' => 'required|file|mimetypes:application/pdf|max:20480', // 20 MB
+        ]);
+
+        $file = $request->file('archivo');
+        $token = bin2hex(random_bytes(16));
+        $relativePath = "uploads/temp/{$token}.pdf";
+
+        Storage::disk('public')->putFileAs('uploads/temp', $file, "{$token}.pdf");
+
+        $absolutePath = Storage::disk('public')->path($relativePath);
+        $deteccion = $detector->detect($absolutePath);
+
+        return $this->successResponse([
+            'token' => $token,
+            'nombre_original' => $file->getClientOriginalName(),
+            'tamanio_bytes' => $file->getSize(),
+            'has_signatures' => $deteccion['has_signatures'],
+            'signatures' => $deteccion['signatures'],
+            'detector_error' => $deteccion['error'],
+        ]);
+    }
+
+    /**
+     * Crea un Documento a partir de un PDF previamente subido (analizarUpload).
+     * Soporta cuatro acciones:
+     *  - guardar_borrador: deja el documento en borrador
+     *  - cerrar_firmado:    marca como firmado, registra firmas externas detectadas
+     *  - firmar_propio:     asigna al usuario como firmante y deja en pendiente_firma
+     *  - enviar_firma:      asigna firmantes_asignados[] y deja en pendiente_firma
+     */
+    public function subirDocumento(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string|size:32',
+            'titulo' => 'required|string|max:500',
+            'tipo_documental_id' => 'required|exists:tipos_documentales,id',
+            'descripcion' => 'nullable|string|max:1000',
+            'palabras_clave' => 'nullable|string|max:500',
+            'nivel_acceso' => 'required|integer|in:1,2,3,4',
+            'expediente_id' => 'nullable|exists:expedientes,id',
+            'firmas_externas' => 'nullable|array',
+            'accion' => 'required|in:guardar_borrador,cerrar_firmado,firmar_propio,enviar_firma',
+            'firmantes_asignados' => 'nullable|array',
+            'firmantes_asignados.*' => 'exists:users,id',
+        ]);
+
+        $token = $request->token;
+        $tempRelative = "uploads/temp/{$token}.pdf";
+
+        if (!Storage::disk('public')->exists($tempRelative)) {
+            return $this->errorResponse('El archivo subido ya no está disponible. Vuelve a subirlo.', 404);
+        }
+
+        // Validar coherencia de la acción
+        if ($request->accion === 'enviar_firma' && empty($request->firmantes_asignados)) {
+            return $this->errorResponse('Debes seleccionar al menos un firmante para enviar a firma', 422);
+        }
+        if ($request->accion === 'cerrar_firmado' && empty($request->firmas_externas)) {
+            return $this->errorResponse('Solo puedes cerrar como firmado si el PDF contiene firmas detectadas', 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $identificador = Documento::generarIdentificador();
+            $finalRelative = 'documentos/' . $identificador . '_' . time() . '.pdf';
+
+            Storage::disk('public')->move($tempRelative, $finalRelative);
+
+            $estado = match ($request->accion) {
+                'cerrar_firmado' => Documento::ESTADO_FIRMADO,
+                'firmar_propio', 'enviar_firma' => Documento::ESTADO_PENDIENTE_FIRMA,
+                default => Documento::ESTADO_BORRADOR,
+            };
+
+            $documento = Documento::create([
+                'identificador' => $identificador,
+                'titulo' => $request->titulo,
+                'descripcion' => $request->descripcion,
+                'tipo_documental_id' => $request->tipo_documental_id,
+                'nivel_acceso' => $request->nivel_acceso,
+                'palabras_clave' => $request->palabras_clave,
+                'archivo_pdf' => $finalRelative,
+                'archivo_original' => $finalRelative,
+                'formato' => 'PDF',
+                'firmas_externas' => $request->firmas_externas ?: null,
+                'estado' => $estado,
+                'firmado' => $estado === Documento::ESTADO_FIRMADO,
+                'fecha_firma' => $estado === Documento::ESTADO_FIRMADO ? now() : null,
+                'completado' => $estado === Documento::ESTADO_FIRMADO,
+                'fecha_creacion' => now(),
+                'mecanismo_incorporacion' => Documento::MECANISMO_FISICO,
+                'origen_carga' => Documento::ORIGEN_SUBIDO,
+                'creado_por' => Auth::id(),
+                'actualizado_por' => Auth::id(),
+                'anio' => date('Y'),
+            ]);
+
+            // Asociar expediente si viene
+            if ($request->expediente_id) {
+                $documento->expedientes()->attach($request->expediente_id);
+                ExpedienteActividad::create([
+                    'expediente_id' => $request->expediente_id,
+                    'usuario_id' => Auth::id(),
+                    'tipo' => 'documento_creado',
+                    'descripcion' => "Documento subido: {$documento->titulo}",
+                    'metadata' => ['documento_id' => $documento->id],
+                ]);
+            }
+
+            // Acción específica
+            switch ($request->accion) {
+                case 'cerrar_firmado':
+                    // Las firmas externas se preservan en documentos.firmas_externas (JSON).
+                    // No se registran en documento_firmas porque ese es para usuarios internos.
+                    DocumentoTrazabilidad::registrar(
+                        $documento->id,
+                        'documento_subido',
+                        'PDF subido y registrado como firmado externamente',
+                        [
+                            'firmas_detectadas' => count($request->firmas_externas),
+                            'firmantes' => array_map(fn($f) => $f['signer'] ?? 'desconocido', $request->firmas_externas),
+                        ]
+                    );
+                    break;
+
+                case 'firmar_propio':
+                    // Asignar al usuario actual como único firmante
+                    $documento->firmantesAsignados()->attach(Auth::id(), [
+                        'orden' => 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    DocumentoTrazabilidad::registrar(
+                        $documento->id,
+                        'documento_subido',
+                        'PDF subido para firma propia'
+                    );
+                    break;
+
+                case 'enviar_firma':
+                    foreach ($request->firmantes_asignados as $idx => $userId) {
+                        $documento->firmantesAsignados()->attach($userId, [
+                            'orden' => $idx + 1,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        Notificacion::create([
+                            'user_id' => $userId,
+                            'tipo' => 'documento_pendiente_firma',
+                            'titulo' => 'Documento pendiente de tu firma',
+                            'mensaje' => "El documento \"{$documento->titulo}\" requiere tu firma.",
+                            'data' => ['documento_id' => $documento->id],
+                        ]);
+                    }
+                    DocumentoTrazabilidad::registrar(
+                        $documento->id,
+                        'documento_subido',
+                        'PDF subido y enviado a firma',
+                        ['firmantes' => count($request->firmantes_asignados)]
+                    );
+                    break;
+
+                default:
+                    DocumentoTrazabilidad::registrar(
+                        $documento->id,
+                        'documento_subido',
+                        'PDF subido como borrador'
+                    );
+            }
+
+            DB::commit();
+
+            $documento->load('tipoDocumental', 'expedientes', 'firmantesAsignados', 'firmas');
+
+            return $this->successResponse($documento, 'Documento subido exitosamente', 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Si algo falló después de mover el archivo, restaurarlo a temp para reintentar
+            if (isset($finalRelative) && Storage::disk('public')->exists($finalRelative)) {
+                Storage::disk('public')->move($finalRelative, $tempRelative);
+            }
+            Log::error('Error al subir documento PDF: ' . $e->getMessage());
+            return $this->errorResponse('Error al subir documento: ' . $e->getMessage(), 500);
+        }
     }
 
     /**

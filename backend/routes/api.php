@@ -221,6 +221,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/plantillas', [DocumentoController::class, 'getPlantillas']);
         Route::post('/previsualizar', [DocumentoController::class, 'previsualizarPlantilla']);
         Route::get('/proximo-correlativo', [DocumentoController::class, 'obtenerProximoCorrelativo']);
+        Route::post('/upload/analizar', [DocumentoController::class, 'analizarUpload']);
+        Route::post('/upload/subir', [DocumentoController::class, 'subirDocumento']);
         Route::get('/{documento}/descargar', [DocumentoController::class, 'descargar']);
         Route::post('/{documento}/enviar-firma', [DocumentoController::class, 'enviarAFirma']);
         Route::post('/{documento}/firmar', [DocumentoController::class, 'firmar']);

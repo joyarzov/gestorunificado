@@ -35,6 +35,7 @@ import ExpedienteNew from './pages/gestor/ExpedienteNew'
 import ExpedienteDetail from './pages/gestor/ExpedienteDetail'
 import DocumentosList from './pages/gestor/DocumentosList'
 import DocumentoNew from './pages/gestor/DocumentoNew'
+import DocumentoUpload from './pages/gestor/DocumentoUpload'
 import DocumentoDetail from './pages/gestor/DocumentoDetail'
 import PendientesFirma from './pages/gestor/PendientesFirma'
 import DocumentosRecibidos from './pages/gestor/DocumentosRecibidos'
@@ -111,6 +112,7 @@ function App() {
             <Route path="/expedientes/:id/editar" element={<ExpedienteNew />} />
             <Route path="/documentos" element={<DocumentosList />} />
             <Route path="/documentos/nuevo" element={<DocumentoNew />} />
+            <Route path="/documentos/subir" element={<DocumentoUpload />} />
             <Route path="/documentos/:id" element={<DocumentoDetail />} />
             <Route path="/pendientes-firma" element={<PendientesFirma />} />
             <Route path="/documentos-recibidos" element={<DocumentosRecibidos />} />

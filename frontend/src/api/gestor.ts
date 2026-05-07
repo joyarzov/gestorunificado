@@ -58,6 +58,37 @@ export interface PreviewPlantillaData {
   contenido_json: Record<string, string>
 }
 
+export interface FirmaExternaDetectada {
+  signer: string
+  date: string | null
+  valid: boolean
+  raw: string
+}
+
+export interface AnalisisUpload {
+  token: string
+  nombre_original: string
+  tamanio_bytes: number
+  has_signatures: boolean
+  signatures: FirmaExternaDetectada[]
+  detector_error: string | null
+}
+
+export type AccionSubida = 'guardar_borrador' | 'cerrar_firmado' | 'firmar_propio' | 'enviar_firma'
+
+export interface SubirDocumentoData {
+  token: string
+  titulo: string
+  tipo_documental_id: number
+  descripcion?: string
+  palabras_clave?: string
+  nivel_acceso: number
+  expediente_id?: number
+  firmas_externas?: FirmaExternaDetectada[]
+  accion: AccionSubida
+  firmantes_asignados?: number[]
+}
+
 // API de Expedientes
 export const expedientesAPI = {
   listar: async (params?: ExpedienteFilters) => {
@@ -294,6 +325,22 @@ export const documentosAPI = {
   // Obtener trazabilidad de un documento
   trazabilidad: async (id: number) => {
     const response = await api.get<ApiResponse<DocumentoTrazabilidad[]>>(`/documentos/${id}/trazabilidad`)
+    return response.data
+  },
+
+  // Analizar PDF subido (detección de firmas)
+  analizarUpload: async (archivo: File) => {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    const response = await api.post<ApiResponse<AnalisisUpload>>('/documentos/upload/analizar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  // Crear documento desde PDF subido
+  subirDocumento: async (data: SubirDocumentoData) => {
+    const response = await api.post<ApiResponse<Documento>>('/documentos/upload/subir', data)
     return response.data
   },
 }

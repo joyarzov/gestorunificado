@@ -30,6 +30,7 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Clear as ClearIcon,
+  CloudUpload as UploadIcon,
 } from '@mui/icons-material'
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import { Documento, TipoDocumental } from '../../types'
@@ -125,13 +126,22 @@ const DocumentosList = () => {
         <Typography variant="h4" fontWeight="bold">
           Mis Documentos
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/documentos/nuevo')}
-        >
-          Nuevo Documento
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={() => navigate('/documentos/subir')}
+          >
+            Subir Documento
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/documentos/nuevo')}
+          >
+            Nuevo Documento
+          </Button>
+        </Box>
       </Box>
 
       {/* Panel de filtros */}

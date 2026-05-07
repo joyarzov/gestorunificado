@@ -11,12 +11,20 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
     fonts-dejavu-core \
+    poppler-utils \
     zip \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Configurar límites de upload para PDFs (hasta 25MB)
+RUN { \
+        echo 'upload_max_filesize = 25M'; \
+        echo 'post_max_size = 25M'; \
+        echo 'memory_limit = 256M'; \
+    } > /usr/local/etc/php/conf.d/uploads.ini
 
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
