@@ -418,6 +418,10 @@ class DerivacionController extends Controller
     {
         $user = Auth::user();
 
+        // Usuarios de los que este usuario es subrogante (derivaciones dirigidas a ellos
+        // tambien deben aparecer en su bandeja).
+        $subrogadosIds = $user->subrogados()->pluck('id')->all();
+
         $derivaciones = Derivacion::with([
             'correspondencia',
             'departamentoOrigen',
@@ -425,6 +429,15 @@ class DerivacionController extends Controller
         ])
             ->where('departamento_destino_id', $user->departamento_id)
             ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])
+            ->where(function ($q) use ($user, $subrogadosIds) {
+                // Si no hay usuario destino especifico, la ven todos los del depto.
+                // Si hay usuario destino, solo la ve ese usuario o sus subrogantes.
+                $q->whereNull('usuario_destino_id')
+                    ->orWhere('usuario_destino_id', $user->id);
+                if (!empty($subrogadosIds)) {
+                    $q->orWhereIn('usuario_destino_id', $subrogadosIds);
+                }
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
