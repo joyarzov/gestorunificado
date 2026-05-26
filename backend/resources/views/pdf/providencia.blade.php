@@ -125,7 +125,7 @@
 
     {{-- Referencia + fecha derecha --}}
     <div class="ref-fecha">
-        <p><strong>Ref:</strong> {{ $numero_documento ?? 'Sin n&uacute;mero' }}{{ !empty($remitente) ? ' &mdash; ' . $remitente : '' }}</p>
+        <p><strong>Ref:</strong> {{ $numero_documento ?? 'Sin n&uacute;mero' }}{{ !empty($remitente) ? ' —' . $remitente : '' }}</p>
         <p><strong>Puerto Williams,</strong> {{ $fecha }}</p>
     </div>
 
@@ -133,7 +133,7 @@
     <table class="de-para">
         <tr>
             <td class="label"><strong>DE:</strong></td>
-            <td>{{ $usuario_origen }}{{ !empty($departamento_origen) ? ' &mdash; ' . $departamento_origen : '' }}</td>
+            <td>{{ $usuario_origen }}{{ !empty($departamento_origen) ? ' —' . $departamento_origen : '' }}</td>
         </tr>
         <tr>
             <td class="label"><strong>PARA:</strong></td>
@@ -205,7 +205,7 @@
 
     {{-- Pie de página --}}
     <div class="footer">
-        Documento generado autom&aacute;ticamente por el Sistema de Correspondencia Municipal &mdash; {{ $folio }} &mdash; {{ $fecha }}
+        Documento generado autom&aacute;ticamente por el Sistema de Correspondencia Municipal —{{ $folio }} —{{ $fecha }}
         @if(!empty($codigo_verificacion))
             <br/>Verifique en: <strong>{{ $verificar_url ?? '' }}</strong>
         @endif
