@@ -143,11 +143,13 @@ export const getSidebarItems = (
 ): SidebarNavItem[] => {
   switch (moduleId) {
     case 'correspondencia': {
-      const items: SidebarNavItem[] = [
-        { text: 'Dashboard', path: '/correspondencia', icon: DashboardIcon },
-      ]
-      // Bandeja: todos los perfiles con acceso al módulo
-      items.push({ text: 'Bandeja de entrada', path: '/bandeja', icon: InboxIcon })
+      const items: SidebarNavItem[] = []
+      // Dashboard y Bandeja: perfiles que reciben correspondencia derivada.
+      // El oficial de partes no recibe derivaciones, así que no las ve.
+      if (!ctx.isOficial) {
+        items.push({ text: 'Dashboard', path: '/correspondencia', icon: DashboardIcon })
+        items.push({ text: 'Bandeja de entrada', path: '/bandeja', icon: InboxIcon })
+      }
       // Listado general de correspondencia: solo quienes pueden ver todo
       if (ctx.canViewAllCorrespondence) {
         items.push({ text: 'Todas las correspondencias', path: '/correspondencia/listar', icon: MailIcon })
