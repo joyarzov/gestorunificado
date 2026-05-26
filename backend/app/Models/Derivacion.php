@@ -17,6 +17,7 @@ class Derivacion extends Model
         'departamento_destino_id',
         'usuario_origen_id',
         'usuario_destino_id',
+        'actuando_como_user_id',
         'pdf_ruta',
         'observaciones',
         'acciones_para',
@@ -54,6 +55,14 @@ class Derivacion extends Model
     public function usuarioDestino()
     {
         return $this->belongsTo(User::class, 'usuario_destino_id');
+    }
+
+    /**
+     * Subrogado en cuyo nombre el usuario_origen creó esta derivación, si aplica.
+     */
+    public function actuandoComo()
+    {
+        return $this->belongsTo(User::class, 'actuando_como_user_id');
     }
 
     public function scopePendientes($query)

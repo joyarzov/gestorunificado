@@ -66,6 +66,7 @@ class DerivacionController extends Controller
             'departamento_destino_id' => $request->departamento_destino_id,
             'usuario_origen_id' => $user->id,
             'usuario_destino_id' => $request->usuario_destino_id,
+            'actuando_como_user_id' => $user->getActuandoComo()?->id,
             'observaciones' => $request->observaciones,
             'acciones_para' => $request->acciones_para,
             'estado' => 'pendiente',
@@ -426,6 +427,8 @@ class DerivacionController extends Controller
             'correspondencia',
             'departamentoOrigen',
             'usuarioOrigen',
+            'usuarioDestino:id,nombre,cargo',
+            'actuandoComo:id,nombre,cargo',
         ])
             ->where('departamento_destino_id', $user->departamento_id)
             ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])

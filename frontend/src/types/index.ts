@@ -84,6 +84,8 @@ export interface Derivacion {
   usuario_destino_id?: number
   usuario_origen?: User
   usuario_destino?: User
+  actuando_como_user_id?: number | null
+  actuando_como?: { id: number; nombre: string; cargo?: string | null } | null
   correspondencia?: Correspondencia
   pdf_ruta?: string
   observaciones?: string

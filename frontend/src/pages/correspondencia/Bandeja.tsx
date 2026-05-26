@@ -31,7 +31,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 const BandejaEntrada = () => {
   const navigate = useNavigate()
-  const { isAlcalde } = useAuth()
+  const { isAlcalde, user, actuandoComo } = useAuth()
   const [derivaciones, setDerivaciones] = useState<Derivacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -146,6 +146,17 @@ const BandejaEntrada = () => {
                       <Typography variant="body2" fontWeight="medium">
                         {der.correspondencia?.numero_documento || '-'}
                       </Typography>
+                      {der.usuario_destino_id
+                        && der.usuario_destino_id !== user?.id
+                        && der.usuario_destino_id !== actuandoComo?.id && (
+                        <Chip
+                          label={`Para: ${der.usuario_destino?.nombre ?? 'subrogado'}`}
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          sx={{ mt: 0.5 }}
+                        />
+                      )}
                     </TableCell>
                     <TableCell>{der.correspondencia?.remitente || '-'}</TableCell>
                     <TableCell>

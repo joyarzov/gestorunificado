@@ -19,6 +19,8 @@ import {
   useTheme,
   useMediaQuery,
   Badge,
+  Alert,
+  Button,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -26,6 +28,7 @@ import {
   Person as PersonIcon,
   ChevronLeft as ChevronLeftIcon,
   Home as HomeIcon,
+  SupervisorAccount as SubroganciaIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import CorporateColorBar from '../branding/CorporateColorBar'
@@ -51,6 +54,8 @@ const AppLayout = () => {
   const {
     user,
     selectedRole,
+    actuandoComo,
+    salirDeActuandoComo,
     logout,
     isAdmin,
     isOficial,
@@ -410,6 +415,21 @@ const AppLayout = () => {
           backgroundColor: 'background.default',
         }}
       >
+        {actuandoComo && (
+          <Alert
+            severity="warning"
+            icon={<SubroganciaIcon />}
+            action={
+              <Button color="inherit" size="small" onClick={salirDeActuandoComo}>
+                Salir
+              </Button>
+            }
+            sx={{ mb: 2, fontWeight: 500 }}
+          >
+            Estás actuando como <strong>{actuandoComo.nombre}</strong>
+            {actuandoComo.cargo ? ` · ${actuandoComo.cargo}` : ''} — Subrogancia activa
+          </Alert>
+        )}
         <Outlet />
       </Box>
     </Box>
