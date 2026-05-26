@@ -91,4 +91,32 @@ export const organigramaAPI = {
     })
     return response.data
   },
+
+  activarMiSubrogancia: async (data?: { desde?: string | null; hasta?: string | null }) => {
+    const response = await api.post<ApiResponse<unknown>>('/organigrama/mi-subrogancia/activar', data ?? {})
+    return response.data
+  },
+
+  desactivarMiSubrogancia: async () => {
+    const response = await api.post<ApiResponse<unknown>>('/organigrama/mi-subrogancia/desactivar')
+    return response.data
+  },
+
+  activarSubroganciaDeUsuario: async (
+    userId: number,
+    data?: { desde?: string | null; hasta?: string | null }
+  ) => {
+    const response = await api.post<ApiResponse<unknown>>(
+      `/organigrama/usuarios/${userId}/subrogancia/activar`,
+      data ?? {}
+    )
+    return response.data
+  },
+
+  desactivarSubroganciaDeUsuario: async (userId: number) => {
+    const response = await api.post<ApiResponse<unknown>>(
+      `/organigrama/usuarios/${userId}/subrogancia/desactivar`
+    )
+    return response.data
+  },
 }

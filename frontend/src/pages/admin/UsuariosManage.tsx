@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   TextField,
   MenuItem,
   Grid,
@@ -23,14 +24,18 @@ import {
   Alert,
   FormControlLabel,
   Checkbox,
+  Tooltip,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Block as BlockIcon,
   CheckCircle as ActivarIcon,
+  EventBusy as SubroganciaActivaIcon,
+  EventAvailable as SubroganciaInactivaIcon,
 } from '@mui/icons-material'
 import { usersAPI, departamentosAPI } from '../../api/common'
+import { organigramaAPI } from '../../api/organigrama'
 import { User, Departamento } from '../../types'
 
 const rolesOptions = [
@@ -162,6 +167,46 @@ const UsuariosManage = () => {
     }
   }
 
+  // Subrogancia: dialog para activar (con fecha opcional) o desactivar.
+  const [subroganciaTarget, setSubroganciaTarget] = useState<User | null>(null)
+  const [subroganciaHasta, setSubroganciaHasta] = useState('')
+  const [subroganciaSaving, setSubroganciaSaving] = useState(false)
+  const [subroganciaError, setSubroganciaError] = useState('')
+
+  const openSubroganciaDialog = (user: User) => {
+    setSubroganciaTarget(user)
+    setSubroganciaHasta('')
+    setSubroganciaError('')
+  }
+
+  const closeSubroganciaDialog = () => {
+    setSubroganciaTarget(null)
+    setSubroganciaHasta('')
+    setSubroganciaError('')
+  }
+
+  const handleConfirmSubrogancia = async () => {
+    if (!subroganciaTarget) return
+    setSubroganciaSaving(true)
+    setSubroganciaError('')
+    try {
+      if (subroganciaTarget.subrogancia_activa) {
+        await organigramaAPI.desactivarSubroganciaDeUsuario(subroganciaTarget.id)
+      } else {
+        await organigramaAPI.activarSubroganciaDeUsuario(subroganciaTarget.id, {
+          hasta: subroganciaHasta || null,
+        })
+      }
+      closeSubroganciaDialog()
+      loadData()
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSubroganciaError((err as any)?.response?.data?.message || 'Error al cambiar subrogancia')
+    } finally {
+      setSubroganciaSaving(false)
+    }
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
@@ -237,6 +282,26 @@ const UsuariosManage = () => {
                       <IconButton size="small" onClick={() => handleOpenDialog(user)}>
                         <EditIcon />
                       </IconButton>
+                      <Tooltip
+                        title={
+                          !user.subrogante_id
+                            ? 'El usuario no tiene subrogante asignado'
+                            : user.subrogancia_activa
+                              ? 'Desactivar subrogancia (el subrogado ha vuelto)'
+                              : 'Activar subrogancia (marcar como ausente)'
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => openSubroganciaDialog(user)}
+                            disabled={!user.subrogante_id}
+                            color={user.subrogancia_activa ? 'warning' : 'default'}
+                          >
+                            {user.subrogancia_activa ? <SubroganciaActivaIcon /> : <SubroganciaInactivaIcon />}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                       <IconButton
                         size="small"
                         onClick={() => handleToggleActive(user)}
@@ -360,6 +425,52 @@ const UsuariosManage = () => {
             disabled={saving || !formData.nombre || !formData.rut || (!editingUser && !formData.password)}
           >
             {saving ? <CircularProgress size={20} /> : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de subrogancia (activar/desactivar) */}
+      <Dialog open={!!subroganciaTarget} onClose={closeSubroganciaDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {subroganciaTarget?.subrogancia_activa ? 'Desactivar subrogancia' : 'Activar subrogancia'}
+        </DialogTitle>
+        <DialogContent>
+          {subroganciaTarget?.subrogancia_activa ? (
+            <DialogContentText>
+              Desactivar la subrogancia de <strong>{subroganciaTarget.nombre}</strong>. A partir
+              de este momento, su subrogante dejará de actuar en su nombre.
+            </DialogContentText>
+          ) : (
+            <>
+              <DialogContentText sx={{ mb: 2 }}>
+                Activar la subrogancia de <strong>{subroganciaTarget?.nombre}</strong>.
+                Su subrogante recibirá su bandeja y podrá actuar en su nombre.
+              </DialogContentText>
+              <TextField
+                fullWidth
+                type="datetime-local"
+                label="Hasta (opcional)"
+                value={subroganciaHasta}
+                onChange={(e) => setSubroganciaHasta(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Si lo dejas vacío, la subrogancia queda activa hasta que la desactives."
+              />
+            </>
+          )}
+          {subroganciaError && (
+            <Alert severity="error" sx={{ mt: 2 }}>{subroganciaError}</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeSubroganciaDialog} disabled={subroganciaSaving}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color={subroganciaTarget?.subrogancia_activa ? 'error' : 'warning'}
+            onClick={handleConfirmSubrogancia}
+            disabled={subroganciaSaving}
+            startIcon={subroganciaSaving ? <CircularProgress size={16} /> : null}
+          >
+            {subroganciaTarget?.subrogancia_activa ? 'Desactivar' : 'Activar'}
           </Button>
         </DialogActions>
       </Dialog>

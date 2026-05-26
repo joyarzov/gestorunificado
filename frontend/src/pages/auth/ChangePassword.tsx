@@ -10,8 +10,14 @@ import {
   Alert,
   CircularProgress,
   MenuItem,
+  Chip,
 } from '@mui/material'
-import { Save as SaveIcon, ArrowBack as BackIcon, SwapHoriz as SubroganteIcon } from '@mui/icons-material'
+import {
+  Save as SaveIcon,
+  ArrowBack as BackIcon,
+  SwapHoriz as SubroganteIcon,
+  EventBusy as AusenciaIcon,
+} from '@mui/icons-material'
 import { authAPI } from '../../api/auth'
 import { useAuth } from '../../contexts/AuthContext'
 import { usersAPI } from '../../api/common'
@@ -34,9 +40,67 @@ const ChangePassword = () => {
   const [subroganteId, setSubroganteId] = useState<number | ''>(user?.subrogante_id ?? '')
   const [subroganteLoading, setSubroganteLoading] = useState(false)
 
+  // Subrogancia (estado de ausencia)
+  const subroganciaActiva = !!user?.subrogancia_activa
+  const [subroganciaHasta, setSubroganciaHasta] = useState<string>('')
+  const [subroganciaLoading, setSubroganciaLoading] = useState(false)
+
   useEffect(() => {
     setSubroganteId(user?.subrogante_id ?? '')
   }, [user?.subrogante_id])
+
+  useEffect(() => {
+    // datetime-local espera "YYYY-MM-DDTHH:MM" en hora local, sin TZ
+    if (user?.subrogancia_hasta) {
+      const d = new Date(user.subrogancia_hasta)
+      const offset = d.getTimezoneOffset() * 60_000
+      setSubroganciaHasta(new Date(d.getTime() - offset).toISOString().slice(0, 16))
+    } else {
+      setSubroganciaHasta('')
+    }
+  }, [user?.subrogancia_hasta])
+
+  const handleActivarSubrogancia = async () => {
+    setError('')
+    setSuccess('')
+    setSubroganciaLoading(true)
+    try {
+      await organigramaAPI.activarMiSubrogancia({
+        hasta: subroganciaHasta ? subroganciaHasta : null,
+      })
+      await checkAuth()
+      setSuccess('Subrogancia activada. Tu subrogante recibirá tu bandeja mientras estés ausente.')
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any)?.response?.data?.message || 'Error al activar subrogancia')
+    } finally {
+      setSubroganciaLoading(false)
+    }
+  }
+
+  const handleDesactivarSubrogancia = async () => {
+    setError('')
+    setSuccess('')
+    setSubroganciaLoading(true)
+    try {
+      await organigramaAPI.desactivarMiSubrogancia()
+      await checkAuth()
+      setSuccess('Subrogancia desactivada.')
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any)?.response?.data?.message || 'Error al desactivar subrogancia')
+    } finally {
+      setSubroganciaLoading(false)
+    }
+  }
+
+  const fmtFecha = (iso?: string | null) => {
+    if (!iso) return null
+    return new Date(iso).toLocaleString('es-CL', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  }
 
   useEffect(() => {
     usersAPI.funcionarios()
@@ -234,6 +298,74 @@ const ChangePassword = () => {
               {subroganteLoading ? 'Guardando…' : 'Guardar subrogante'}
             </Button>
           </Box>
+        </CardContent>
+      </Card>
+
+      {/* Subrogancia (estado de ausencia) */}
+      <Card sx={{ maxWidth: 500, mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <AusenciaIcon color={subroganciaActiva ? 'warning' : 'disabled'} />
+            <Typography variant="h6">Estado de ausencia</Typography>
+            {subroganciaActiva && (
+              <Chip label="Subrogancia activa" color="warning" size="small" sx={{ ml: 'auto' }} />
+            )}
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Cuando estés ausente, tu subrogante verá tu bandeja y podrá actuar en tu nombre.
+          </Typography>
+
+          {!user?.subrogante_id ? (
+            <Alert severity="info">
+              Para activar la subrogancia, primero asigna un subrogante en la sección anterior.
+            </Alert>
+          ) : subroganciaActiva ? (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <strong>{user.subrogante?.nombre}</strong> está recibiendo tu correspondencia
+                {user.subrogancia_desde && (
+                  <> desde el <strong>{fmtFecha(user.subrogancia_desde)}</strong></>
+                )}
+                {user.subrogancia_hasta
+                  ? <> hasta el <strong>{fmtFecha(user.subrogancia_hasta)}</strong>.</>
+                  : <> (sin fecha de término definida).</>}
+              </Alert>
+              <Button
+                variant="outlined"
+                color="warning"
+                fullWidth
+                onClick={handleDesactivarSubrogancia}
+                disabled={subroganciaLoading}
+                startIcon={subroganciaLoading ? <CircularProgress size={20} /> : null}
+              >
+                {subroganciaLoading ? 'Desactivando…' : 'Desactivar subrogancia (he vuelto)'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <TextField
+                fullWidth
+                type="datetime-local"
+                label="Volveré el (opcional)"
+                value={subroganciaHasta}
+                onChange={(e) => setSubroganciaHasta(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Si lo dejas vacío, la subrogancia queda activa hasta que la desactives manualmente."
+                sx={{ mb: 2 }}
+              />
+              <Button
+                variant="contained"
+                color="warning"
+                fullWidth
+                onClick={handleActivarSubrogancia}
+                disabled={subroganciaLoading}
+                startIcon={subroganciaLoading ? <CircularProgress size={20} /> : <AusenciaIcon />}
+              >
+                {subroganciaLoading ? 'Activando…' : 'Activar subrogancia: estaré ausente'}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 

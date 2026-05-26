@@ -6,6 +6,15 @@ export interface Departamento {
   activo: boolean
 }
 
+export interface SubrogadoActivo {
+  id: number
+  nombre: string
+  cargo?: string | null
+  roles: string[]
+  departamento_id?: number | null
+  subrogancia_hasta?: string | null
+}
+
 // Tipos de usuario
 export interface User {
   id: number
@@ -19,6 +28,10 @@ export interface User {
   departamento?: Departamento
   subrogante_id?: number | null
   subrogante?: { id: number; nombre: string; cargo?: string | null } | null
+  subrogancia_activa?: boolean
+  subrogancia_desde?: string | null
+  subrogancia_hasta?: string | null
+  subrogados_activos?: SubrogadoActivo[]
   visador: boolean
   activo: boolean
 }
