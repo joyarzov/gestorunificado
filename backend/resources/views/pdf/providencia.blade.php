@@ -214,8 +214,8 @@
     {{-- QR fijo en esquina inferior derecha --}}
     @if(!empty($codigo_verificacion))
     <div style="position:fixed;bottom:30px;right:40px;text-align:center;">
-        @if(!empty($qr_svg))
-            <div style="width:70px;height:70px;">{!! $qr_svg !!}</div>
+        @if(!empty($qr_data_uri))
+            <img src="{{ $qr_data_uri }}" alt="QR de verificación" style="width:70px;height:70px;" />
         @endif
         <div style="font-size:6px;color:#666;margin-top:1px;">
             C&oacute;d: {{ $codigo_verificacion }}

@@ -41,9 +41,13 @@ class ProvidenciaPdfService
 
         $appUrl = rtrim(config('app.url'), '/');
         $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
-        $qrSvg = '';
+        // DomPDF no renderiza SVG inline cuando está en `position: fixed`,
+        // pero sí maneja bien <img src="data:image/svg+xml;base64,..."> .
+        // Por eso devolvemos el QR como data URI listo para meter en un <img>.
+        $qrDataUri = '';
         try {
-            $qrSvg = (string) QrCode::format('svg')->size(80)->margin(0)->generate($verificarUrl);
+            $svg = (string) QrCode::format('svg')->size(160)->margin(0)->generate($verificarUrl);
+            $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($svg);
         } catch (\Exception $e) {
             Log::warning('No se pudo generar QR para providencia: ' . $e->getMessage());
         }
@@ -68,12 +72,15 @@ class ProvidenciaPdfService
             'subrogante_cargo'     => $params['subrogante_cargo'] ?? null,
             'logo_base64'          => $logoBase64,
             'codigo_verificacion'  => $codigoVerificacion,
-            'qr_svg'               => $qrSvg,
+            'qr_data_uri'          => $qrDataUri,
             'verificar_url'        => $verificarUrl,
         ];
 
         $pdf = Pdf::loadView('pdf.providencia', $pdfData);
         $pdf->setPaper('letter');
+        // Necesario para que DomPDF acepte <img src="data:..."> con SVG embebido.
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('isRemoteEnabled', true);
 
         return [
             'pdf_content'         => $pdf->output(),
