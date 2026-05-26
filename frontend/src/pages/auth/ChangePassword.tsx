@@ -103,8 +103,9 @@ const ChangePassword = () => {
   }
 
   useEffect(() => {
+    // El endpoint /users/funcionarios ya filtra por activos en el backend.
     usersAPI.funcionarios()
-      .then((r) => setFuncionarios((r.data ?? []).filter((u) => u.id !== user?.id && u.activo)))
+      .then((r) => setFuncionarios((r.data ?? []).filter((u) => u.id !== user?.id)))
       .catch(() => {})
   }, [user?.id])
 

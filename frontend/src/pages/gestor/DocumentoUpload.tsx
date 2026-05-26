@@ -103,7 +103,7 @@ const DocumentoUpload = () => {
       .then(([tipos, exps, funcs]) => {
         if (tipos.success) setTiposDocumentales(tipos.data.filter((t) => t.activo))
         if (exps.success) setExpedientes(exps.data.data)
-        if (funcs.success) setFuncionarios(funcs.data.filter((f) => f.activo && f.id !== user?.id))
+        if (funcs.success) setFuncionarios(funcs.data.filter((f) => f.id !== user?.id))
       })
       .catch(() => {})
   }, [user?.id])
