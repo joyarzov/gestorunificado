@@ -293,14 +293,15 @@ class DerivacionController extends Controller
         $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
         $usuarioDestino = $request->usuario_destino_id ? User::find($request->usuario_destino_id) : null;
 
-        return [
-            'usuario_origen'       => $user->nombre,
-            'departamento_origen'  => $user->departamento?->nombre ?? 'Alcaldía',
-            'departamento_destino' => $deptoDestino?->nombre ?? '',
-            'usuario_destino'      => $usuarioDestino?->nombre ?? '',
-            'acciones_para'        => $request->acciones_para ?? [],
-            'observaciones'        => $request->observaciones,
-        ];
+        return array_merge(
+            $this->paramsTitularYSubrogante($user),
+            [
+                'departamento_destino' => $deptoDestino?->nombre ?? '',
+                'usuario_destino'      => $usuarioDestino?->nombre ?? '',
+                'acciones_para'        => $request->acciones_para ?? [],
+                'observaciones'        => $request->observaciones,
+            ]
+        );
     }
 
     /**
@@ -309,14 +310,44 @@ class DerivacionController extends Controller
      */
     private function paramsProvidenciaRecibir(User $user): array
     {
-        $deptoNombre = $user->departamento?->nombre ?? 'Alcaldía';
-        return [
-            'usuario_origen'       => $user->nombre,
-            'departamento_origen'  => $deptoNombre,
+        $base = $this->paramsTitularYSubrogante($user);
+        $deptoNombre = $base['departamento_origen'];
+
+        return array_merge($base, [
             'departamento_destino' => $deptoNombre,
             'usuario_destino'      => '',
             'acciones_para'        => [],
             'observaciones'        => null,
+        ]);
+    }
+
+    /**
+     * Bloque común: si el actor está actuando como subrogado, el "titular" del
+     * cargo (lo que aparece en el cuerpo de la providencia) es el subrogado;
+     * el "subrogante" es el actor real que firma. Si no hay subrogancia,
+     * titular = actor y no se pasa subrogante.
+     */
+    private function paramsTitularYSubrogante(User $user): array
+    {
+        $titular = $user->getActuandoComo();
+
+        if ($titular) {
+            $titular->loadMissing('departamento');
+            return [
+                'usuario_origen'      => $titular->nombre,
+                'cargo_titular'       => $titular->cargo ?? 'Alcalde',
+                'departamento_origen' => $titular->departamento?->nombre ?? 'Alcaldía',
+                'subrogante_nombre'   => $user->nombre,
+                'subrogante_cargo'    => $user->cargo,
+            ];
+        }
+
+        return [
+            'usuario_origen'      => $user->nombre,
+            'cargo_titular'       => $user->cargo ?? 'Alcalde',
+            'departamento_origen' => $user->departamento?->nombre ?? 'Alcaldía',
+            'subrogante_nombre'   => null,
+            'subrogante_cargo'    => null,
         ];
     }
 

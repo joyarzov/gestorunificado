@@ -4,95 +4,66 @@
     <meta charset="UTF-8">
     <title>Providencia {{ $folio }}</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { margin: 1.2cm 2cm 1.5cm 2.5cm; }
         body {
             font-family: 'Times New Roman', Times, serif;
-            font-size: 12px;
+            font-size: 12pt;
             color: #000;
             line-height: 1.6;
         }
-        .page {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px;
-        }
-        .header-table {
-            width: 100%;
+        .header {
             margin-bottom: 20px;
         }
-        .header-table td {
-            vertical-align: top;
-        }
-        .logo-cell {
-            width: 170px;
-        }
-        .logo-cell img {
-            max-width: 158px;
+        .header img {
+            max-width: 200px;
             height: auto;
         }
-        .title-cell {
+        .titulo {
+            margin: 10px 0 0 0;
             text-align: center;
-            vertical-align: middle;
+            font-size: 14pt;
         }
-        .title-cell h1 {
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 4px;
-        }
-        .title-cell .subtitle {
-            font-size: 11px;
-            color: #333;
-        }
-        .date-right {
+        .ref-fecha {
+            margin-bottom: 50px;
+            margin-top: 30px;
             text-align: right;
-            font-size: 12px;
+            font-size: 11pt;
+        }
+        .ref-fecha p {
+            margin: 2px 0;
+        }
+        .de-para {
+            margin-bottom: 30px;
+            border-collapse: collapse;
+        }
+        .de-para td {
+            vertical-align: top;
+            padding: 0 0 5px 0;
+        }
+        .de-para td.label {
+            padding-right: 10px;
+            white-space: nowrap;
+        }
+        .datos-doc {
             margin-bottom: 25px;
+            border-collapse: collapse;
         }
-        .providencia-title {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 20px 0 25px 0;
-            border-bottom: 1px solid #000;
-            padding-bottom: 8px;
+        .datos-doc td {
+            vertical-align: top;
+            padding: 0 0 4px 0;
+            font-size: 11pt;
         }
-        .section {
-            margin-bottom: 18px;
-        }
-        .section-title {
-            font-size: 13px;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            text-decoration: underline;
-        }
-        .info-row {
-            margin-bottom: 4px;
-            padding-left: 20px;
-        }
-        .info-label {
+        .datos-doc td.label {
+            padding-right: 10px;
+            white-space: nowrap;
             font-weight: bold;
         }
-        .derivacion-box {
-            border: 1px solid #000;
-            padding: 12px 15px;
-            margin-bottom: 18px;
+        .seccion {
+            margin-bottom: 22px;
         }
-        .derivacion-box .deriv-row {
-            margin-bottom: 4px;
-        }
-        .acciones-title {
-            font-size: 13px;
+        .seccion-titulo {
             font-weight: bold;
-            text-transform: uppercase;
             margin-bottom: 8px;
         }
         .acciones-list {
@@ -101,19 +72,17 @@
             margin-left: 20px;
         }
         .acciones-list li {
-            padding: 3px 0;
-            font-size: 12px;
+            padding: 2px 0;
+            font-size: 11pt;
         }
         .acciones-list li:before {
-            content: "\2713  ";
+            content: "\2022  ";
             font-weight: bold;
         }
-        .observaciones-box {
-            border: 1px solid #999;
-            padding: 10px 15px;
-            margin-top: 5px;
-            min-height: 40px;
+        .observaciones {
+            text-align: justify;
             font-style: italic;
+            margin-left: 20px;
         }
         .firma-area {
             margin-top: 80px;
@@ -121,10 +90,17 @@
         }
         .firma-linea {
             border-top: 1px solid #000;
-            width: 280px;
+            width: 320px;
             margin: 0 auto;
-            padding-top: 5px;
-            font-size: 12px;
+            padding-top: 6px;
+            font-size: 11pt;
+            line-height: 1.5;
+        }
+        .firma-leyenda {
+            font-size: 10pt;
+            font-style: italic;
+            color: #444;
+            margin-top: 6px;
             line-height: 1.4;
         }
         .footer {
@@ -139,117 +115,112 @@
     </style>
 </head>
 <body>
-    <div class="page">
-        {{-- Encabezado con logo y título --}}
-        <table class="header-table">
-            <tr>
-                <td class="logo-cell">
-                    @if(!empty($logo_base64))
-                        <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
-                    @endif
-                </td>
-                <td class="title-cell">
-                    <h1>Ilustre Municipalidad de Cabo de Hornos</h1>
-                    <div class="subtitle">Regi&oacute;n de Magallanes y de la Ant&aacute;rtica Chilena</div>
-                </td>
-            </tr>
-        </table>
+    {{-- Encabezado: logo a la izquierda + título centrado (estilo memo) --}}
+    <div class="header">
+        @if(!empty($logo_base64))
+            <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
+        @endif
+        <h2 class="titulo"><strong>PROVIDENCIA N&ordm; {{ $folio }}</strong></h2>
+    </div>
 
-        {{-- Fecha a la derecha --}}
-        <div class="date-right">
-            Puerto Williams, {{ $fecha }}
-        </div>
+    {{-- Referencia + fecha derecha --}}
+    <div class="ref-fecha">
+        <p><strong>Ref:</strong> {{ $numero_documento ?? 'Sin n&uacute;mero' }}{{ !empty($remitente) ? ' &mdash; ' . $remitente : '' }}</p>
+        <p><strong>Puerto Williams,</strong> {{ $fecha }}</p>
+    </div>
 
-        {{-- Título PROVIDENCIA --}}
-        <div class="providencia-title">
-            PROVIDENCIA N&ordm; {{ $folio }}
-        </div>
-
-        {{-- Datos del Documento --}}
-        <div class="section">
-            <div class="section-title">Datos del Documento</div>
-            <div class="info-row">
-                <span class="info-label">Remitente:</span> {{ $remitente }}
-            </div>
-            <div class="info-row">
-                <span class="info-label">N&ordm; Documento:</span> {{ $numero_documento ?? 'Sin n&uacute;mero' }}
-            </div>
-            <div class="info-row">
-                <span class="info-label">Fecha Recepci&oacute;n:</span> {{ $fecha_recepcion }}
-            </div>
-            <div class="info-row">
-                <span class="info-label">Descripci&oacute;n:</span> {{ $descripcion ?? 'Sin descripci&oacute;n' }}
-            </div>
-        </div>
-
-        {{-- Derivación --}}
-        <div class="section">
-            <div class="section-title">Derivaci&oacute;n</div>
-            <div class="derivacion-box">
-                <div class="deriv-row">
-                    <span class="info-label">De:</span> {{ $usuario_origen }} &mdash; {{ $departamento_origen }}
-                </div>
-                <div class="deriv-row">
-                    <span class="info-label">Para:</span> {{ $departamento_destino }}
-                </div>
+    {{-- DE / PARA (estilo memo) --}}
+    <table class="de-para">
+        <tr>
+            <td class="label"><strong>DE:</strong></td>
+            <td>{{ $usuario_origen }}{{ !empty($departamento_origen) ? ' &mdash; ' . $departamento_origen : '' }}</td>
+        </tr>
+        <tr>
+            <td class="label"><strong>PARA:</strong></td>
+            <td>
+                {{ $departamento_destino }}
                 @if(!empty($usuario_destino))
-                <div class="deriv-row">
-                    <span class="info-label">Destinatario:</span> {{ $usuario_destino }}
-                </div>
+                    <br/>{{ $usuario_destino }}
                 @endif
-            </div>
-        </div>
+            </td>
+        </tr>
+    </table>
 
-        {{-- Acciones PARA --}}
-        @if(!empty($acciones_para) && count($acciones_para) > 0)
-        <div class="section">
-            <div class="acciones-title">PARA:</div>
-            <ul class="acciones-list">
-                @foreach($acciones_para as $accion)
-                    <li>{{ $accion }}</li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
+    {{-- Datos de la correspondencia original --}}
+    <div class="seccion">
+        <div class="seccion-titulo">Documento de origen</div>
+        <table class="datos-doc">
+            <tr>
+                <td class="label">Fecha recepci&oacute;n:</td>
+                <td>{{ $fecha_recepcion }}</td>
+            </tr>
+            @if(!empty($descripcion))
+            <tr>
+                <td class="label">Descripci&oacute;n:</td>
+                <td>{{ $descripcion }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
 
-        {{-- Observaciones --}}
-        @if(!empty($observaciones))
-        <div class="section">
-            <div class="section-title">Observaciones</div>
-            <div class="observaciones-box">
-                {{ $observaciones }}
-            </div>
-        </div>
-        @endif
+    {{-- Acciones PARA --}}
+    @if(!empty($acciones_para) && count($acciones_para) > 0)
+    <div class="seccion">
+        <div class="seccion-titulo">Se solicita:</div>
+        <ul class="acciones-list">
+            @foreach($acciones_para as $accion)
+                <li>{{ $accion }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
 
-        {{-- Firma del Alcalde --}}
-        <div class="firma-area">
-            <div class="firma-linea">
-                {{ $usuario_origen }}<br>
-                Alcalde<br>
+    {{-- Observaciones --}}
+    @if(!empty($observaciones))
+    <div class="seccion">
+        <div class="seccion-titulo">Observaciones</div>
+        <div class="observaciones">{{ $observaciones }}</div>
+    </div>
+    @endif
+
+    {{-- Firma del Alcalde (con leyenda de subrogancia si aplica) --}}
+    <div class="firma-area">
+        <div class="firma-linea">
+            @if(!empty($subrogante_nombre))
+                {{-- Caso subrogancia: línea principal con nombre+cargo del firmante real (subrogante), leyenda abajo --}}
+                <strong>{{ $subrogante_nombre }}</strong><br>
+                {{ $subrogante_cargo ?? 'Funcionario subrogante' }}<br>
                 Ilustre Municipalidad de Cabo de Hornos
-            </div>
-        </div>
-
-        {{-- Pie de página --}}
-        <div class="footer">
-            Documento generado autom&aacute;ticamente por el Sistema de Correspondencia Municipal &mdash; {{ $folio }} &mdash; {{ $fecha }}
-            @if(!empty($codigo_verificacion))
-                <br/>Verifique en: <strong>{{ $verificar_url ?? '' }}</strong>
+                <div class="firma-leyenda">
+                    Por orden de <strong>{{ $usuario_origen }}</strong>,
+                    {{ $cargo_titular ?? 'Alcalde' }}, en calidad de subrogante legal.
+                </div>
+            @else
+                <strong>{{ $usuario_origen }}</strong><br>
+                {{ $cargo_titular ?? 'Alcalde' }}<br>
+                Ilustre Municipalidad de Cabo de Hornos
             @endif
         </div>
+    </div>
 
-        {{-- QR fijo en esquina inferior derecha (no afecta flujo del documento) --}}
+    {{-- Pie de página --}}
+    <div class="footer">
+        Documento generado autom&aacute;ticamente por el Sistema de Correspondencia Municipal &mdash; {{ $folio }} &mdash; {{ $fecha }}
         @if(!empty($codigo_verificacion))
-        <div style="position:fixed;bottom:30px;right:40px;text-align:center;">
-            @if(!empty($qr_svg))
-                <div style="width:70px;height:70px;">{!! $qr_svg !!}</div>
-            @endif
-            <div style="font-size:6px;color:#666;margin-top:1px;">
-                C&oacute;d: {{ $codigo_verificacion }}
-            </div>
-        </div>
+            <br/>Verifique en: <strong>{{ $verificar_url ?? '' }}</strong>
         @endif
     </div>
+
+    {{-- QR fijo en esquina inferior derecha --}}
+    @if(!empty($codigo_verificacion))
+    <div style="position:fixed;bottom:30px;right:40px;text-align:center;">
+        @if(!empty($qr_svg))
+            <div style="width:70px;height:70px;">{!! $qr_svg !!}</div>
+        @endif
+        <div style="font-size:6px;color:#666;margin-top:1px;">
+            C&oacute;d: {{ $codigo_verificacion }}
+        </div>
+    </div>
+    @endif
 </body>
 </html>

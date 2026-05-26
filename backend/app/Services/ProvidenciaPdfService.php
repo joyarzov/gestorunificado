@@ -15,12 +15,16 @@ class ProvidenciaPdfService
      * Genera el binario PDF de una providencia (no persiste nada).
      *
      * Datos esperados en $params:
-     *  - usuario_origen (string)
+     *  - usuario_origen (string) — nombre del titular del cargo (ej: Alcalde)
      *  - departamento_origen (string)
      *  - departamento_destino (string)
      *  - usuario_destino (?string)
+     *  - cargo_titular (?string) — cargo del titular ("Alcalde" por defecto)
      *  - acciones_para (?array)
      *  - observaciones (?string)
+     *  - subrogante_nombre (?string) — si la providencia se firma por subrogancia,
+     *    aquí va el nombre de quien efectivamente firma (no el titular).
+     *  - subrogante_cargo (?string) — cargo del subrogante.
      *
      * @return array{pdf_content: string, folio: string, codigo_verificacion: string}
      */
@@ -54,11 +58,14 @@ class ProvidenciaPdfService
                 : 'No especificada',
             'descripcion'          => $correspondencia->descripcion,
             'usuario_origen'       => $params['usuario_origen'] ?? '',
+            'cargo_titular'        => $params['cargo_titular'] ?? 'Alcalde',
             'departamento_origen'  => $params['departamento_origen'] ?? 'Alcaldía',
             'departamento_destino' => $params['departamento_destino'] ?? 'Alcaldía',
             'usuario_destino'      => $params['usuario_destino'] ?? '',
             'acciones_para'        => $params['acciones_para'] ?? [],
             'observaciones'        => $params['observaciones'] ?? null,
+            'subrogante_nombre'    => $params['subrogante_nombre'] ?? null,
+            'subrogante_cargo'     => $params['subrogante_cargo'] ?? null,
             'logo_base64'          => $logoBase64,
             'codigo_verificacion'  => $codigoVerificacion,
             'qr_svg'               => $qrSvg,
