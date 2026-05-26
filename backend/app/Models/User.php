@@ -21,6 +21,9 @@ class User extends Authenticatable
         'aplicaciones_permitidas',
         'departamento_id',
         'subrogante_id',
+        'subrogancia_activa',
+        'subrogancia_desde',
+        'subrogancia_hasta',
         'activo',
         'visador',
     ];
@@ -37,6 +40,9 @@ class User extends Authenticatable
         'aplicaciones_permitidas' => 'array',
         'activo' => 'boolean',
         'visador' => 'boolean',
+        'subrogancia_activa' => 'boolean',
+        'subrogancia_desde' => 'datetime',
+        'subrogancia_hasta' => 'datetime',
     ];
 
     // Relaciones
@@ -128,6 +134,25 @@ class User extends Authenticatable
     public function isVisador(): bool
     {
         return $this->visador;
+    }
+
+    /**
+     * ¿Este usuario está actualmente subrogado? Devuelve true si el flag está activo
+     * y la fecha actual cae dentro del rango (desde/hasta nullable los hace abiertos).
+     */
+    public function tieneSubroganciaActiva(): bool
+    {
+        if (!$this->subrogancia_activa) {
+            return false;
+        }
+        $now = now();
+        if ($this->subrogancia_desde && $now->lt($this->subrogancia_desde)) {
+            return false;
+        }
+        if ($this->subrogancia_hasta && $now->gt($this->subrogancia_hasta)) {
+            return false;
+        }
+        return true;
     }
 
     // Formatear RUT

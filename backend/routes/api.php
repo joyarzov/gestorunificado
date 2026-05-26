@@ -96,6 +96,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Visible para cualquier autenticado
         Route::get('/', [OrganigramaController::class, 'index']);
         Route::patch('/mi-subrogante', [OrganigramaController::class, 'actualizarMiSubrogante']);
+        Route::post('/mi-subrogancia/activar', [OrganigramaController::class, 'activarMiSubrogancia']);
+        Route::post('/mi-subrogancia/desactivar', [OrganigramaController::class, 'desactivarMiSubrogancia']);
 
         // Mutaciones estructurales: solo admin
         Route::middleware('role:admin')->group(function () {
@@ -104,6 +106,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/departamentos/{departamento}/parent', [OrganigramaController::class, 'actualizarParent']);
             Route::patch('/departamentos/{departamento}/jefe', [OrganigramaController::class, 'actualizarJefe']);
             Route::patch('/usuarios/{user}/departamento', [OrganigramaController::class, 'moverUsuarioDepartamento']);
+            Route::post('/usuarios/{user}/subrogancia/activar', [OrganigramaController::class, 'activarSubroganciaDeUsuario']);
+            Route::post('/usuarios/{user}/subrogancia/desactivar', [OrganigramaController::class, 'desactivarSubroganciaDeUsuario']);
         });
     });
 

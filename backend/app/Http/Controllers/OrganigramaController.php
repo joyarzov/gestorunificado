@@ -189,6 +189,90 @@ class OrganigramaController extends Controller
     }
 
     /**
+     * Activa la subrogancia del usuario autenticado: a partir de ahora (o desde la
+     * fecha indicada), su subrogante verá la bandeja y podrá actuar en su nombre.
+     */
+    public function activarMiSubrogancia(Request $request)
+    {
+        $data = $request->validate([
+            'desde' => 'nullable|date',
+            'hasta' => 'nullable|date|after_or_equal:desde',
+        ]);
+
+        $user = Auth::user();
+
+        if (!$user->subrogante_id) {
+            return $this->errorResponse('Debes asignar primero un subrogante antes de activar la subrogancia', 422);
+        }
+
+        $user->update([
+            'subrogancia_activa' => true,
+            'subrogancia_desde'  => $data['desde'] ?? now(),
+            'subrogancia_hasta'  => $data['hasta'] ?? null,
+        ]);
+
+        $user->load('subrogante:id,nombre,cargo');
+
+        return $this->successResponse($user, 'Subrogancia activada');
+    }
+
+    /**
+     * Desactiva la subrogancia del usuario autenticado.
+     */
+    public function desactivarMiSubrogancia()
+    {
+        $user = Auth::user();
+
+        $user->update([
+            'subrogancia_activa' => false,
+            'subrogancia_desde'  => null,
+            'subrogancia_hasta'  => null,
+        ]);
+
+        return $this->successResponse($user, 'Subrogancia desactivada');
+    }
+
+    /**
+     * Admin: activa la subrogancia de cualquier usuario (caso uso: ausencia
+     * imprevista en que el subrogado no alcanzó a activarla).
+     */
+    public function activarSubroganciaDeUsuario(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'desde' => 'nullable|date',
+            'hasta' => 'nullable|date|after_or_equal:desde',
+        ]);
+
+        if (!$user->subrogante_id) {
+            return $this->errorResponse('El usuario no tiene subrogante asignado', 422);
+        }
+
+        $user->update([
+            'subrogancia_activa' => true,
+            'subrogancia_desde'  => $data['desde'] ?? now(),
+            'subrogancia_hasta'  => $data['hasta'] ?? null,
+        ]);
+
+        $user->load('subrogante:id,nombre,cargo');
+
+        return $this->successResponse($user, "Subrogancia de {$user->nombre} activada");
+    }
+
+    /**
+     * Admin: desactiva la subrogancia de cualquier usuario.
+     */
+    public function desactivarSubroganciaDeUsuario(User $user)
+    {
+        $user->update([
+            'subrogancia_activa' => false,
+            'subrogancia_desde'  => null,
+            'subrogancia_hasta'  => null,
+        ]);
+
+        return $this->successResponse($user, "Subrogancia de {$user->nombre} desactivada");
+    }
+
+    /**
      * Verifica si $posibleDescendienteId está dentro del subárbol de $ancestroId.
      */
     private function esDescendiente(int $posibleDescendienteId, int $ancestroId): bool

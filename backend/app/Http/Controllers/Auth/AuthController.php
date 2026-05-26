@@ -57,8 +57,37 @@ class AuthController extends Controller
                 'departamento_id' => $user->departamento_id,
                 'departamento' => $user->departamento?->nombre,
                 'visador' => $user->visador,
+                'subrogados_activos' => $this->subrogadosActivos($user),
             ],
         ], 'Login exitoso');
+    }
+
+    /**
+     * Lista de usuarios cuya subrogancia está activa *hoy* y cuyo subrogante es $user.
+     * El frontend usa esto para ofrecer "Actuar como X" en el selector de rol.
+     */
+    private function subrogadosActivos(User $user): array
+    {
+        $now = now();
+        return User::where('subrogante_id', $user->id)
+            ->where('subrogancia_activa', true)
+            ->where('activo', true)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('subrogancia_desde')->orWhere('subrogancia_desde', '<=', $now);
+            })
+            ->where(function ($q) use ($now) {
+                $q->whereNull('subrogancia_hasta')->orWhere('subrogancia_hasta', '>=', $now);
+            })
+            ->get(['id', 'nombre', 'cargo', 'roles', 'departamento_id', 'subrogancia_hasta'])
+            ->map(fn ($u) => [
+                'id'               => $u->id,
+                'nombre'           => $u->nombre,
+                'cargo'            => $u->cargo,
+                'roles'            => $u->roles ?? [],
+                'departamento_id'  => $u->departamento_id,
+                'subrogancia_hasta' => $u->subrogancia_hasta,
+            ])
+            ->all();
     }
 
     /**
@@ -96,6 +125,10 @@ class AuthController extends Controller
                 'nombre' => $user->subrogante->nombre,
                 'cargo' => $user->subrogante->cargo,
             ] : null,
+            'subrogancia_activa' => $user->subrogancia_activa,
+            'subrogancia_desde' => $user->subrogancia_desde,
+            'subrogancia_hasta' => $user->subrogancia_hasta,
+            'subrogados_activos' => $this->subrogadosActivos($user),
             'visador' => $user->visador,
             'activo' => $user->activo,
         ]);
