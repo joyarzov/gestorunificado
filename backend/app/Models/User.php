@@ -96,15 +96,47 @@ class User extends Authenticatable
         return $this->hasMany(Departamento::class, 'jefe_id');
     }
 
+    /**
+     * Usuario al que este User está "subrogando" en la request actual.
+     * Lo setea el middleware ActuandoComo cuando el cliente envía
+     * X-Actuando-Como con un subrogado válido.
+     */
+    protected ?User $actuandoComo = null;
+
+    public function setActuandoComo(?User $u): void
+    {
+        $this->actuandoComo = $u;
+    }
+
+    public function getActuandoComo(): ?User
+    {
+        return $this->actuandoComo;
+    }
+
+    /**
+     * Roles efectivos: propios ∪ roles del subrogado si hay actuandoComo activo.
+     */
+    public function getRolesEfectivos(): array
+    {
+        $propios = $this->roles ?? [];
+        if ($this->actuandoComo) {
+            $propios = array_values(array_unique(array_merge(
+                $propios,
+                $this->actuandoComo->roles ?? []
+            )));
+        }
+        return $propios;
+    }
+
     // Helpers
     public function hasRole(string $role): bool
     {
-        return in_array($role, $this->roles ?? []);
+        return in_array($role, $this->getRolesEfectivos());
     }
 
     public function hasAnyRole(array $roles): bool
     {
-        return !empty(array_intersect($roles, $this->roles ?? []));
+        return !empty(array_intersect($roles, $this->getRolesEfectivos()));
     }
 
     public function hasAplicacion(string $app): bool

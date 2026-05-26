@@ -9,6 +9,8 @@ import {
   ListItemText,
   Typography,
   Box,
+  Divider,
+  Chip,
 } from '@mui/material'
 import {
   AdminPanelSettings as AdminIcon,
@@ -16,8 +18,10 @@ import {
   Person as UsuarioIcon,
   AccountBalance as AlcaldeIcon,
   Storefront as FomentoIcon,
+  SupervisorAccount as SubroganciaIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
+import { SubrogadoActivo } from '../../types'
 
 const roleConfig: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
   admin: {
@@ -47,15 +51,22 @@ const roleConfig: Record<string, { label: string; icon: React.ReactNode; descrip
   },
 }
 
+// Jerarquía para elegir el "rol principal" que se mostrará al actuar como subrogado.
+const PRIORIDAD_ROLES = ['alcalde', 'admin', 'oficial', 'oirs', 'fomento_productivo', 'usuario']
+
+const rolPrincipal = (roles: string[]): string => {
+  for (const r of PRIORIDAD_ROLES) {
+    if (roles.includes(r)) return r
+  }
+  return roles[0] || 'usuario'
+}
+
 const RoleSelectorDialog = () => {
-  const { user, showRoleSelector, selectRole, setShowRoleSelector } = useAuth()
+  const { user, showRoleSelector, selectRole, actuarComo } = useAuth()
 
   if (!user || !showRoleSelector) return null
 
-  const handleSelectRole = (role: string) => {
-    selectRole(role)
-    setShowRoleSelector(false)
-  }
+  const subrogadosActivos: SubrogadoActivo[] = user.subrogados_activos ?? []
 
   return (
     <Dialog open={showRoleSelector} maxWidth="xs" fullWidth>
@@ -83,7 +94,7 @@ const RoleSelectorDialog = () => {
             return (
               <ListItem key={role} disablePadding>
                 <ListItemButton
-                  onClick={() => handleSelectRole(role)}
+                  onClick={() => selectRole(role)}
                   sx={{
                     borderRadius: 2,
                     mb: 1,
@@ -107,6 +118,44 @@ const RoleSelectorDialog = () => {
               </ListItem>
             )
           })}
+
+          {subrogadosActivos.length > 0 && (
+            <>
+              <Divider sx={{ my: 1.5 }}>
+                <Chip label="Subrogancias activas" size="small" color="warning" variant="outlined" />
+              </Divider>
+              {subrogadosActivos.map((s) => {
+                const rol = rolPrincipal(s.roles)
+                const cfg = roleConfig[rol] || { label: rol, icon: <SubroganciaIcon />, description: '' }
+                return (
+                  <ListItem key={`sub-${s.id}`} disablePadding>
+                    <ListItemButton
+                      onClick={() => actuarComo(s, rol)}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 1,
+                        border: '1px solid',
+                        borderColor: 'warning.light',
+                        backgroundColor: 'warning.50',
+                        '&:hover': {
+                          backgroundColor: 'warning.light',
+                          borderColor: 'warning.main',
+                        },
+                      }}
+                    >
+                      <ListItemIcon>
+                        <SubroganciaIcon color="warning" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`Actuar como ${s.nombre}`}
+                        secondary={`${cfg.label}${s.cargo ? ` · ${s.cargo}` : ''} — Subrogancia activa`}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                )
+              })}
+            </>
+          )}
         </List>
       </DialogContent>
     </Dialog>

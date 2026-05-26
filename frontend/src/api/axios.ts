@@ -10,12 +10,17 @@ const api = axios.create({
   },
 })
 
-// Interceptor para agregar token
+// Interceptor para agregar token y, si estoy "actuando como" otro usuario
+// por subrogancia, el header X-Actuando-Como con su id.
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    const actuandoComoId = sessionStorage.getItem('actuandoComoId')
+    if (actuandoComoId) {
+      config.headers['X-Actuando-Como'] = actuandoComoId
     }
     return config
   },
@@ -32,6 +37,8 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       sessionStorage.removeItem('selectedRole')
+      sessionStorage.removeItem('actuandoComoId')
+      sessionStorage.removeItem('actuandoComo')
       window.location.href = '/login'
     }
     return Promise.reject(error)
