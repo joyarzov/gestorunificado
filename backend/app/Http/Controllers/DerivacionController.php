@@ -345,18 +345,22 @@ class DerivacionController extends Controller
             return [
                 'usuario_origen'      => $titular->nombre,
                 'cargo_titular'       => $titular->cargo ?? 'Alcalde',
+                'titular_rut'         => $titular->rut,
                 'departamento_origen' => $titular->departamento?->nombre ?? 'Alcaldía',
                 'subrogante_nombre'   => $user->nombre,
                 'subrogante_cargo'    => $user->cargo,
+                'subrogante_rut'      => $user->rut,
             ];
         }
 
         return [
             'usuario_origen'      => $user->nombre,
             'cargo_titular'       => $user->cargo ?? 'Alcalde',
+            'titular_rut'         => $user->rut,
             'departamento_origen' => $user->departamento?->nombre ?? 'Alcaldía',
             'subrogante_nombre'   => null,
             'subrogante_cargo'    => null,
+            'subrogante_rut'      => null,
         ];
     }
 
