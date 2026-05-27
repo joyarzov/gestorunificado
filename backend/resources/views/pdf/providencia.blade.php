@@ -5,7 +5,7 @@
     <title>Providencia {{ $folio }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { margin: 2cm 3cm 2.5cm 3cm; }
+        @page { margin: 2.5cm 4cm 3cm 4cm; }
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
@@ -118,8 +118,8 @@
         }
         .footer {
             position: fixed;
-            bottom: 1cm;
-            right: 2.5cm;
+            bottom: 1.5cm;
+            right: 4cm;
             text-align: right;
             font-size: 8pt;
             color: #666;
@@ -127,8 +127,8 @@
         }
         .qr-box {
             position: fixed;
-            bottom: 1cm;
-            left: 2.5cm;
+            bottom: 1.5cm;
+            left: 4cm;
             text-align: center;
         }
         .qr-box img {
