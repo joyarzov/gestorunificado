@@ -33,7 +33,7 @@ const CorrespondenciaCreate = () => {
   const [loadingData, setLoadingData] = useState(false)
   const [error, setError] = useState('')
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
-  const [adjunto, setAdjunto] = useState<File | null>(null)
+  const [adjuntos, setAdjuntos] = useState<File[]>([])
   const [adjuntoError, setAdjuntoError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -90,18 +90,33 @@ const CorrespondenciaCreate = () => {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAdjuntoError('')
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
 
-    if (file.type !== 'application/pdf') {
-      setAdjuntoError('Solo se permiten archivos PDF')
-      return
+    const rechazados: string[] = []
+    const aceptados: File[] = []
+    for (const f of files) {
+      if (f.type !== 'application/pdf') {
+        rechazados.push(`${f.name}: solo PDF`)
+        continue
+      }
+      if (f.size > MAX_FILE_SIZE) {
+        rechazados.push(`${f.name}: supera 10 MB`)
+        continue
+      }
+      aceptados.push(f)
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setAdjuntoError('El archivo no debe superar los 10 MB')
-      return
+
+    setAdjuntos((prev) => [...prev, ...aceptados])
+    if (rechazados.length) {
+      setAdjuntoError(rechazados.join(' · '))
     }
-    setAdjunto(file)
+    // Reset el input para que se pueda volver a seleccionar el mismo archivo si se elimina.
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeAdjunto = (index: number) => {
+    setAdjuntos((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,15 +139,20 @@ const CorrespondenciaCreate = () => {
         const response = await correspondenciaAPI.crear(data)
         const correspondenciaId = response.data.id
 
-        // Subir adjunto si se seleccionó
-        if (adjunto) {
+        // Subir los adjuntos secuencialmente. Si alguno falla, registra el
+        // nombre pero sigue con los demás (la correspondencia ya fue creada).
+        const fallidos: string[] = []
+        for (const file of adjuntos) {
           try {
-            await correspondenciaAPI.subirAdjunto(correspondenciaId, adjunto)
+            await correspondenciaAPI.subirAdjunto(correspondenciaId, file)
           } catch (err) {
-            console.error('Error al subir adjunto:', err)
-            navigate(`/correspondencia/${correspondenciaId}`)
-            return
+            console.error(`Error subiendo adjunto ${file.name}:`, err)
+            fallidos.push(file.name)
           }
+        }
+
+        if (fallidos.length) {
+          setError(`Correspondencia creada, pero fallaron estos adjuntos: ${fallidos.join(', ')}`)
         }
 
         navigate(`/correspondencia/${correspondenciaId}`)
@@ -233,31 +253,33 @@ const CorrespondenciaCreate = () => {
               {!isEditMode && (
                 <Grid item xs={12} md={6}>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Documento adjunto (PDF, máx. 10 MB)
+                    Documentos adjuntos (PDF, máx. 10 MB c/u)
                   </Typography>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".pdf"
+                    multiple
                     style={{ display: 'none' }}
                     onChange={handleFileSelect}
                   />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                     <Button
                       variant="outlined"
                       startIcon={<UploadIcon />}
                       onClick={() => fileInputRef.current?.click()}
                       size="small"
                     >
-                      Seleccionar PDF
+                      {adjuntos.length === 0 ? 'Seleccionar PDFs' : 'Agregar más'}
                     </Button>
-                    {adjunto && (
+                    {adjuntos.map((file, idx) => (
                       <Chip
-                        label={adjunto.name}
-                        onDelete={() => { setAdjunto(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                        key={`${file.name}-${idx}`}
+                        label={file.name}
+                        onDelete={() => removeAdjunto(idx)}
                         size="small"
                       />
-                    )}
+                    ))}
                   </Box>
                   {adjuntoError && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
