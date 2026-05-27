@@ -31,19 +31,20 @@
             padding: 0;
         }
         .header-logo {
-            width: 160px;
+            width: 120px;
         }
         .header-logo img {
-            max-width: 140px;
+            max-width: 110px;
             height: auto;
         }
         .header-titulo {
             text-align: center;
-            font-size: 15pt;
+            font-size: 14pt;
             font-weight: bold;
+            white-space: nowrap;
         }
         .header-spacer {
-            width: 160px;
+            width: 120px;
         }
         .ref-fecha {
             margin-top: 0;
