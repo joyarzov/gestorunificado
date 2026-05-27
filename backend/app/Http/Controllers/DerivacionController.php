@@ -113,7 +113,7 @@ class DerivacionController extends Controller
                         $user->rut,
                         $request->otp,
                         $user->nombre,
-                        $user->cargo ?? 'Alcalde',
+                        $user->cargoFirma() ?? 'Alcalde',
                         $coords,
                         $firmaPage
                     );
@@ -535,7 +535,7 @@ class DerivacionController extends Controller
                         $user->rut,
                         $request->otp,
                         $user->nombre,
-                        $user->cargo ?? 'Alcalde',
+                        $user->cargoFirma() ?? 'Alcalde',
                         $coords,
                         $firmaPage
                     );

@@ -187,13 +187,12 @@
     <div class="firma-area">
         <div class="firma-linea">
             @if(!empty($subrogante_nombre))
-                {{-- Caso subrogancia: línea principal con nombre+cargo del firmante real (subrogante), leyenda abajo --}}
+                {{-- Subrogancia: cargo del firmante real con sufijo (S); leyenda chica abajo identifica al titular --}}
                 <strong>{{ $subrogante_nombre }}</strong><br>
-                {{ $subrogante_cargo ?? 'Funcionario subrogante' }}<br>
+                {{ $subrogante_cargo ?? 'Funcionario' }} (S)<br>
                 Ilustre Municipalidad de Cabo de Hornos
                 <div class="firma-leyenda">
-                    Por orden de <strong>{{ $usuario_origen }}</strong>,
-                    {{ $cargo_titular ?? 'Alcalde' }}, en calidad de subrogante legal.
+                    Subrogante del {{ $cargo_titular ?? 'Alcalde' }} <strong>{{ $usuario_origen }}</strong>.
                 </div>
             @else
                 <strong>{{ $usuario_origen }}</strong><br>

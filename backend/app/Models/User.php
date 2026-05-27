@@ -125,6 +125,19 @@ class User extends Authenticatable
     }
 
     /**
+     * Cargo para mostrar en bloques de firma electrónica: el cargo propio
+     * con sufijo "(S)" cuando el usuario está actuando como subrogado.
+     * Devuelve null si el usuario no tiene cargo declarado.
+     */
+    public function cargoFirma(): ?string
+    {
+        if (!$this->cargo) {
+            return null;
+        }
+        return $this->actuandoComo ? $this->cargo . ' (S)' : $this->cargo;
+    }
+
+    /**
      * Roles efectivos: propios ∪ roles del subrogado si hay actuandoComo activo.
      */
     public function getRolesEfectivos(): array

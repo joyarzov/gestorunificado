@@ -518,25 +518,16 @@ class DocumentoController extends Controller
             try {
                 $pdfContent = $this->obtenerPdfContent($documento);
 
-                // Firma siempre con el RUT/nombre real (quien teclea el OTP). Si
-                // está subrogando, se agrega leyenda al cargo para reflejar la
-                // delegación en el bloque visual del PDF.
-                $actuandoComo = $user->getActuandoComo();
-                $cargoFirma = $user->cargo ?? null;
-                if ($actuandoComo) {
-                    $cargoSubrogado = trim(($actuandoComo->cargo ?? '') . ' ' . $actuandoComo->nombre);
-                    $cargoFirma = $cargoFirma
-                        ? "{$cargoFirma} (por orden del {$cargoSubrogado})"
-                        : "Por orden del {$cargoSubrogado}";
-                }
-
+                // Firma siempre con el RUT/nombre real (quien teclea el OTP).
+                // El cargo lleva sufijo "(S)" automáticamente si está subrogando;
+                // la trazabilidad del subrogado queda en documento_firmas.actuando_como_user_id.
                 $result = $firmaGobService->sign(
                     $pdfContent,
                     "Documento {$documento->numero}",
                     $user->rut,
                     $request->otp,
                     $user->nombre,
-                    $cargoFirma,
+                    $user->cargoFirma(),
                     $coords,
                     $request->firma_page ?? 'LAST'
                 );
