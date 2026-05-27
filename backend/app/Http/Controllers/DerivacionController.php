@@ -448,11 +448,10 @@ class DerivacionController extends Controller
 
     public function pendientes()
     {
-        $user = Auth::user();
-
-        // Usuarios de los que este usuario es subrogante (derivaciones dirigidas a ellos
-        // tambien deben aparecer en su bandeja).
-        $subrogadosIds = $user->subrogados()->pluck('id')->all();
+        // Switch limpio: si hay subrogancia activa (X-Actuando-Como), la bandeja
+        // es la del subrogado. Sin toggle, es la propia. El usuario real
+        // (Auth::user()) solo importa para trazabilidad y firma, no aquí.
+        $ctx = Auth::user()->contexto();
 
         $derivaciones = Derivacion::with([
             'correspondencia',
@@ -461,16 +460,11 @@ class DerivacionController extends Controller
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
         ])
-            ->where('departamento_destino_id', $user->departamento_id)
+            ->where('departamento_destino_id', $ctx->departamento_id)
             ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])
-            ->where(function ($q) use ($user, $subrogadosIds) {
-                // Si no hay usuario destino especifico, la ven todos los del depto.
-                // Si hay usuario destino, solo la ve ese usuario o sus subrogantes.
+            ->where(function ($q) use ($ctx) {
                 $q->whereNull('usuario_destino_id')
-                    ->orWhere('usuario_destino_id', $user->id);
-                if (!empty($subrogadosIds)) {
-                    $q->orWhereIn('usuario_destino_id', $subrogadosIds);
-                }
+                    ->orWhere('usuario_destino_id', $ctx->id);
             })
             ->orderBy('created_at', 'desc')
             ->get();
@@ -482,7 +476,7 @@ class DerivacionController extends Controller
     {
         $user = Auth::user();
 
-        if ($derivacion->departamento_destino_id !== $user->departamento_id) {
+        if ($derivacion->departamento_destino_id !== $user->contexto()->departamento_id) {
             return $this->errorResponse('No tienes permiso para recibir esta derivación', 403);
         }
 
@@ -598,7 +592,7 @@ class DerivacionController extends Controller
     {
         $user = Auth::user();
 
-        if ($derivacion->departamento_destino_id !== $user->departamento_id) {
+        if ($derivacion->departamento_destino_id !== $user->contexto()->departamento_id) {
             return $this->errorResponse('No tienes permiso para archivar esta derivación', 403);
         }
 

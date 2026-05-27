@@ -39,7 +39,7 @@ const BandejaEntrada = () => {
 
   useEffect(() => {
     loadBandeja()
-  }, [])
+  }, [actuandoComo?.id])
 
   const loadBandeja = async () => {
     setLoading(true)

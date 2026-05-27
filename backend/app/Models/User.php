@@ -114,6 +114,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Usuario "efectivo" para filtros de visibilidad y autorización por
+     * depto/usuario: el subrogado si hay "actuando como" activo, o el
+     * propio usuario si no. NO usar para trazabilidad ni firma — para
+     * eso siempre es el usuario autenticado real.
+     */
+    public function contexto(): self
+    {
+        return $this->actuandoComo ?? $this;
+    }
+
+    /**
      * Roles efectivos: propios ∪ roles del subrogado si hay actuandoComo activo.
      */
     public function getRolesEfectivos(): array

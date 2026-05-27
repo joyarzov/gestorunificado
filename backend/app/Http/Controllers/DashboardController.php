@@ -39,10 +39,12 @@ class DashboardController extends Controller
 
     private function getCorrespondenciaStats($user)
     {
-        // Derivaciones pendientes para el departamento del usuario
+        // Counter coherente con la bandeja: si hay subrogancia activa, los
+        // pendientes son los del depto del subrogado.
+        $ctx = $user->contexto();
         $pendientesBandeja = 0;
-        if ($user->departamento_id) {
-            $pendientesBandeja = Derivacion::where('departamento_destino_id', $user->departamento_id)
+        if ($ctx->departamento_id) {
+            $pendientesBandeja = Derivacion::where('departamento_destino_id', $ctx->departamento_id)
                 ->whereIn('estado', ['pendiente', 'recibido'])
                 ->count();
         }
