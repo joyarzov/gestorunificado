@@ -138,7 +138,7 @@ class CorrespondenciaController extends Controller
 
     public function bandeja(Request $request)
     {
-        $user = Auth::user();
+        $ctx = Auth::user()->contexto();
 
         $query = Derivacion::with([
             'correspondencia',
@@ -148,7 +148,7 @@ class CorrespondenciaController extends Controller
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
         ])
-            ->where('departamento_destino_id', $user->departamento_id)
+            ->where('departamento_destino_id', $ctx->departamento_id)
             ->whereIn('estado', ['pendiente', 'recibido']);
 
         $derivaciones = $query->orderBy('created_at', 'desc')

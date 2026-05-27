@@ -57,12 +57,16 @@ class DerivacionController extends Controller
         ]);
 
         $user = Auth::user();
+        $ctx = $user->contexto();
         $correspondencia = Correspondencia::find($request->correspondencia_id);
         $esAlcaldeDerivando = $user->isAlcalde() && $correspondencia->estado === 'derivada_alcaldia';
 
+        // Origen institucional = subrogado si hay actuando-como (es el alcalde
+        // quien "deriva"); actor real (usuario_origen_id) sigue siendo $user,
+        // con actuando_como_user_id apuntando al subrogado para trazabilidad.
         $derivacionData = [
             'correspondencia_id' => $request->correspondencia_id,
-            'departamento_origen_id' => $user->departamento_id,
+            'departamento_origen_id' => $ctx->departamento_id,
             'departamento_destino_id' => $request->departamento_destino_id,
             'usuario_origen_id' => $user->id,
             'usuario_destino_id' => $request->usuario_destino_id,
@@ -142,9 +146,11 @@ class DerivacionController extends Controller
                 'providencia_generada' => true,
             ]);
 
-            // Marcar la derivación original del alcalde como "derivado"
+            // Marcar la derivación original del alcalde como "derivado" (buscar
+            // por el depto del subrogado si hay actuando-como; en modo normal
+            // contexto == user).
             Derivacion::where('correspondencia_id', $correspondencia->id)
-                ->where('departamento_destino_id', $user->departamento_id)
+                ->where('departamento_destino_id', $ctx->departamento_id)
                 ->whereIn('estado', ['pendiente', 'recibido'])
                 ->where('id', '!=', $derivacion->id)
                 ->update(['estado' => 'derivado']);
@@ -210,13 +216,16 @@ class DerivacionController extends Controller
     public function pdf(Derivacion $derivacion)
     {
         $user = Auth::user();
+        $ctx = $user->contexto();
 
-        // Verificar acceso: origen, destino o admin
+        // Verificar acceso: origen, destino o admin. Cuando hay actuando-como,
+        // el check de depto considera al subrogado para que el subrogante vea
+        // los PDFs de las derivaciones del titular.
         $tieneAcceso = $user->isAdmin()
             || $derivacion->usuario_origen_id === $user->id
             || $derivacion->usuario_destino_id === $user->id
-            || $derivacion->departamento_origen_id === $user->departamento_id
-            || $derivacion->departamento_destino_id === $user->departamento_id
+            || $derivacion->departamento_origen_id === $ctx->departamento_id
+            || $derivacion->departamento_destino_id === $ctx->departamento_id
             || $user->isAlcalde();
 
         if (!$tieneAcceso) {
