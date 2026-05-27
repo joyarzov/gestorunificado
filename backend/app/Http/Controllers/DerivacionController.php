@@ -395,7 +395,7 @@ class DerivacionController extends Controller
             return $this->errorResponse('Sólo el Alcalde puede previsualizar la providencia de recepción', 403);
         }
 
-        if ($derivacion->departamento_destino_id !== $user->departamento_id) {
+        if ($derivacion->departamento_destino_id !== $user->contexto()->departamento_id) {
             return $this->errorResponse('No tienes permiso para esta derivación', 403);
         }
 
