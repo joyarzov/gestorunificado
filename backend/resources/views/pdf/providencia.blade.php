@@ -17,7 +17,7 @@
            DomPDF ignora consistentemente @page margin. Mantiene footer y
            qr-box (position: fixed) anclados a la página real. */
         .page-content {
-            padding: 2.5cm 4cm 3cm 4cm;
+            padding: 2cm 4cm 2.5cm 4cm;
         }
         .header img {
             max-width: 180px;
@@ -93,10 +93,12 @@
         /* Bloque de firma estilo memo Cero Papel: alineado a la izquierda,
            línea horizontal sobre el nombre, RUT en gris, cargo/leyenda debajo. */
         .firma-area {
-            margin-top: 90px;
+            margin-top: 50px;
+            page-break-inside: avoid;
         }
         .firma-bloque {
             width: 320px;
+            page-break-inside: avoid;
         }
         .firma-linea-top {
             border-top: 1px solid #000;
