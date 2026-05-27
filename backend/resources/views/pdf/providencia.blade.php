@@ -4,19 +4,20 @@
     <meta charset="UTF-8">
     <title>Providencia {{ $folio }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page {
-            size: letter portrait;
-            margin-top: 2.5cm;
-            margin-right: 4cm;
-            margin-bottom: 3cm;
-            margin-left: 4cm;
-        }
+        @page { size: letter portrait; margin: 0; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
             color: #000;
             line-height: 1.5;
+        }
+        /* Wrapper que crea los márgenes "ópticos" del documento, ya que
+           DomPDF ignora consistentemente @page margin. Mantiene footer y
+           qr-box (position: fixed) anclados a la página real. */
+        .page-content {
+            padding: 2.5cm 4cm 3cm 4cm;
         }
         .header img {
             max-width: 180px;
@@ -149,6 +150,7 @@
     </style>
 </head>
 <body>
+<div class="page-content">
     {{-- Encabezado: logo a la izquierda + título centrado --}}
     <div class="header">
         @if(!empty($logo_base64))
@@ -242,6 +244,8 @@
             @endif
         </div>
     </div>
+
+    </div> {{-- /.page-content --}}
 
     {{-- Pie compacto a la derecha (estilo memo) --}}
     @if(!empty($codigo_verificacion))
