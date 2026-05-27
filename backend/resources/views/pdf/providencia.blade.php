@@ -19,19 +19,35 @@
         .page-content {
             padding: 2cm 4cm 2.5cm 4cm;
         }
-        .header img {
-            max-width: 180px;
+        /* Header en tabla: logo a la izquierda, título centrado en la misma franja.
+           DomPDF no soporta bien flex/grid; tabla es la opción confiable. */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 28px;
+        }
+        .header-table td {
+            vertical-align: middle;
+            padding: 0;
+        }
+        .header-logo {
+            width: 160px;
+        }
+        .header-logo img {
+            max-width: 140px;
             height: auto;
         }
-        .titulo {
-            margin: 32px 0 0 0;
+        .header-titulo {
             text-align: center;
-            font-size: 16pt;
+            font-size: 15pt;
             font-weight: bold;
         }
+        .header-spacer {
+            width: 160px;
+        }
         .ref-fecha {
-            margin-top: 36px;
-            margin-bottom: 56px;
+            margin-top: 0;
+            margin-bottom: 36px;
             text-align: right;
             font-size: 11pt;
         }
@@ -153,13 +169,18 @@
 </head>
 <body>
 <div class="page-content">
-    {{-- Encabezado: logo a la izquierda + título centrado --}}
-    <div class="header">
-        @if(!empty($logo_base64))
-            <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
-        @endif
-        <h2 class="titulo">PROVIDENCIA N&ordm; {{ $folio }}</h2>
-    </div>
+    {{-- Encabezado: logo a la izquierda + título centrado en la misma franja --}}
+    <table class="header-table">
+        <tr>
+            <td class="header-logo">
+                @if(!empty($logo_base64))
+                    <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
+                @endif
+            </td>
+            <td class="header-titulo">PROVIDENCIA N&ordm; {{ $folio }}</td>
+            <td class="header-spacer"></td>
+        </tr>
+    </table>
 
     {{-- Referencia + fecha derecha --}}
     <div class="ref-fecha">
