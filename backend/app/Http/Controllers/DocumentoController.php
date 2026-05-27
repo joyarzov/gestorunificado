@@ -414,12 +414,15 @@ class DocumentoController extends Controller
     public function pendientesFirma(Request $request)
     {
         $user = Auth::user();
+        // Firmante institucional = subrogado si hay actuando-como, sino el propio.
+        // "Ya firmé" sigue siendo contra el actor real (Jose), no el subrogado.
+        $ctx  = $user->contexto();
 
         $documentos = Documento::where('estado', Documento::ESTADO_PENDIENTE_FIRMA)
-            ->where(function ($query) use ($user) {
-                $query->where('firmante_asignado_id', $user->id)
-                    ->orWhereHas('firmantesAsignados', function ($q) use ($user) {
-                        $q->where('user_id', $user->id);
+            ->where(function ($query) use ($ctx) {
+                $query->where('firmante_asignado_id', $ctx->id)
+                    ->orWhereHas('firmantesAsignados', function ($q) use ($ctx) {
+                        $q->where('user_id', $ctx->id);
                     });
             })
             ->whereDoesntHave('firmas', function ($q) use ($user) {
@@ -514,13 +517,26 @@ class DocumentoController extends Controller
         if ($firmaGobService->isEnabled()) {
             try {
                 $pdfContent = $this->obtenerPdfContent($documento);
+
+                // Firma siempre con el RUT/nombre real (quien teclea el OTP). Si
+                // está subrogando, se agrega leyenda al cargo para reflejar la
+                // delegación en el bloque visual del PDF.
+                $actuandoComo = $user->getActuandoComo();
+                $cargoFirma = $user->cargo ?? null;
+                if ($actuandoComo) {
+                    $cargoSubrogado = trim(($actuandoComo->cargo ?? '') . ' ' . $actuandoComo->nombre);
+                    $cargoFirma = $cargoFirma
+                        ? "{$cargoFirma} (por orden del {$cargoSubrogado})"
+                        : "Por orden del {$cargoSubrogado}";
+                }
+
                 $result = $firmaGobService->sign(
                     $pdfContent,
                     "Documento {$documento->numero}",
                     $user->rut,
                     $request->otp,
                     $user->nombre,
-                    $user->cargo ?? null,
+                    $cargoFirma,
                     $coords,
                     $request->firma_page ?? 'LAST'
                 );

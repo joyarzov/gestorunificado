@@ -14,6 +14,7 @@ class DocumentoFirma extends Model
     protected $fillable = [
         'documento_id',
         'usuario_id',
+        'actuando_como_user_id',
         'tipo_firma',
         'orden',
         'estado',
@@ -36,6 +37,14 @@ class DocumentoFirma extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Subrogado en cuyo nombre se ejecutó esta firma, si aplica.
+     */
+    public function actuandoComo()
+    {
+        return $this->belongsTo(User::class, 'actuando_como_user_id');
     }
 
     public function scopePendientes($query)

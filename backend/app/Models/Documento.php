@@ -273,21 +273,26 @@ class Documento extends Model
     // Verificaciones
     public function puedeSerFirmadoPor(User $user): bool
     {
-        // Verificar si el usuario está en los firmantes asignados
+        // El "firmante institucional" es el subrogado si hay actuando-como activo;
+        // si no, el propio usuario. La firma electrónica la ejecuta siempre $user.
+        $ctx = $user->contexto();
+
         $esAsignado = $this->firmantesAsignados()
-            ->where('user_id', $user->id)
+            ->where('user_id', $ctx->id)
             ->exists();
 
         if (!$esAsignado) {
-            // Verificar firmante legacy
-            $esAsignado = $this->firmante_asignado_id === $user->id;
+            // Firmante legacy
+            $esAsignado = $this->firmante_asignado_id === $ctx->id;
         }
 
         if (!$esAsignado) {
             return false;
         }
 
-        // Verificar que no haya firmado ya
+        // "Ya firmó" considera al actor REAL: si Jose firma como subrogante del
+        // alcalde y luego entra como sí mismo, no debería ver el documento
+        // pendiente de nuevo (él ya estampó su firma con su rut).
         $yaFirmo = $this->firmas()
             ->where('usuario_id', $user->id)
             ->whereIn('estado', ['firmado'])
@@ -298,9 +303,12 @@ class Documento extends Model
 
     public function registrarFirma(User $user, ?string $observacion = null, ?array $firmaGobData = null): DocumentoFirma
     {
+        $actuandoComo = $user->getActuandoComo();
+
         $fields = [
             'documento_id' => $this->id,
             'usuario_id' => $user->id,
+            'actuando_como_user_id' => $actuandoComo?->id,
             'fecha_firma' => now(),
             'observacion' => $observacion,
             'estado' => 'firmado',
