@@ -5,7 +5,7 @@
     <title>Providencia {{ $folio }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { margin: 1.5cm 2.5cm 2cm 2.5cm; }
+        @page { margin: 2cm 3cm 2.5cm 3cm; }
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
@@ -17,27 +17,27 @@
             height: auto;
         }
         .titulo {
-            margin: 18px 0 0 0;
+            margin: 32px 0 0 0;
             text-align: center;
             font-size: 16pt;
             font-weight: bold;
         }
         .ref-fecha {
-            margin-top: 24px;
-            margin-bottom: 40px;
+            margin-top: 36px;
+            margin-bottom: 56px;
             text-align: right;
             font-size: 11pt;
         }
         .ref-fecha p {
-            margin: 2px 0;
+            margin: 3px 0;
         }
         .de-para {
-            margin-bottom: 28px;
+            margin-bottom: 36px;
             border-collapse: collapse;
         }
         .de-para td {
             vertical-align: top;
-            padding: 0 0 10px 0;
+            padding: 0 0 14px 0;
         }
         .de-para td.label {
             padding-right: 14px;
@@ -45,20 +45,20 @@
             font-weight: bold;
         }
         .seccion {
-            margin-bottom: 22px;
+            margin-bottom: 30px;
         }
         .seccion-titulo {
             font-weight: bold;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-size: 11pt;
         }
         .datos-doc {
-            margin-bottom: 22px;
+            margin-bottom: 30px;
             border-collapse: collapse;
         }
         .datos-doc td {
             vertical-align: top;
-            padding: 0 0 6px 0;
+            padding: 0 0 8px 0;
             font-size: 11pt;
         }
         .datos-doc td.label {
@@ -86,7 +86,7 @@
         /* Bloque de firma estilo memo Cero Papel: alineado a la izquierda,
            línea horizontal sobre el nombre, RUT en gris, cargo/leyenda debajo. */
         .firma-area {
-            margin-top: 70px;
+            margin-top: 90px;
         }
         .firma-bloque {
             width: 320px;
