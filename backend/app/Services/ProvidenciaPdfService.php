@@ -79,8 +79,9 @@ class ProvidenciaPdfService
         ];
 
         $pdf = Pdf::loadView('pdf.providencia', $pdfData);
-        $pdf->setPaper('letter');
-        // Necesario para que DomPDF acepte <img src="data:..."> con SVG embebido.
+        // Tamaño y márgenes los define el @page CSS del blade. NO usar
+        // setPaper() porque sobrescribe los márgenes del CSS con los defaults
+        // de DomPDF (~1.27cm a cada lado).
         $pdf->setOption('isHtml5ParserEnabled', true);
         $pdf->setOption('isRemoteEnabled', true);
 

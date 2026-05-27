@@ -5,7 +5,7 @@
     <title>Providencia {{ $folio }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { margin: 2.5cm 4cm 3cm 4cm; }
+        @page { size: letter portrait; margin: 2.5cm 4cm 3cm 4cm; }
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
