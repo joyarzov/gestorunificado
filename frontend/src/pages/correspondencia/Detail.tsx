@@ -63,7 +63,9 @@ const estadoLabels: Record<string, string> = {
 const CorrespondenciaDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, isAdmin, isOficial, isAlcalde } = useAuth()
+  const { user, actuandoComo, isAdmin, isOficial, isAlcalde } = useAuth()
+  // Departamento "institucional": el del subrogado cuando hay actuando-como, el propio si no.
+  const ctxDepartamentoId = actuandoComo?.departamento_id ?? user?.departamento_id
   const [correspondencia, setCorrespondencia] = useState<Correspondencia | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -174,14 +176,14 @@ const CorrespondenciaDetail = () => {
   const isFuncionario = !isAdmin() && !isOficial() && !isAlcalde()
   const derivacionPendienteParaUsuario = correspondencia?.estado === 'derivada_funcionario'
     ? correspondencia.derivaciones?.find(
-        (d) => d.estado === 'pendiente' && d.departamento_destino_id === user?.departamento_id
+        (d) => d.estado === 'pendiente' && d.departamento_destino_id === ctxDepartamentoId
       )
     : undefined
 
   // Derivación pendiente para el alcalde (cuando recibe desde Oficina de Partes)
   const derivacionPendienteParaAlcalde = isAlcalde() && correspondencia?.estado === 'derivada_alcaldia'
     ? correspondencia.derivaciones?.find(
-        (d) => d.estado === 'pendiente' && d.departamento_destino_id === user?.departamento_id
+        (d) => d.estado === 'pendiente' && d.departamento_destino_id === ctxDepartamentoId
       )
     : undefined
 
