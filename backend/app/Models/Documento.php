@@ -166,6 +166,11 @@ class Documento extends Model
         return $this->hasMany(DocumentoTrazabilidad::class)->orderBy('created_at');
     }
 
+    public function adjuntos()
+    {
+        return $this->hasMany(DocumentoAdjunto::class)->orderBy('created_at');
+    }
+
     public function firmasPendientes()
     {
         return $this->firmas()->where('estado', 'pendiente');

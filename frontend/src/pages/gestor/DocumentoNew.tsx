@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -24,6 +24,12 @@ import {
   Autocomplete,
   ToggleButton,
   ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Tooltip,
 } from '@mui/material'
 import {
   Save as SaveIcon,
@@ -36,10 +42,14 @@ import {
   FormatAlignJustify as AlignJustifyIcon,
   FormatBold as BoldIcon,
   TableChart as TableIcon,
+  AttachFile as AttachFileIcon,
+  PictureAsPdf as PdfIcon,
+  BookmarkAdd as BookmarkAddIcon,
+  Bookmark as BookmarkIcon,
 } from '@mui/icons-material'
 import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
-import { DocumentoPlantilla, Expediente, User, Departamento } from '../../types'
+import { DocumentoPlantilla, PlantillaPersonal, PlantillaPersonalContenido, Expediente, User, Departamento } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 
 // Nombres de artículos en español
@@ -93,6 +103,8 @@ const DocumentoNew = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
+  const { id: editId } = useParams<{ id: string }>()
+  const isEditMode = !!editId
   const expedienteIdParam = searchParams.get('expediente_id')
 
   // Estados principales
@@ -190,6 +202,16 @@ const DocumentoNew = () => {
   const [distribucion, setDistribucion] = useState<DistribucionItem[]>([])
   const [fieldAlignments, setFieldAlignments] = useState<Record<string, string>>({})
 
+  // Adjuntos PDF
+  const [adjuntos, setAdjuntos] = useState<File[]>([])
+  const [adjuntoError, setAdjuntoError] = useState('')
+
+  // Plantillas personales (presets del usuario)
+  const [misPlantillas, setMisPlantillas] = useState<PlantillaPersonal[]>([])
+  const [savePlantillaOpen, setSavePlantillaOpen] = useState(false)
+  const [nuevaPlantillaNombre, setNuevaPlantillaNombre] = useState('')
+  const [savingPlantilla, setSavingPlantilla] = useState(false)
+
   // Ref para el editor de contenido del memo
   const contenidoEditorRef = useRef<HTMLDivElement>(null)
 
@@ -237,7 +259,7 @@ const DocumentoNew = () => {
         contenidoEditorRef.current.innerHTML = val
       }
     }
-  }, [activeStep, esMemo])
+  }, [activeStep, esMemo, variables.contenido])
 
   // Helpers para el editor de contenido rich text
   const execFormatCommand = (command: string, value?: string) => {
@@ -278,13 +300,117 @@ const DocumentoNew = () => {
         usersAPI.funcionarios(),
         departamentosAPI.listar(),
       ])
+      const deptosTodos = deptosRes.data
+      const deptosActivos = deptosTodos.filter((d: Departamento) => d.activo)
       setPlantillas(plantillasRes)
       setExpedientes(expsRes.data.data)
       setFuncionarios(funcsRes.data)
-      setDepartamentos(deptosRes.data.filter((d: Departamento) => d.activo))
+      setDepartamentos(deptosActivos)
+
+      // Las plantillas personales son opcionales: un fallo no debe romper el formulario
+      try {
+        setMisPlantillas(await documentosAPI.getMisPlantillas())
+      } catch (e) {
+        console.error('No se pudieron cargar las plantillas personales:', e)
+      }
+
+      // Modo edición: precargar el documento existente. Se matchea la distribución contra la
+      // lista COMPLETA de departamentos (incluye inactivos) para no perder asociaciones existentes.
+      if (isEditMode && editId) {
+        await prefillFromDocumento(Number(editId), deptosTodos)
+      }
     } catch (error) {
       console.error('Error cargando datos:', error)
       setError('Error al cargar los datos necesarios')
+    }
+  }
+
+  // Parsear el HTML de artículos generado (formato propio) de vuelta a estado editable
+  const parseArticulosHtml = (html: string): { articulos: ArticuloDecreto[]; alineaciones: Record<string, string> } => {
+    const docHtml = new DOMParser().parseFromString(html, 'text/html')
+    const divs = Array.from(docHtml.body.querySelectorAll(':scope > div'))
+    const alineaciones: Record<string, string> = {}
+    const articulos = divs.map((div, i) => {
+      // El <p> de contenido es el que tiene margin-left (el de la etiqueta "ARTÍCULO X°" no lo tiene)
+      const ps = div.querySelectorAll('p')
+      const contentP = (div.querySelector(':scope > p[style*="margin-left"]') as HTMLElement | null)
+        || (ps[ps.length - 1] as HTMLElement | undefined)
+      const id = `edit_${i}_${Date.now()}`
+      const align = contentP?.style?.textAlign
+      if (align) alineaciones[`articulo_${id}`] = align
+      return { id, contenido: contentP ? contentP.innerHTML.trim() : '' }
+    }).filter(a => a.contenido)
+    return { articulos, alineaciones }
+  }
+
+  // Parsear el HTML de distribución de vuelta a departamentos seleccionados
+  const parseDistribucionHtml = (html: string, deptos: Departamento[]): DistribucionItem[] => {
+    const docHtml = new DOMParser().parseFromString(html, 'text/html')
+    const nombres = Array.from(docHtml.querySelectorAll('li')).map(li => (li.textContent || '').trim()).filter(Boolean)
+    return nombres
+      .map(nombre => {
+        const dep = deptos.find(d => d.nombre === nombre)
+        return dep ? { id: dep.id, nombre: dep.nombre } : null
+      })
+      .filter((d): d is DistribucionItem => d !== null)
+  }
+
+  // Precargar el formulario con los datos de un documento existente (modo edición)
+  const prefillFromDocumento = async (docId: number, departamentosList: Departamento[]) => {
+    try {
+      const res = await documentosAPI.obtener(docId)
+      const doc = res.data
+      if (!doc.plantilla) {
+        setError('No se pudo cargar la plantilla del documento')
+        return
+      }
+      if (doc.estado !== 'borrador') {
+        setError('Solo se pueden editar documentos en estado borrador')
+      }
+
+      setSelectedPlantilla(doc.plantilla)
+      setTitulo(doc.titulo || '')
+      setNivelAcceso(doc.nivel_acceso || 1)
+      setPalabrasClave(doc.palabras_clave || '')
+      setExpedientesSeleccionados(doc.expedientes || [])
+      setFirmantesSeleccionados(doc.firmantes_asignados || [])
+
+      const cj = doc.contenido_json || {}
+      const generadas = ['articulos_html', 'firmas_html', 'distribucion_html']
+      const vars: Record<string, string> = {}
+      Object.keys(cj).forEach(k => { if (!generadas.includes(k)) vars[k] = cj[k] })
+
+      const aligns: Record<string, string> = {}
+
+      // Desenvolver el wrapper de alineación de campos de decreto (vistos/texto_decreto):
+      // al guardar se envuelve el valor en <div style="text-align: X;">…</div>; aquí se revierte
+      // para no mostrar el div crudo en el TextField ni duplicarlo al re-guardar.
+      for (const campo of ['vistos', 'texto_decreto']) {
+        const valor = vars[campo]
+        if (typeof valor !== 'string') continue
+        const m = valor.match(/^\s*<div style="text-align:\s*([^;"]+);?">([\s\S]*)<\/div>\s*$/)
+        if (m) {
+          aligns[campo] = m[1].trim()
+          vars[campo] = m[2]
+        }
+      }
+      setVariables(vars)
+
+      if (cj.articulos_html) {
+        const { articulos: arts, alineaciones } = parseArticulosHtml(cj.articulos_html)
+        if (arts.length > 0) setArticulos(arts)
+        Object.assign(aligns, alineaciones)
+      }
+      setFieldAlignments(aligns)
+
+      if (cj.distribucion_html) {
+        setDistribucion(parseDistribucionHtml(cj.distribucion_html, departamentosList))
+      }
+
+      setActiveStep(1)
+    } catch (err) {
+      console.error('Error cargando documento para editar:', err)
+      setError('No se pudo cargar el documento para editar')
     }
   }
 
@@ -316,6 +442,99 @@ const DocumentoNew = () => {
 
     setVariables(varsIniciales)
     setActiveStep(1)
+  }
+
+  // Seleccionar una plantilla personal (preset): carga la plantilla base y prellena el formulario
+  const handleSelectPlantillaPersonal = (preset: PlantillaPersonal) => {
+    if (!preset.plantilla_base) {
+      setError('La plantilla base de este preset ya no está disponible')
+      return
+    }
+    setSelectedPlantilla(preset.plantilla_base)
+
+    const c = preset.contenido_json || {}
+    setVariables(c.variables || {})
+    setArticulos(c.articulos && c.articulos.length > 0 ? c.articulos : [{ id: '1', contenido: '' }])
+    setDistribucion(c.distribucion || [])
+    setFieldAlignments(c.field_alignments || {})
+
+    const ids = c.firmantes_ids || []
+    setFirmantesSeleccionados(funcionarios.filter(f => ids.includes(f.id)))
+
+    setActiveStep(1)
+  }
+
+  // Eliminar una plantilla personal
+  const handleEliminarPlantillaPersonal = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await documentosAPI.eliminarPlantillaPersonal(id)
+      setMisPlantillas(prev => prev.filter(p => p.id !== id))
+    } catch (err) {
+      console.error('Error eliminando plantilla personal:', err)
+      setError('No se pudo eliminar la plantilla')
+    }
+  }
+
+  // Manejo de adjuntos PDF (solo PDF, máx 10MB)
+  const handleAdjuntosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = '' // permitir volver a seleccionar el mismo archivo
+    if (files.length === 0) return
+
+    const esPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    const noPdf = files.filter(f => !esPdf(f))
+    const pdfs = files.filter(esPdf)
+    const grandes = pdfs.filter(f => f.size > 10 * 1024 * 1024)
+    const validos = pdfs.filter(f => f.size <= 10 * 1024 * 1024)
+
+    if (noPdf.length > 0) {
+      setAdjuntoError('Solo se permiten archivos PDF')
+    } else if (grandes.length > 0) {
+      setAdjuntoError('Cada archivo debe pesar máximo 10 MB')
+    } else {
+      setAdjuntoError('')
+    }
+
+    if (validos.length > 0) {
+      setAdjuntos(prev => [...prev, ...validos])
+    }
+  }
+
+  const removeAdjunto = (idx: number) => {
+    setAdjuntos(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  // Construir el estado del formulario para guardarlo como plantilla personal
+  const construirContenidoPreset = (): PlantillaPersonalContenido => ({
+    variables,
+    articulos: esDecreto ? articulos : undefined,
+    distribucion: usaDistribucion ? distribucion : undefined,
+    firmantes_ids: firmantesSeleccionados.map(f => f.id),
+    field_alignments: fieldAlignments,
+  })
+
+  // Guardar el documento actual como plantilla personal
+  const handleGuardarPlantilla = async () => {
+    if (!selectedPlantilla || !nuevaPlantillaNombre.trim()) return
+    setSavingPlantilla(true)
+    try {
+      await documentosAPI.guardarPlantillaPersonal({
+        nombre: nuevaPlantillaNombre.trim(),
+        plantilla_id: selectedPlantilla.id,
+        contenido_json: construirContenidoPreset(),
+      })
+      setSavePlantillaOpen(false)
+      setNuevaPlantillaNombre('')
+      setSuccess('Plantilla personal guardada exitosamente')
+      const mp = await documentosAPI.getMisPlantillas()
+      setMisPlantillas(mp)
+    } catch (err) {
+      console.error('Error guardando plantilla personal:', err)
+      setError('No se pudo guardar la plantilla personal')
+    } finally {
+      setSavingPlantilla(false)
+    }
   }
 
   // Actualizar variable
@@ -474,6 +693,40 @@ const DocumentoNew = () => {
         variablesFinales['distribucion_html'] = generarDistribucionHtml()
       }
 
+      // Modo edición: actualizar el documento existente
+      if (isEditMode && editId) {
+        await documentosAPI.actualizar(Number(editId), {
+          titulo,
+          plantilla_id: selectedPlantilla.id,
+          tipo_documental_id: selectedPlantilla.tipo_documental_id,
+          nivel_acceso: nivelAcceso,
+          contenido_json: variablesFinales,
+          palabras_clave: palabrasClave || undefined,
+          expedientes_ids: expedientesSeleccionados.map(e => e.id),
+          firmantes_asignados: firmantesSeleccionados.map(f => f.id),
+          firmas_requeridas: firmantesSeleccionados.length || undefined,
+        })
+
+        // Subir adjuntos nuevos al documento existente
+        let fallidosEdit = 0
+        for (const file of adjuntos) {
+          try {
+            await documentosAPI.subirAdjunto(Number(editId), file)
+          } catch (err) {
+            fallidosEdit++
+            console.error(`Error subiendo adjunto ${file.name}:`, err)
+          }
+        }
+        setSuccess(fallidosEdit > 0
+          ? `Cambios guardados. ${fallidosEdit} adjunto(s) no se pudieron subir.`
+          : 'Cambios guardados exitosamente')
+
+        setTimeout(() => {
+          navigate(`/documentos/${editId}`)
+        }, 1200)
+        return
+      }
+
       const data = {
         titulo,
         plantilla_id: selectedPlantilla.id,
@@ -489,10 +742,28 @@ const DocumentoNew = () => {
       }
 
       const response = await documentosAPI.crear(data)
-      setSuccess('Documento guardado como borrador exitosamente')
+      const nuevoId = response.data.id
+
+      // Subir adjuntos PDF (secuencial; si alguno falla, continúa con el resto)
+      if (adjuntos.length > 0) {
+        let fallidos = 0
+        for (const file of adjuntos) {
+          try {
+            await documentosAPI.subirAdjunto(nuevoId, file)
+          } catch (err) {
+            fallidos++
+            console.error(`Error subiendo adjunto ${file.name}:`, err)
+          }
+        }
+        setSuccess(fallidos > 0
+          ? `Documento guardado. ${fallidos} adjunto(s) no se pudieron subir.`
+          : 'Documento y adjuntos guardados exitosamente')
+      } else {
+        setSuccess('Documento guardado como borrador exitosamente')
+      }
 
       setTimeout(() => {
-        navigate(`/documentos/${response.data.id}`)
+        navigate(`/documentos/${nuevoId}`)
       }, 1500)
 
     } catch (err) {
@@ -505,41 +776,108 @@ const DocumentoNew = () => {
 
   // Renderizar paso 1: Selección de plantilla
   const renderStep1 = () => (
-    <Grid container spacing={3}>
-      {plantillas.map(plantilla => (
-        <Grid item xs={12} sm={6} md={4} key={plantilla.id}>
-          <Card
-            sx={{
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              border: selectedPlantilla?.id === plantilla.id ? '2px solid primary.main' : '1px solid #e0e0e0',
-              '&:hover': {
-                boxShadow: 4,
-                transform: 'translateY(-2px)'
-              }
-            }}
-            onClick={() => handleSelectPlantilla(plantilla)}
-          >
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                {plantilla.nombre}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {plantilla.descripcion || 'Sin descripción'}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {plantilla.tipo_documental && (
-                  <Chip label={plantilla.tipo_documental.nombre} size="small" color="primary" variant="outlined" />
-                )}
-                {plantilla.requiere_firma && (
-                  <Chip label="Requiere firma" size="small" color="warning" variant="outlined" />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
-    </Grid>
+    <Box>
+      {/* Plantillas personales (presets del usuario) */}
+      {misPlantillas.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Mis Plantillas
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Plantillas personales guardadas con valores prellenados.
+          </Typography>
+          <Grid container spacing={3}>
+            {misPlantillas.map(preset => (
+              <Grid item xs={12} sm={6} md={4} key={`preset-${preset.id}`}>
+                <Card
+                  sx={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: '1px solid #e0e0e0',
+                    '&:hover': { boxShadow: 4, transform: 'translateY(-2px)' },
+                  }}
+                  onClick={() => handleSelectPlantillaPersonal(preset)}
+                >
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                        <BookmarkIcon color="primary" fontSize="small" />
+                        <Typography variant="h6" noWrap title={preset.nombre}>
+                          {preset.nombre}
+                        </Typography>
+                      </Box>
+                      <Tooltip title="Eliminar plantilla">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => handleEliminarPlantillaPersonal(preset.id, e)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Basada en: {preset.plantilla_base?.nombre || 'Plantilla no disponible'}
+                    </Typography>
+                    {preset.plantilla_base?.tipo_documental && (
+                      <Chip
+                        label={preset.plantilla_base.tipo_documental.nombre}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+          <Divider sx={{ mt: 4 }} />
+        </Box>
+      )}
+
+      {misPlantillas.length > 0 && (
+        <Typography variant="h6" gutterBottom>
+          Plantillas del Sistema
+        </Typography>
+      )}
+      <Grid container spacing={3}>
+        {plantillas.map(plantilla => (
+          <Grid item xs={12} sm={6} md={4} key={plantilla.id}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                border: selectedPlantilla?.id === plantilla.id ? '2px solid primary.main' : '1px solid #e0e0e0',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => handleSelectPlantilla(plantilla)}
+            >
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {plantilla.nombre}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {plantilla.descripcion || 'Sin descripción'}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {plantilla.tipo_documental && (
+                    <Chip label={plantilla.tipo_documental.nombre} size="small" color="primary" variant="outlined" />
+                  )}
+                  {plantilla.requiere_firma && (
+                    <Chip label="Requiere firma" size="small" color="warning" variant="outlined" />
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
   )
 
   // Alineación de campos de texto
@@ -942,6 +1280,49 @@ const DocumentoNew = () => {
           />
         </Grid>
 
+        {/* Adjuntos PDF */}
+        <Grid item xs={12}>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="h6">Documentos adjuntos (PDF)</Typography>
+            <Button component="label" startIcon={<AttachFileIcon />} variant="outlined" size="small">
+              Adjuntar PDF
+              <input type="file" hidden accept="application/pdf" multiple onChange={handleAdjuntosChange} />
+            </Button>
+          </Box>
+          {adjuntoError && (
+            <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setAdjuntoError('')}>
+              {adjuntoError}
+            </Alert>
+          )}
+          {adjuntos.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Sin adjuntos. Puedes adjuntar uno o más archivos PDF (máx. 10 MB c/u).
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {adjuntos.map((file, idx) => (
+                <Paper
+                  key={`${file.name}-${idx}`}
+                  variant="outlined"
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1 }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <PdfIcon color="error" fontSize="small" />
+                    <Typography variant="body2" noWrap title={file.name}>{file.name}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </Typography>
+                  </Box>
+                  <IconButton size="small" color="error" onClick={() => removeAdjunto(idx)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+            </Box>
+          )}
+        </Grid>
+
         {/* Campos cortos de la plantilla (los largos van al final, full-width) */}
         {(() => {
           const order = FIELD_ORDER[selectedPlantilla.codigo] || Object.keys(selectedPlantilla.variables_json || {})
@@ -1235,7 +1616,7 @@ const DocumentoNew = () => {
           Volver
         </Button>
         <Typography variant="h4" fontWeight="bold">
-          Nuevo Documento
+          {isEditMode ? 'Editar Documento' : 'Nuevo Documento'}
         </Typography>
       </Box>
 
@@ -1257,11 +1638,13 @@ const DocumentoNew = () => {
           <Step key={label}>
             <StepLabel
               onClick={() => {
+                // En modo edición la plantilla es fija: no se puede volver al paso 0
+                if (isEditMode && index === 0) return
                 if (index < activeStep || (index === 1 && selectedPlantilla)) {
                   setActiveStep(index)
                 }
               }}
-              sx={{ cursor: index <= activeStep ? 'pointer' : 'default' }}
+              sx={{ cursor: (isEditMode && index === 0) ? 'default' : (index <= activeStep ? 'pointer' : 'default') }}
             >
               {label}
             </StepLabel>
@@ -1272,20 +1655,40 @@ const DocumentoNew = () => {
       {/* Contenido del paso */}
       <Card>
         <CardContent>
-          {activeStep === 0 && renderStep1()}
-          {activeStep === 1 && renderStep2()}
-          {activeStep === 2 && renderStep3()}
+          {isEditMode && !selectedPlantilla ? (
+            error ? null : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress />
+              </Box>
+            )
+          ) : (
+            <>
+              {activeStep === 0 && renderStep1()}
+              {activeStep === 1 && renderStep2()}
+              {activeStep === 2 && renderStep3()}
+            </>
+          )}
 
           {/* Navegación */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 2, borderTop: '1px solid #e0e0e0' }}>
             <Button
-              disabled={activeStep === 0}
+              disabled={activeStep === 0 || (isEditMode && activeStep === 1)}
               onClick={() => setActiveStep(prev => prev - 1)}
             >
               Anterior
             </Button>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
+              {(activeStep === 1 || activeStep === 2) && selectedPlantilla && (
+                <Button
+                  variant="outlined"
+                  startIcon={<BookmarkAddIcon />}
+                  onClick={() => setSavePlantillaOpen(true)}
+                >
+                  Guardar como plantilla
+                </Button>
+              )}
+
               {activeStep === 1 && (
                 <Button
                   variant="contained"
@@ -1306,13 +1709,46 @@ const DocumentoNew = () => {
                   disabled={loading}
                   startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
                 >
-                  Guardar como Borrador
+                  {isEditMode ? 'Guardar cambios' : 'Guardar como Borrador'}
                 </Button>
               )}
             </Box>
           </Box>
         </CardContent>
       </Card>
+
+      {/* Diálogo: guardar como plantilla personal */}
+      <Dialog open={savePlantillaOpen} onClose={() => setSavePlantillaOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Guardar como plantilla personal</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Se guardarán los valores actuales del formulario como una plantilla personal reutilizable.
+            Solo tú podrás verla y usarla en futuros documentos.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Nombre de la plantilla"
+            value={nuevaPlantillaNombre}
+            onChange={(e) => setNuevaPlantillaNombre(e.target.value)}
+            placeholder="Ej: Memo mensual finanzas"
+            inputProps={{ maxLength: 150 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSavePlantillaOpen(false)} disabled={savingPlantilla}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleGuardarPlantilla}
+            disabled={savingPlantilla || !nuevaPlantillaNombre.trim()}
+            startIcon={savingPlantilla ? <CircularProgress size={16} /> : <BookmarkAddIcon />}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

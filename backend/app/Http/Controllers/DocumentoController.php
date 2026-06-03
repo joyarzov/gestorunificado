@@ -202,6 +202,7 @@ class DocumentoController extends Controller
             'firmas.usuario',
             'firmanteAsignado',
             'firmantesAsignados',
+            'adjuntos.usuario:id,nombre',
         ]);
 
         return $this->successResponse($documento);
@@ -209,8 +210,10 @@ class DocumentoController extends Controller
 
     public function update(Request $request, Documento $documento)
     {
-        if ($documento->estaFirmado()) {
-            return $this->errorResponse('No se puede modificar un documento firmado', 400);
+        // Solo los borradores son editables: un documento en firma (pendiente_firma) o ya
+        // firmado/rechazado/anulado no debe poder re-sincronizar firmantes ni alterar su contenido.
+        if (!$documento->puedeEditarse()) {
+            return $this->errorResponse('Solo se pueden editar documentos en borrador', 400);
         }
 
         $request->validate([
@@ -218,6 +221,11 @@ class DocumentoController extends Controller
             'contenido_json' => 'sometimes|array',
             'palabras_clave' => 'nullable|string',
             'nivel_acceso' => 'sometimes|integer|in:1,2,3,4',
+            'firmantes_asignados' => 'nullable|array',
+            'firmantes_asignados.*' => 'exists:users,id',
+            'firmas_requeridas' => 'nullable|integer|min:1',
+            'expedientes_ids' => 'nullable|array',
+            'expedientes_ids.*' => 'exists:expedientes,id',
         ]);
 
         if ($request->has('contenido_json')) {
@@ -245,7 +253,28 @@ class DocumentoController extends Controller
             'numero',
             'palabras_clave',
             'nivel_acceso',
+            'firmas_requeridas',
         ]) + ['actualizado_por' => Auth::id()]);
+
+        // Sincronizar firmantes asignados (solo borradores; el documento aún no fue enviado a firma)
+        if ($request->has('firmantes_asignados')) {
+            $sync = [];
+            foreach ($request->firmantes_asignados as $index => $userId) {
+                $sync[$userId] = [
+                    'orden' => $index + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            $documento->firmantesAsignados()->sync($sync);
+            // Mantener firmas_requeridas en sincronía con los firmantes reales
+            $documento->update(['firmas_requeridas' => count($request->firmantes_asignados) ?: null]);
+        }
+
+        // Sincronizar expedientes asociados si se enviaron
+        if ($request->has('expedientes_ids')) {
+            $documento->expedientes()->sync($request->expedientes_ids ?? []);
+        }
 
         DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Documento editado', [
             'campos_modificados' => $camposModificados,
@@ -267,6 +296,13 @@ class DocumentoController extends Controller
             // Eliminar archivo si existe
             if ($documento->archivo_pdf) {
                 Storage::disk('public')->delete($documento->archivo_pdf);
+            }
+
+            // Eliminar adjuntos PDF (archivos físicos + filas). El soft-delete del documento
+            // NO dispara la cascada de FK, así que se limpian explícitamente.
+            foreach ($documento->adjuntos as $adjunto) {
+                Storage::disk('public')->delete($adjunto->ruta_archivo);
+                $adjunto->delete();
             }
 
             // Registrar actividad si hay expediente

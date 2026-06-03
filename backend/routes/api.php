@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PlantillaController;
+use App\Http\Controllers\PlantillaPersonalController;
 use App\Http\Controllers\OirsSolicitudController;
 use App\Http\Controllers\OirsPublicoController;
 use App\Http\Controllers\OirsFuncionarioController;
@@ -154,6 +155,10 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
     // Adjuntos
     Route::prefix('adjuntos')->group(function () {
         Route::post('/correspondencia/{correspondencia}', [AdjuntoController::class, 'subirCorrespondencia']);
+        // Adjuntos PDF de documentos (segmentos literales, no colisionan con /{adjunto})
+        Route::post('/documento/{documento}', [AdjuntoController::class, 'subirDocumento']);
+        Route::delete('/documento-adjunto/{adjunto}', [AdjuntoController::class, 'eliminarDocumento']);
+        Route::get('/documento-adjunto/{adjunto}/descargar', [AdjuntoController::class, 'descargarDocumento']);
         Route::delete('/{adjunto}', [AdjuntoController::class, 'eliminar']);
         Route::get('/{adjunto}/descargar', [AdjuntoController::class, 'descargar']);
     });
@@ -223,6 +228,10 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
         Route::get('/firma-config', [DocumentoController::class, 'firmaConfig']);
         Route::get('/pendientes-firma', [DocumentoController::class, 'pendientesFirma']);
         Route::get('/plantillas', [DocumentoController::class, 'getPlantillas']);
+        // Plantillas personales (presets por usuario)
+        Route::get('/mis-plantillas', [PlantillaPersonalController::class, 'index']);
+        Route::post('/mis-plantillas', [PlantillaPersonalController::class, 'store']);
+        Route::delete('/mis-plantillas/{id}', [PlantillaPersonalController::class, 'destroy']);
         Route::post('/previsualizar', [DocumentoController::class, 'previsualizarPlantilla']);
         Route::get('/proximo-correlativo', [DocumentoController::class, 'obtenerProximoCorrelativo']);
         Route::post('/upload/analizar', [DocumentoController::class, 'analizarUpload']);

@@ -3,10 +3,13 @@ import {
   ApiResponse,
   Expediente,
   Documento,
+  DocumentoAdjunto,
   DocumentoEnvio,
   DocumentoTrazabilidad,
   TipoDocumental,
   DocumentoPlantilla,
+  PlantillaPersonal,
+  PlantillaPersonalContenido,
   PaginatedResponse,
 } from '../types'
 
@@ -341,6 +344,50 @@ export const documentosAPI = {
   // Crear documento desde PDF subido
   subirDocumento: async (data: SubirDocumentoData) => {
     const response = await api.post<ApiResponse<Documento>>('/documentos/upload/subir', data)
+    return response.data
+  },
+
+  // --- Adjuntos PDF de un documento ---
+  subirAdjunto: async (documentoId: number, archivo: File) => {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    const response = await api.post<ApiResponse<DocumentoAdjunto>>(
+      `/adjuntos/documento/${documentoId}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    return response.data
+  },
+
+  eliminarAdjunto: async (adjuntoId: number) => {
+    const response = await api.delete<ApiResponse<null>>(`/adjuntos/documento-adjunto/${adjuntoId}`)
+    return response.data
+  },
+
+  descargarAdjunto: async (adjuntoId: number) => {
+    const response = await api.get(`/adjuntos/documento-adjunto/${adjuntoId}/descargar`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  // --- Plantillas personales (presets por usuario) ---
+  getMisPlantillas: async () => {
+    const response = await api.get<PlantillaPersonal[]>('/documentos/mis-plantillas')
+    return response.data
+  },
+
+  guardarPlantillaPersonal: async (data: {
+    nombre: string
+    plantilla_id: number
+    contenido_json: PlantillaPersonalContenido
+  }) => {
+    const response = await api.post<ApiResponse<PlantillaPersonal>>('/documentos/mis-plantillas', data)
+    return response.data
+  },
+
+  eliminarPlantillaPersonal: async (id: number) => {
+    const response = await api.delete<ApiResponse<null>>(`/documentos/mis-plantillas/${id}`)
     return response.data
   },
 }

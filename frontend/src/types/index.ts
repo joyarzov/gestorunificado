@@ -221,6 +221,36 @@ export interface DocumentoPlantilla {
   creado_por?: number
 }
 
+export interface DocumentoAdjunto {
+  id: number
+  documento_id: number
+  nombre_archivo: string
+  ruta_archivo: string
+  tipo_mime?: string
+  tamanio_bytes?: number
+  subido_por?: number
+  usuario?: { id: number; nombre: string }
+  created_at: string
+}
+
+export interface PlantillaPersonalContenido {
+  variables?: Record<string, string>
+  articulos?: { id: string; contenido: string }[]
+  distribucion?: { id: number; nombre: string }[]
+  firmantes_ids?: number[]
+  field_alignments?: Record<string, string>
+}
+
+export interface PlantillaPersonal {
+  id: number
+  user_id: number
+  nombre: string
+  plantilla_id: number
+  plantilla_base?: DocumentoPlantilla
+  contenido_json: PlantillaPersonalContenido
+  created_at: string
+}
+
 export interface Documento {
   id: number
   identificador: string
@@ -262,6 +292,7 @@ export interface Documento {
   folio_fin?: number
   anio: number
   firmas?: DocumentoFirma[]
+  adjuntos?: DocumentoAdjunto[]
   created_at: string
   updated_at: string
 }

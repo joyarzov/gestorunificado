@@ -112,6 +112,7 @@ function App() {
             <Route path="/expedientes/:id/editar" element={<ExpedienteNew />} />
             <Route path="/documentos" element={<DocumentosList />} />
             <Route path="/documentos/nuevo" element={<DocumentoNew />} />
+            <Route path="/documentos/:id/editar" element={<DocumentoNew />} />
             <Route path="/documentos/subir" element={<DocumentoUpload />} />
             <Route path="/documentos/:id" element={<DocumentoDetail />} />
             <Route path="/pendientes-firma" element={<PendientesFirma />} />
