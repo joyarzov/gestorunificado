@@ -295,6 +295,7 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/configuracion', [ConfiguracionController::class, 'index']);
         Route::patch('/configuracion/{clave}', [ConfiguracionController::class, 'update']);
+        Route::post('/configuracion/probar-correo', [ConfiguracionController::class, 'probarCorreo']);
     });
 
     // MÓDULO SELLO DE FIRMA (admin)

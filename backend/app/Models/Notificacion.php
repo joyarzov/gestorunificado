@@ -13,18 +13,21 @@ class Notificacion extends Model
 
     protected $fillable = [
         'user_id',
+        'modulo',
         'tipo',
         'titulo',
         'mensaje',
         'data',
         'leida',
         'leida_at',
+        'email_enviado_at',
     ];
 
     protected $casts = [
         'data' => 'array',
         'leida' => 'boolean',
         'leida_at' => 'datetime',
+        'email_enviado_at' => 'datetime',
     ];
 
     public function user()

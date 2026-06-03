@@ -482,11 +482,13 @@ export interface FirmaSello {
 // Notificaciones
 export interface Notificacion {
   id: number
+  modulo?: string
   tipo: string
   titulo: string
   mensaje: string
   data?: Record<string, unknown>
   leida: boolean
   leida_at?: string
+  email_enviado_at?: string
   created_at: string
 }

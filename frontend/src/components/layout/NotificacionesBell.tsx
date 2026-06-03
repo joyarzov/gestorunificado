@@ -12,6 +12,7 @@ import {
   ListItemText,
   Button,
   Divider,
+  Chip,
 } from '@mui/material'
 import {
   Notifications as NotificationsIcon,
@@ -22,6 +23,13 @@ import { useNotificaciones } from '../../hooks/useNotificaciones'
 import { useAuth } from '../../contexts/AuthContext'
 import { parseISO, formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+// Etiqueta y color por módulo de origen (debe coincidir con config/notificaciones.php)
+const MODULO_INFO: Record<string, { label: string; color: string }> = {
+  cero_papel: { label: 'Cero Papel', color: '#0071BC' },
+  correspondencia: { label: 'Correspondencia', color: '#28A9E3' },
+  oirs: { label: 'OIRS', color: '#EB1B78' },
+}
 
 const NotificacionesBell = () => {
   const { user } = useAuth()
@@ -46,9 +54,11 @@ const NotificacionesBell = () => {
 
   const handleNotifClick = async (notif: { id: number; data?: Record<string, unknown> }) => {
     await marcarLeida(notif.id)
-    if (notif.data?.url) {
+    const url = notif.data?.url
+    // Solo navegación interna (evita open-redirect si la url no es una ruta relativa)
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
       handleClose()
-      navigate(notif.data.url as string)
+      navigate(url)
     }
   }
 
@@ -105,9 +115,25 @@ const NotificacionesBell = () => {
                 </ListItemIcon>
                 <ListItemText
                   primary={
-                    <Typography variant="body2" fontWeight="medium" sx={{ lineHeight: 1.3 }}>
-                      {notif.titulo}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                      {notif.modulo && MODULO_INFO[notif.modulo] && (
+                        <Chip
+                          label={MODULO_INFO[notif.modulo].label}
+                          size="small"
+                          sx={{
+                            height: 18,
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            bgcolor: MODULO_INFO[notif.modulo].color,
+                            color: '#fff',
+                            '& .MuiChip-label': { px: 0.75 },
+                          }}
+                        />
+                      )}
+                      <Typography variant="body2" fontWeight="medium" sx={{ lineHeight: 1.3 }}>
+                        {notif.titulo}
+                      </Typography>
+                    </Box>
                   }
                   secondary={
                     <Box>

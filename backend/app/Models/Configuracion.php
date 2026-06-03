@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Configuracion extends Model
 {
@@ -31,5 +32,10 @@ class Configuracion extends Model
             ['clave' => $clave],
             ['valor' => (string) $valor]
         );
+
+        // Invalidar el cache de la config de mail si corresponde
+        if (str_starts_with($clave, 'mail_')) {
+            Cache::forget('mail_config_override');
+        }
     }
 }

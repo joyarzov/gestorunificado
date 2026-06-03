@@ -27,4 +27,9 @@ export const configuracionAPI = {
     const res = await api.get<ApiResponse<FirmagobEstado>>('/firmagob/estado')
     return res.data
   },
+
+  probarCorreo: async (email?: string) => {
+    const res = await api.post<ApiResponse<{ email: string }>>('/configuracion/probar-correo', { email })
+    return res.data
+  },
 }

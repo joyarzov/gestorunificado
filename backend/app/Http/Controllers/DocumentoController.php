@@ -10,6 +10,7 @@ use App\Models\Expediente;
 use App\Models\ExpedienteActividad;
 use App\Models\Correlativo;
 use App\Models\Notificacion;
+use App\Services\NotificacionService;
 use App\Models\TipoDocumental;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -499,15 +500,14 @@ class DocumentoController extends Controller
         if ($firmantes->isEmpty() && $documento->firmante_asignado_id) {
             $firmantes = collect([\App\Models\User::find($documento->firmante_asignado_id)]);
         }
-        foreach ($firmantes as $firmante) {
-            Notificacion::create([
-                'user_id' => $firmante->id,
-                'tipo' => 'documento_pendiente_firma',
-                'titulo' => 'Documento pendiente de tu firma',
-                'mensaje' => "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
-                'data' => ['documento_id' => $documento->id],
-            ]);
-        }
+        NotificacionService::enviar(
+            $firmantes,
+            'cero_papel',
+            'documento_pendiente_firma',
+            'Documento pendiente de tu firma',
+            "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
+            ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+        );
 
         return $this->successResponse($documento->load('firmantesAsignados'), 'Documento enviado a firma');
     }
@@ -612,27 +612,30 @@ class DocumentoController extends Controller
                 ]);
             }
 
-            // Notificar al creador que alguien firmó
-            if ($documento->creado_por && $documento->creado_por !== $user->id) {
-                Notificacion::create([
-                    'user_id' => $documento->creado_por,
-                    'tipo' => 'documento_firma_registrada',
-                    'titulo' => 'Firma registrada en documento',
-                    'mensaje' => "{$user->nombre} firmó el documento \"{$documento->titulo}\" ({$documento->numero}).",
-                    'data' => ['documento_id' => $documento->id],
-                ]);
-            }
-
-            // Si el documento quedó completamente firmado, notificar al creador
+            // Refrescar para saber si esta firma dejó el documento completamente firmado
             $documento->refresh();
-            if ($documento->estado === Documento::ESTADO_FIRMADO && $documento->creado_por) {
-                Notificacion::create([
-                    'user_id' => $documento->creado_por,
-                    'tipo' => 'documento_firmado_completo',
-                    'titulo' => 'Documento completamente firmado',
-                    'mensaje' => "El documento \"{$documento->titulo}\" ({$documento->numero}) ha sido firmado por todos los firmantes. El PDF ha sido generado.",
-                    'data' => ['documento_id' => $documento->id],
-                ]);
+            $completo = $documento->estado === Documento::ESTADO_FIRMADO;
+
+            if ($completo && $documento->creado_por) {
+                // Solo el aviso de "completo" (evita doble notificación con "firma registrada")
+                NotificacionService::enviar(
+                    $documento->creado_por,
+                    'cero_papel',
+                    'documento_firmado_completo',
+                    'Documento completamente firmado',
+                    "El documento \"{$documento->titulo}\" ({$documento->numero}) ha sido firmado por todos los firmantes. El PDF ha sido generado.",
+                    ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                );
+            } elseif ($documento->creado_por && $documento->creado_por !== $user->id) {
+                // Aún faltan firmas: avisar al creador que se registró una firma
+                NotificacionService::enviar(
+                    $documento->creado_por,
+                    'cero_papel',
+                    'documento_firma_registrada',
+                    'Firma registrada en documento',
+                    "{$user->nombre} firmó el documento \"{$documento->titulo}\" ({$documento->numero}).",
+                    ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                );
             }
 
             DB::commit();
@@ -693,13 +696,14 @@ class DocumentoController extends Controller
 
             // Notificar al creador del rechazo
             if ($documento->creado_por && $documento->creado_por !== $user->id) {
-                Notificacion::create([
-                    'user_id' => $documento->creado_por,
-                    'tipo' => 'documento_firma_rechazada',
-                    'titulo' => 'Firma rechazada en documento',
-                    'mensaje' => "{$user->nombre} rechazó la firma del documento \"{$documento->titulo}\" ({$documento->numero}). Motivo: {$request->motivo}",
-                    'data' => ['documento_id' => $documento->id],
-                ]);
+                NotificacionService::enviar(
+                    $documento->creado_por,
+                    'cero_papel',
+                    'documento_firma_rechazada',
+                    'Firma rechazada en documento',
+                    "{$user->nombre} rechazó la firma del documento \"{$documento->titulo}\" ({$documento->numero}). Motivo: {$request->motivo}",
+                    ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                );
             }
 
             DB::commit();
@@ -773,6 +777,19 @@ class DocumentoController extends Controller
         DocumentoTrazabilidad::registrar($documento->id, 'firmante_agregado', "Firmante agregado: {$firmante->nombre}", [
             'firmante_id' => $request->usuario_id,
         ]);
+
+        // Notificar al nuevo firmante
+        $esPendiente = $documento->estado === Documento::ESTADO_PENDIENTE_FIRMA;
+        NotificacionService::enviar(
+            $request->usuario_id,
+            'cero_papel',
+            'documento_firmante_agregado',
+            $esPendiente ? 'Documento pendiente de tu firma' : 'Te agregaron como firmante',
+            $esPendiente
+                ? "Fuiste agregado como firmante del documento \"{$documento->titulo}\" ({$documento->numero}) y requiere tu firma."
+                : "Fuiste agregado como firmante del documento \"{$documento->titulo}\". Te avisaremos cuando deba firmarse.",
+            ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+        );
 
         $documento->load('firmantesAsignados');
 
@@ -1012,13 +1029,14 @@ class DocumentoController extends Controller
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
-                        Notificacion::create([
-                            'user_id' => $userId,
-                            'tipo' => 'documento_pendiente_firma',
-                            'titulo' => 'Documento pendiente de tu firma',
-                            'mensaje' => "El documento \"{$documento->titulo}\" requiere tu firma.",
-                            'data' => ['documento_id' => $documento->id],
-                        ]);
+                        NotificacionService::enviar(
+                            $userId,
+                            'cero_papel',
+                            'documento_pendiente_firma',
+                            'Documento pendiente de tu firma',
+                            "El documento \"{$documento->titulo}\" requiere tu firma.",
+                            ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                        );
                     }
                     DocumentoTrazabilidad::registrar(
                         $documento->id,

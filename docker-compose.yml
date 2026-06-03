@@ -51,6 +51,62 @@ services:
     networks:
       - unificada_network
 
+  # Worker de la cola (envío asíncrono de emails de notificación)
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: unificada_queue
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --timeout=120 --sleep=3 --max-time=3600
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    environment:
+      - APP_NAME=Correspondencia Unificada
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_KEY=base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=correspondencia_unificada
+      - DB_USERNAME=unificada_user
+      - DB_PASSWORD=unificada_password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - unificada_network
+
+  # Scheduler (cron de Laravel: avisos de OIRS por vencer, etc.)
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: unificada_scheduler
+    restart: unless-stopped
+    command: php artisan schedule:work
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    environment:
+      - APP_NAME=Correspondencia Unificada
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_KEY=base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=correspondencia_unificada
+      - DB_USERNAME=unificada_user
+      - DB_PASSWORD=unificada_password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - unificada_network
+
   frontend:
     build:
       context: ./frontend

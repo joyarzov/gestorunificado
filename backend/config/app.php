@@ -13,6 +13,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // URL base del frontend, usada para los enlaces de los correos de notificación.
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
+
     'asset_url' => env('ASSET_URL'),
 
     'timezone' => 'America/Punta_Arenas',
@@ -35,6 +38,7 @@ return [
         App\Providers\AppServiceProvider::class,
         App\Providers\AuthServiceProvider::class,
         App\Providers\EventServiceProvider::class,
+        App\Providers\MailConfigServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
     ])->toArray(),
 

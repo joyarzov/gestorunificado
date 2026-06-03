@@ -6,6 +6,7 @@ use App\Models\Documento;
 use App\Models\DocumentoEnvio;
 use App\Models\DocumentoTrazabilidad;
 use App\Models\User;
+use App\Services\NotificacionService;
 use Illuminate\Http\Request;
 
 class DocumentoEnvioController extends Controller
@@ -70,6 +71,16 @@ class DocumentoEnvioController extends Controller
                 'destinatario_ids' => collect($enviosCreados)->pluck('destinatario_id')->toArray(),
             ]);
 
+            // Notificar a cada destinatario que recibió un documento
+            NotificacionService::enviar(
+                collect($enviosCreados)->pluck('destinatario_id')->all(),
+                'cero_papel',
+                'documento_recibido',
+                'Recibiste un documento',
+                "{$request->user()->nombre} te envió el documento \"{$documento->titulo}\" ({$documento->numero}).",
+                ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+            );
+
             $msg = count($enviosCreados) === 1
                 ? 'Documento enviado correctamente'
                 : 'Documento enviado a ' . count($enviosCreados) . ' destinatarios';
@@ -121,6 +132,16 @@ class DocumentoEnvioController extends Controller
         DocumentoTrazabilidad::registrar($documento->id, 'enviado', "Documento enviado a: {$destinatario->nombre}", [
             'destinatario_ids' => [$destinatarioId],
         ]);
+
+        // Notificar al destinatario que recibió un documento
+        NotificacionService::enviar(
+            $destinatarioId,
+            'cero_papel',
+            'documento_recibido',
+            'Recibiste un documento',
+            "{$request->user()->nombre} te envió el documento \"{$documento->titulo}\" ({$documento->numero}).",
+            ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+        );
 
         return $this->successResponse($envio, 'Documento enviado correctamente');
     }
@@ -193,6 +214,16 @@ class DocumentoEnvioController extends Controller
         DocumentoTrazabilidad::registrar($envio->documento_id, 'recibido', 'Acuse de recibo registrado', [
             'remitente_id' => $envio->remitente_id,
         ]);
+
+        // Notificar al remitente que se acusó recibo
+        NotificacionService::enviar(
+            $envio->remitente_id,
+            'cero_papel',
+            'documento_acuse_recibo',
+            'Acuse de recibo de tu documento',
+            "{$request->user()->nombre} acusó recibo del documento \"" . ($envio->documento->titulo ?? '') . "\".",
+            ['documento_id' => $envio->documento_id, 'url' => '/documentos/' . $envio->documento_id]
+        );
 
         return $this->successResponse($envio, 'Acuse de recibo registrado');
     }

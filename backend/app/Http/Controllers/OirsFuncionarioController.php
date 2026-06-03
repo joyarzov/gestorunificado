@@ -7,6 +7,7 @@ use App\Models\OirsAdjunto;
 use App\Models\OirsHistorial;
 use App\Models\Notificacion;
 use App\Models\User;
+use App\Services\NotificacionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -126,15 +127,14 @@ class OirsFuncionarioController extends Controller
             $q->whereJsonContains('roles', 'oirs')
                 ->orWhereJsonContains('roles', 'admin');
         })->get();
-        foreach ($adminsOirs as $admin) {
-            Notificacion::create([
-                'user_id' => $admin->id,
-                'tipo' => 'oirs_respuesta_interna',
-                'titulo' => 'Respuesta OIRS para revisión',
-                'mensaje' => "{$user->nombre} respondió la solicitud OIRS {$oir->folio}. Requiere tu revisión para enviar al ciudadano.",
-                'data' => ['oirs_id' => $oir->id],
-            ]);
-        }
+        NotificacionService::enviar(
+            $adminsOirs,
+            'oirs',
+            'oirs_respuesta_interna',
+            'Respuesta OIRS para revisión',
+            "{$user->nombre} respondió la solicitud OIRS {$oir->folio}. Requiere tu revisión para enviar al ciudadano.",
+            ['oirs_id' => $oir->id, 'url' => '/oirs-admin/' . $oir->id]
+        );
 
         $oir->load(['adjuntos', 'historial.usuario']);
 

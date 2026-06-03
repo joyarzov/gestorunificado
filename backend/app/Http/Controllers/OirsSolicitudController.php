@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OirsSolicitud;
 use App\Models\OirsHistorial;
 use App\Models\Notificacion;
+use App\Services\NotificacionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -124,13 +125,14 @@ class OirsSolicitudController extends Controller
         ]);
 
         // Notificar al funcionario asignado
-        Notificacion::create([
-            'user_id' => $request->funcionario_asignado_id,
-            'tipo' => 'oirs_asignada',
-            'titulo' => 'Solicitud OIRS asignada',
-            'mensaje' => "Se te ha asignado la solicitud OIRS {$oir->folio}: \"{$oir->asunto}\".",
-            'data' => ['oirs_id' => $oir->id],
-        ]);
+        NotificacionService::enviar(
+            $request->funcionario_asignado_id,
+            'oirs',
+            'oirs_asignada',
+            'Solicitud OIRS asignada',
+            "Se te ha asignado la solicitud OIRS {$oir->folio}: \"{$oir->asunto}\".",
+            ['oirs_id' => $oir->id, 'url' => '/oirs-admin/' . $oir->id]
+        );
 
         $oir->load(['unidadResponsable', 'funcionarioAsignado']);
 
@@ -163,13 +165,14 @@ class OirsSolicitudController extends Controller
 
         // Notificar al funcionario asignado que la solicitud fue respondida
         if ($oir->funcionario_asignado_id && $oir->funcionario_asignado_id !== Auth::id()) {
-            Notificacion::create([
-                'user_id' => $oir->funcionario_asignado_id,
-                'tipo' => 'oirs_respondida',
-                'titulo' => 'Solicitud OIRS respondida',
-                'mensaje' => "La solicitud OIRS {$oir->folio} ha sido respondida al ciudadano.",
-                'data' => ['oirs_id' => $oir->id],
-            ]);
+            NotificacionService::enviar(
+                $oir->funcionario_asignado_id,
+                'oirs',
+                'oirs_respondida',
+                'Solicitud OIRS respondida',
+                "La solicitud OIRS {$oir->folio} ha sido respondida al ciudadano.",
+                ['oirs_id' => $oir->id, 'url' => '/oirs-admin/' . $oir->id]
+            );
         }
 
         return $this->successResponse($oir, 'Respuesta enviada');
@@ -200,6 +203,17 @@ class OirsSolicitudController extends Controller
         ]);
 
         $oir->load('unidadResponsable');
+
+        // Notificar a los funcionarios de la unidad responsable
+        $usuariosUnidad = \App\Models\User::where('departamento_id', $request->unidad_responsable_id)->get();
+        NotificacionService::enviar(
+            $usuariosUnidad,
+            'oirs',
+            'oirs_derivada',
+            'Solicitud OIRS derivada a tu unidad',
+            "Se ha derivado la solicitud OIRS {$oir->folio}: \"{$oir->asunto}\" a tu unidad.",
+            ['oirs_id' => $oir->id, 'url' => '/oirs-admin/' . $oir->id]
+        );
 
         return $this->successResponse($oir, 'Solicitud derivada');
     }

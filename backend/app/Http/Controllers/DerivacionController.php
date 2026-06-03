@@ -6,6 +6,7 @@ use App\Models\Derivacion;
 use App\Models\Correspondencia;
 use App\Models\Notificacion;
 use App\Models\User;
+use App\Services\NotificacionService;
 use App\Services\FirmaGobService;
 use App\Services\ProvidenciaPdfService;
 use App\Exceptions\FirmaGobException;
@@ -193,15 +194,14 @@ class DerivacionController extends Controller
         // Notificar a usuarios del departamento destino
         $deptoDestinoNombre = $derivacion->departamentoDestino->nombre ?? 'Destino';
         $usuariosDestino = User::where('departamento_id', $request->departamento_destino_id)->get();
-        foreach ($usuariosDestino as $usuarioDestino) {
-            Notificacion::create([
-                'user_id' => $usuarioDestino->id,
-                'tipo' => 'correspondencia_recibida',
-                'titulo' => 'Nueva correspondencia en tu bandeja',
-                'mensaje' => "Se ha derivado la correspondencia de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
-                'data' => ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id],
-            ]);
-        }
+        NotificacionService::enviar(
+            $usuariosDestino,
+            'correspondencia',
+            'correspondencia_recibida',
+            'Nueva correspondencia en tu bandeja',
+            "Se ha derivado la correspondencia de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
+            ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id]
+        );
 
         $message = $esAlcaldeDerivando
             ? 'Derivación creada con providencia generada'
@@ -588,13 +588,14 @@ class DerivacionController extends Controller
 
             // Notificar al usuario que derivó originalmente
             if ($derivacion->usuario_origen_id) {
-                Notificacion::create([
-                    'user_id' => $derivacion->usuario_origen_id,
-                    'tipo' => 'correspondencia_completada',
-                    'titulo' => 'Correspondencia completada',
-                    'mensaje' => "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
-                    'data' => ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id],
-                ]);
+                NotificacionService::enviar(
+                    $derivacion->usuario_origen_id,
+                    'correspondencia',
+                    'correspondencia_completada',
+                    'Correspondencia completada',
+                    "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
+                    ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
+                );
             }
         }
 

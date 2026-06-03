@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Notificacion;
 use App\Models\OirsSolicitud;
+use App\Services\NotificacionService;
 use Illuminate\Console\Command;
 
 class NotificarOirsProximasVencer extends Command
@@ -32,13 +33,14 @@ class NotificarOirsProximasVencer extends Command
                 $diasRestantes = now()->diffInDays($oir->fecha_limite_respuesta);
                 $textoUrgencia = $diasRestantes <= 1 ? 'MAÑANA' : "en {$diasRestantes} días";
 
-                Notificacion::create([
-                    'user_id' => $oir->funcionario_asignado_id,
-                    'tipo' => 'oirs_proxima_vencer',
-                    'titulo' => 'OIRS próxima a vencer',
-                    'mensaje' => "La solicitud OIRS {$oir->folio} vence {$textoUrgencia}. Asunto: \"{$oir->asunto}\".",
-                    'data' => ['oirs_id' => $oir->id],
-                ]);
+                NotificacionService::enviar(
+                    $oir->funcionario_asignado_id,
+                    'oirs',
+                    'oirs_proxima_vencer',
+                    'OIRS próxima a vencer',
+                    "La solicitud OIRS {$oir->folio} vence {$textoUrgencia}. Asunto: \"{$oir->asunto}\".",
+                    ['oirs_id' => $oir->id, 'url' => '/oirs-admin/' . $oir->id]
+                );
                 $count++;
             }
         }
