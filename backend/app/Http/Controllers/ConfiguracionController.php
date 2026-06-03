@@ -95,7 +95,9 @@ class ConfiguracionController extends Controller
         }
 
         try {
-            Mail::to($destino)->sendNow(new NotificacionMail(
+            // Forzar envío síncrono (cola sync) para dar feedback inmediato del SMTP al admin.
+            config(['queue.default' => 'sync']);
+            Mail::to($destino)->send(new NotificacionMail(
                 Auth::user()?->nombre ?? '',
                 'cero_papel',
                 'Correo de prueba',
