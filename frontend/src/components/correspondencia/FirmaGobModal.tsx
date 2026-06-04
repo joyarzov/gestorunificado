@@ -30,17 +30,17 @@ const FirmaGobModal = ({
   open, titulo, descripcion, loading, error, onFirmar, onCancel, pdfUrl,
 }: FirmaGobModalProps) => {
   const [otp, setOtp] = useState('')
-  const [firmaYPos, setFirmaYPos] = useState(38) // slider 0-100; default ~zona del bloque de firma
+  const [firmaYPos, setFirmaYPos] = useState(27) // slider 0-100; default = sobre la línea de firma (bloque fijo)
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST'>('LAST')
-  const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(2) // default derecha
+  const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(0) // default izquierda (donde está el bloque de firma)
   const [simulate, setSimulate] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setOtp('')
-    setFirmaYPos(38)
+    setFirmaYPos(27)
     setFirmaPageMode('LAST')
-    setFirmaCol(2)
+    setFirmaCol(0)
     configuracionAPI.firmagobEstado()
       .then(res => setSimulate(res.data.simulate))
       .catch(() => setSimulate(false))

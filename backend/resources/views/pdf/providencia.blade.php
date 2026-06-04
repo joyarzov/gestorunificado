@@ -111,8 +111,13 @@
         }
         /* Bloque de firma estilo memo Cero Papel: alineado a la izquierda,
            línea horizontal sobre el nombre, RUT en gris, cargo/leyenda debajo. */
+        /* Bloque de firma anclado cerca del fondo, justo arriba del QR.
+           Posición fija => siempre en el mismo lugar, sin importar el largo del texto,
+           y el sello de FirmaGob cae siempre sobre la línea. */
         .firma-area {
-            margin-top: 26px;
+            position: fixed;
+            bottom: 4cm;
+            left: 2.5cm;
             page-break-inside: avoid;
         }
         .firma-bloque {
