@@ -26,6 +26,7 @@ import {
   Menu as MenuIcon,
   ExitToApp as LogoutIcon,
   Person as PersonIcon,
+  SwapHoriz as SwapRoleIcon,
   ChevronLeft as ChevronLeftIcon,
   Home as HomeIcon,
   SupervisorAccount as SubroganciaIcon,
@@ -62,6 +63,7 @@ const AppLayout = () => {
     isAlcalde,
     hasAplicacion,
     canViewAllCorrespondence,
+    setShowRoleSelector,
   } = useAuth()
   const [pendientesFirmaCount, setPendientesFirmaCount] = useState(0)
 
@@ -368,6 +370,19 @@ const AppLayout = () => {
               </ListItemIcon>
               Mi perfil
             </MenuItem>
+            {(user?.roles?.length ?? 0) > 1 && (
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose()
+                  setShowRoleSelector(true)
+                }}
+              >
+                <ListItemIcon>
+                  <SwapRoleIcon fontSize="small" />
+                </ListItemIcon>
+                Cambiar perfil
+              </MenuItem>
+            )}
             <Divider />
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
