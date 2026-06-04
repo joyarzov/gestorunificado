@@ -39,7 +39,7 @@ class ProvidenciaPdfService
             $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
         }
 
-        $appUrl = rtrim(config('app.url'), '/');
+        $appUrl = rtrim(config('app.verificacion_url'), '/');
         $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
         // DomPDF no renderiza SVG inline cuando está en `position: fixed`,
         // pero sí maneja bien <img src="data:image/svg+xml;base64,..."> .

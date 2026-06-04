@@ -53,7 +53,7 @@ class RegenerarProvidencias extends Command
                 }
 
                 $codigoVerificacion = $derivacion->codigo_verificacion ?? Documento::generarCodigoVerificacion();
-                $appUrl = rtrim(config('app.url'), '/');
+                $appUrl = rtrim(config('app.verificacion_url'), '/');
                 $verificarUrl = "{$appUrl}/verificar/{$codigoVerificacion}";
 
                 $qrSvg = '';

@@ -367,7 +367,7 @@ class DocumentoController extends Controller
      */
     private function inyectarFooterVerificacion(string $html, string $codigo): string
     {
-        $appUrl = rtrim(config('app.url'), '/');
+        $appUrl = rtrim(config('app.verificacion_url'), '/');
         $verificarUrl = "{$appUrl}/verificar/{$codigo}";
 
         $qrSvg = '';
