@@ -21,7 +21,8 @@
         .page-content {
             padding: 1.2cm 2cm 1.5cm 2.5cm;
         }
-        /* Header en tabla: logo a la izquierda, título centrado en la misma franja.
+        /* Header en tabla: logo en su propia fila (franja limpia) y el título
+           PROVIDENCIA centrado en la fila de abajo, para que no se crucen.
            DomPDF no soporta bien flex/grid; tabla es la opción confiable. */
         .header-table {
             width: 100%;
@@ -32,9 +33,6 @@
             vertical-align: middle;
             padding: 0;
         }
-        .header-logo {
-            width: 120px;
-        }
         .header-logo img {
             max-width: 110px;
             height: auto;
@@ -44,9 +42,7 @@
             font-size: 14pt;
             font-weight: bold;
             white-space: nowrap;
-        }
-        .header-spacer {
-            width: 120px;
+            padding-top: 12px;
         }
         .ref-fecha {
             margin-top: 0;
@@ -177,7 +173,7 @@
 </head>
 <body>
 <div class="page-content">
-    {{-- Encabezado: logo a la izquierda + título centrado en la misma franja --}}
+    {{-- Encabezado: logo en su propia fila + título PROVIDENCIA centrado debajo --}}
     <table class="header-table">
         <tr>
             <td class="header-logo">
@@ -185,8 +181,9 @@
                     <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
                 @endif
             </td>
+        </tr>
+        <tr>
             <td class="header-titulo">PROVIDENCIA N&ordm; {{ $folio }}</td>
-            <td class="header-spacer"></td>
         </tr>
     </table>
 
