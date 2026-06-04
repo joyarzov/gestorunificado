@@ -152,9 +152,14 @@
             margin-left: 4px;
         }
 
-        /* ---- Firma (fluye tras el contenido) ---- */
+        /* ---- Firma anclada en la zona inferior, justo arriba del pie ----
+           Posición fija => la firma queda siempre abajo sin importar el
+           largo del contenido (estilo oficio formal). El pie (QR + verif)
+           va por debajo a bottom 1.2cm. */
         .firma-area {
-            margin-top: 52px;
+            position: fixed;
+            bottom: 3.6cm;
+            left: 2.5cm;
             page-break-inside: avoid;
         }
         .firma-bloque {
