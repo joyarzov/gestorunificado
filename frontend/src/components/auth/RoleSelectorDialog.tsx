@@ -2,6 +2,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
+  Button,
   List,
   ListItem,
   ListItemButton,
@@ -62,14 +64,22 @@ const rolPrincipal = (roles: string[]): string => {
 }
 
 const RoleSelectorDialog = () => {
-  const { user, showRoleSelector, selectRole, actuarComo } = useAuth()
+  const { user, showRoleSelector, selectRole, actuarComo, selectedRole, setShowRoleSelector } = useAuth()
 
   if (!user || !showRoleSelector) return null
 
   const subrogadosActivos: SubrogadoActivo[] = user.subrogados_activos ?? []
+  // Solo se puede cancelar si ya hay un perfil activo (cambio de perfil).
+  // En la selección obligatoria post-login (sin perfil aún) no se permite cerrar.
+  const puedeCancelar = !!selectedRole
 
   return (
-    <Dialog open={showRoleSelector} maxWidth="xs" fullWidth>
+    <Dialog
+      open={showRoleSelector}
+      maxWidth="xs"
+      fullWidth
+      onClose={() => { if (puedeCancelar) setShowRoleSelector(false) }}
+    >
       <DialogTitle>
         <Typography variant="h6" fontWeight="bold" textAlign="center">
           Selecciona tu perfil
@@ -158,6 +168,13 @@ const RoleSelectorDialog = () => {
           )}
         </List>
       </DialogContent>
+      {puedeCancelar && (
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setShowRoleSelector(false)} color="inherit">
+            Cancelar
+          </Button>
+        </DialogActions>
+      )}
     </Dialog>
   )
 }
