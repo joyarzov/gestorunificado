@@ -4,7 +4,7 @@ import {
   Button, TextField, Typography, Alert, CircularProgress, Box,
   ToggleButtonGroup, ToggleButton, Slider,
 } from '@mui/material'
-import { Verified as FirmaIcon, Warning as WarnIcon } from '@mui/icons-material'
+import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon } from '@mui/icons-material'
 import { configuracionAPI } from '../../api/configuracion'
 import FirmaPagePreview from '../common/FirmaPagePreview'
 
@@ -89,14 +89,29 @@ const FirmaGobModal = ({
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
 
-            {/* Preview */}
-            <FirmaPagePreview
-              pdfUrl={pdfUrl}
-              firmaYPos={firmaYPos}
-              existingFirmas={[]}
-              newRow={0}
-              newCol={firmaCol}
-            />
+            {/* Preview + descarga del borrador (temporal, para revisión) */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              <FirmaPagePreview
+                pdfUrl={pdfUrl}
+                firmaYPos={firmaYPos}
+                existingFirmas={[]}
+                newRow={0}
+                newCol={firmaCol}
+              />
+              {pdfUrl && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+                  component="a"
+                  href={pdfUrl}
+                  download="borrador-providencia.pdf"
+                  sx={{ fontSize: 11, textTransform: 'none', py: 0.3 }}
+                >
+                  Descargar borrador
+                </Button>
+              )}
+            </Box>
 
             {/* Controles */}
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
