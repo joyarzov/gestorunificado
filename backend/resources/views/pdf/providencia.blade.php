@@ -116,7 +116,7 @@
            y el sello de FirmaGob cae siempre sobre la línea. */
         .firma-area {
             position: fixed;
-            bottom: 4cm;
+            bottom: 4.7cm;
             left: 2.5cm;
             page-break-inside: avoid;
         }
