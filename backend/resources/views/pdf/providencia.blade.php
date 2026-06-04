@@ -10,51 +10,89 @@
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
-            color: #000;
+            color: #1a1a1a;
             line-height: 1.4;
         }
         /* Wrapper que crea los márgenes "ópticos" del documento, ya que
-           DomPDF ignora consistentemente @page margin. Mantiene footer y
-           qr-box (position: fixed) anclados a la página real. */
-        /* Mismos márgenes que el memorándum (DocumentoController): izq 2.5cm, der 2cm.
-           El margen izquierdo de 2.5cm además alinea las columnas del sello de firma. */
+           DomPDF ignora consistentemente @page margin. Mantiene el pie
+           (position: fixed) anclado a la página real.
+           Mismos márgenes que el memorándum: izq 2.5cm, der 2cm.
+           El padding-bottom amplio reserva el espacio del pie fijo (QR + verif). */
         .page-content {
-            padding: 1.2cm 2cm 1.5cm 2.5cm;
+            padding: 1cm 2cm 3.2cm 2.5cm;
         }
-        /* Header en tabla: logo en su propia fila (franja limpia) y el título
-           PROVIDENCIA centrado en la fila de abajo, para que no se crucen.
-           DomPDF no soporta bien flex/grid; tabla es la opción confiable. */
-        .header-table {
+
+        /* ---- Membrete corporativo ---- */
+        /* Barra de 5 colores institucionales como acento superior. */
+        .color-bar {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
-        .header-table td {
+        .color-bar td {
+            height: 6px;
+            line-height: 6px;
+            font-size: 0;
+            padding: 0;
+        }
+        .membrete {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .membrete td {
             vertical-align: middle;
             padding: 0;
         }
-        .header-logo img {
+        .membrete-logo {
+            width: 120px;
+        }
+        .membrete-logo img {
             max-width: 110px;
             height: auto;
         }
-        .header-titulo {
-            text-align: center;
-            font-size: 14pt;
+        .inst-nombre {
+            font-size: 12.5pt;
             font-weight: bold;
-            white-space: nowrap;
-            padding-top: 12px;
+            color: #0071BC;
+            line-height: 1.2;
         }
+        .inst-sub {
+            font-size: 8.5pt;
+            color: #666;
+            margin-top: 3px;
+            line-height: 1.3;
+        }
+        /* Regla azul que cierra el membrete. */
+        .regla-azul {
+            border-bottom: 2px solid #0071BC;
+            margin-top: 10px;
+        }
+
+        /* ---- Título del documento ---- */
+        .doc-titulo {
+            text-align: center;
+            font-size: 15pt;
+            font-weight: bold;
+            color: #0071BC;
+            letter-spacing: 0.5px;
+            margin: 16px 0 4px 0;
+        }
+
+        /* ---- Ref + fecha ---- */
         .ref-fecha {
             margin-top: 0;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
             text-align: right;
-            font-size: 11pt;
+            font-size: 10.5pt;
+            color: #333;
         }
         .ref-fecha p {
             margin: 3px 0;
         }
+
+        /* ---- DE / PARA ---- */
         .de-para {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
             border-collapse: collapse;
         }
         .de-para td {
@@ -65,17 +103,24 @@
             padding-right: 14px;
             white-space: nowrap;
             font-weight: bold;
+            color: #0071BC;
         }
+
+        /* ---- Secciones ---- */
         .seccion {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
         .seccion-titulo {
             font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 11pt;
+            font-size: 10pt;
+            color: #0071BC;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 9px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #d9e6f0;
         }
         .datos-doc {
-            margin-bottom: 14px;
             border-collapse: collapse;
         }
         .datos-doc td {
@@ -91,7 +136,7 @@
         .acciones-list {
             list-style: none;
             padding: 0;
-            margin-left: 16px;
+            margin: 0 0 0 4px;
         }
         .acciones-list li {
             padding: 2px 0;
@@ -99,21 +144,17 @@
         }
         .acciones-list li:before {
             content: "\2022  ";
+            color: #0071BC;
             font-weight: bold;
         }
         .observaciones {
             text-align: justify;
-            margin-left: 16px;
+            margin-left: 4px;
         }
-        /* Bloque de firma estilo memo Cero Papel: alineado a la izquierda,
-           línea horizontal sobre el nombre, RUT en gris, cargo/leyenda debajo. */
-        /* Bloque de firma anclado cerca del fondo, justo arriba del QR.
-           Posición fija => siempre en el mismo lugar, sin importar el largo del texto,
-           y el sello de FirmaGob cae siempre sobre la línea. */
+
+        /* ---- Firma (fluye tras el contenido) ---- */
         .firma-area {
-            position: fixed;
-            bottom: 4.7cm;
-            left: 2.5cm;
+            margin-top: 52px;
             page-break-inside: avoid;
         }
         .firma-bloque {
@@ -145,47 +186,72 @@
             margin-top: 4px;
             line-height: 1.4;
         }
-        .footer {
+
+        /* ---- Pie unificado (QR + verificación) anclado a la página ---- */
+        .pie {
             position: fixed;
-            bottom: 1.5cm;
-            right: 2cm;
-            text-align: right;
-            font-size: 8pt;
-            color: #666;
-            line-height: 1.3;
-        }
-        .qr-box {
-            position: fixed;
-            bottom: 1.5cm;
+            bottom: 1.2cm;
             left: 2.5cm;
-            text-align: center;
+            width: 17cm;
+            border-top: 1px solid #ccc;
+            padding-top: 7px;
         }
-        .qr-box img {
-            width: 60px;
-            height: 60px;
+        .pie-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        .qr-box .cod {
+        .pie-table td {
+            padding: 0;
+            vertical-align: bottom;
+        }
+        .pie-qr img {
+            width: 56px;
+            height: 56px;
+        }
+        .pie-cod {
             font-size: 7pt;
             color: #666;
             margin-top: 2px;
+        }
+        .pie-verif {
+            text-align: right;
+            font-size: 8pt;
+            color: #666;
+            line-height: 1.35;
         }
     </style>
 </head>
 <body>
 <div class="page-content">
-    {{-- Encabezado: logo en su propia fila + título PROVIDENCIA centrado debajo --}}
-    <table class="header-table">
+    {{-- Barra de 5 colores institucionales --}}
+    <table class="color-bar">
         <tr>
-            <td class="header-logo">
+            <td style="background-color:#2DC700;"></td>
+            <td style="background-color:#8AC53E;"></td>
+            <td style="background-color:#EB1B78;"></td>
+            <td style="background-color:#28A9E3;"></td>
+            <td style="background-color:#EE5825;"></td>
+        </tr>
+    </table>
+
+    {{-- Membrete: logo + identificación institucional --}}
+    <table class="membrete">
+        <tr>
+            <td class="membrete-logo">
                 @if(!empty($logo_base64))
                     <img src="{{ $logo_base64 }}" alt="Logo Municipalidad" />
                 @endif
             </td>
-        </tr>
-        <tr>
-            <td class="header-titulo">PROVIDENCIA N&ordm; {{ $folio }}</td>
+            <td>
+                <div class="inst-nombre">Ilustre Municipalidad de Cabo de Hornos</div>
+                <div class="inst-sub">Puerto Williams &middot; Provincia Ant&aacute;rtica Chilena &middot; Regi&oacute;n de Magallanes</div>
+            </td>
         </tr>
     </table>
+    <div class="regla-azul"></div>
+
+    {{-- Título del documento --}}
+    <div class="doc-titulo">PROVIDENCIA N&ordm; {{ $folio }}</div>
 
     {{-- Referencia + fecha derecha --}}
     <div class="ref-fecha">
@@ -215,7 +281,7 @@
 
     {{-- Datos de la correspondencia original --}}
     <div class="seccion">
-        <div class="seccion-titulo">DOCUMENTO DE ORIGEN</div>
+        <div class="seccion-titulo">Documento de origen</div>
         <table class="datos-doc">
             <tr>
                 <td class="label">Fecha recepci&oacute;n:</td>
@@ -233,7 +299,7 @@
     {{-- Acciones PARA --}}
     @if(!empty($acciones_para) && count($acciones_para) > 0)
     <div class="seccion">
-        <div class="seccion-titulo">SE SOLICITA:</div>
+        <div class="seccion-titulo">Se solicita</div>
         <ul class="acciones-list">
             @foreach($acciones_para as $accion)
                 <li>{{ $accion }}</li>
@@ -245,7 +311,7 @@
     {{-- Observaciones --}}
     @if(!empty($observaciones))
     <div class="seccion">
-        <div class="seccion-titulo">OBSERVACIONES</div>
+        <div class="seccion-titulo">Observaciones</div>
         <div class="observaciones">{{ $observaciones }}</div>
     </div>
     @endif
@@ -272,23 +338,27 @@
             @endif
         </div>
     </div>
+</div> {{-- /.page-content --}}
 
-    </div> {{-- /.page-content --}}
-
-    {{-- Pie compacto a la derecha (estilo memo) --}}
-    @if(!empty($codigo_verificacion))
-    <div class="footer">
-        Verifique este documento<br/>
-        C&oacute;d: <strong>{{ $codigo_verificacion }}</strong>
-    </div>
-    @endif
-
-    {{-- QR en esquina inferior izquierda --}}
-    @if(!empty($codigo_verificacion) && !empty($qr_data_uri))
-    <div class="qr-box">
-        <img src="{{ $qr_data_uri }}" alt="QR de verificación" />
-        <div class="cod">{{ $codigo_verificacion }}</div>
-    </div>
-    @endif
+{{-- Pie unificado: QR a la izquierda, verificación a la derecha, con línea divisoria --}}
+@if(!empty($codigo_verificacion))
+<div class="pie">
+    <table class="pie-table">
+        <tr>
+            <td class="pie-qr" style="width: 70px;">
+                @if(!empty($qr_data_uri))
+                    <img src="{{ $qr_data_uri }}" alt="QR de verificación" />
+                    <div class="pie-cod">{{ $codigo_verificacion }}</div>
+                @endif
+            </td>
+            <td class="pie-verif">
+                Verifique la autenticidad de este documento en<br/>
+                {{ $verificar_url ?? '' }}<br/>
+                C&oacute;digo: <strong>{{ $codigo_verificacion }}</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+@endif
 </body>
 </html>
