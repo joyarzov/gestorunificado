@@ -11,20 +11,20 @@
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.4;
         }
         /* Wrapper que crea los márgenes "ópticos" del documento, ya que
            DomPDF ignora consistentemente @page margin. Mantiene footer y
            qr-box (position: fixed) anclados a la página real. */
         .page-content {
-            padding: 2cm 4cm 2.5cm 4cm;
+            padding: 1.4cm 4cm 1.4cm 4cm;
         }
         /* Header en tabla: logo a la izquierda, título centrado en la misma franja.
            DomPDF no soporta bien flex/grid; tabla es la opción confiable. */
         .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 28px;
+            margin-bottom: 16px;
         }
         .header-table td {
             vertical-align: middle;
@@ -48,7 +48,7 @@
         }
         .ref-fecha {
             margin-top: 0;
-            margin-bottom: 36px;
+            margin-bottom: 20px;
             text-align: right;
             font-size: 11pt;
         }
@@ -56,12 +56,12 @@
             margin: 3px 0;
         }
         .de-para {
-            margin-bottom: 36px;
+            margin-bottom: 20px;
             border-collapse: collapse;
         }
         .de-para td {
             vertical-align: top;
-            padding: 0 0 14px 0;
+            padding: 0 0 9px 0;
         }
         .de-para td.label {
             padding-right: 14px;
@@ -69,7 +69,7 @@
             font-weight: bold;
         }
         .seccion {
-            margin-bottom: 30px;
+            margin-bottom: 16px;
         }
         .seccion-titulo {
             font-weight: bold;
@@ -77,12 +77,12 @@
             font-size: 11pt;
         }
         .datos-doc {
-            margin-bottom: 30px;
+            margin-bottom: 14px;
             border-collapse: collapse;
         }
         .datos-doc td {
             vertical-align: top;
-            padding: 0 0 8px 0;
+            padding: 0 0 5px 0;
             font-size: 11pt;
         }
         .datos-doc td.label {
@@ -110,7 +110,7 @@
         /* Bloque de firma estilo memo Cero Papel: alineado a la izquierda,
            línea horizontal sobre el nombre, RUT en gris, cargo/leyenda debajo. */
         .firma-area {
-            margin-top: 50px;
+            margin-top: 26px;
             page-break-inside: avoid;
         }
         .firma-bloque {
