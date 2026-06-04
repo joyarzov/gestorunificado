@@ -16,8 +16,10 @@
         /* Wrapper que crea los márgenes "ópticos" del documento, ya que
            DomPDF ignora consistentemente @page margin. Mantiene footer y
            qr-box (position: fixed) anclados a la página real. */
+        /* Mismos márgenes que el memorándum (DocumentoController): izq 2.5cm, der 2cm.
+           El margen izquierdo de 2.5cm además alinea las columnas del sello de firma. */
         .page-content {
-            padding: 1.4cm 4cm 1.4cm 4cm;
+            padding: 1.2cm 2cm 1.5cm 2.5cm;
         }
         /* Header en tabla: logo a la izquierda, título centrado en la misma franja.
            DomPDF no soporta bien flex/grid; tabla es la opción confiable. */
@@ -145,7 +147,7 @@
         .footer {
             position: fixed;
             bottom: 1.5cm;
-            right: 4cm;
+            right: 2cm;
             text-align: right;
             font-size: 8pt;
             color: #666;
@@ -154,7 +156,7 @@
         .qr-box {
             position: fixed;
             bottom: 1.5cm;
-            left: 4cm;
+            left: 2.5cm;
             text-align: center;
         }
         .qr-box img {
@@ -211,7 +213,7 @@
 
     {{-- Datos de la correspondencia original --}}
     <div class="seccion">
-        <div class="seccion-titulo">Documento de origen</div>
+        <div class="seccion-titulo">DOCUMENTO DE ORIGEN</div>
         <table class="datos-doc">
             <tr>
                 <td class="label">Fecha recepci&oacute;n:</td>
@@ -229,7 +231,7 @@
     {{-- Acciones PARA --}}
     @if(!empty($acciones_para) && count($acciones_para) > 0)
     <div class="seccion">
-        <div class="seccion-titulo">Se solicita:</div>
+        <div class="seccion-titulo">SE SOLICITA:</div>
         <ul class="acciones-list">
             @foreach($acciones_para as $accion)
                 <li>{{ $accion }}</li>
@@ -241,7 +243,7 @@
     {{-- Observaciones --}}
     @if(!empty($observaciones))
     <div class="seccion">
-        <div class="seccion-titulo">Observaciones</div>
+        <div class="seccion-titulo">OBSERVACIONES</div>
         <div class="observaciones">{{ $observaciones }}</div>
     </div>
     @endif
