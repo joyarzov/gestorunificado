@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificación de documentos · I. Municipalidad de Cabo de Hornos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--azul:#0071BC;--azul-osc:#005a96;--gris:#4D4D4D;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Montserrat',-apple-system,Segoe UI,Roboto,sans-serif;color:var(--gris);background:#f3f5f7;line-height:1.5;}
+  .barra{display:flex;height:6px;}
+  .barra span{flex:1;}
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px 48px;}
+  header{background:#fff;border-bottom:1px solid #e4e8ec;}
+  .head-in{max-width:680px;margin:0 auto;padding:18px 16px;display:flex;align-items:center;gap:14px;}
+  .escudo{width:46px;height:46px;border-radius:8px;background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;flex-shrink:0;}
+  .inst-n{font-weight:700;color:var(--azul);font-size:16px;line-height:1.2;}
+  .inst-s{font-size:12px;color:#7a8590;}
+  h1{font-size:20px;color:var(--azul-osc);margin:28px 0 6px;font-weight:700;}
+  .sub{color:#7a8590;font-size:14px;margin-bottom:22px;}
+  .card{background:#fff;border:1px solid #e4e8ec;border-radius:12px;padding:22px;box-shadow:0 1px 3px rgba(16,42,67,.04);}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;padding:8px 14px;border-radius:999px;margin-bottom:18px;}
+  .badge.ok{background:#e7f7ec;color:#1b8a4b;}
+  .badge.no{background:#fdeaea;color:#c0392b;}
+  .badge .dot{font-size:16px;}
+  .tipo{display:inline-block;background:#eaf4fb;color:var(--azul);font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.4px;}
+  table{width:100%;border-collapse:collapse;}
+  td{padding:9px 0;vertical-align:top;border-bottom:1px solid #f0f2f4;font-size:14px;}
+  td.k{color:#8a949e;width:42%;font-weight:500;}
+  td.v{color:#2c3640;font-weight:500;}
+  tr:last-child td{border-bottom:none;}
+  .firmante{font-size:13px;color:#2c3640;padding:2px 0;}
+  .form{display:flex;gap:8px;margin-top:8px;}
+  .form input{flex:1;padding:11px 13px;border:1px solid #ccd4db;border-radius:9px;font-size:15px;font-family:inherit;text-transform:uppercase;letter-spacing:1px;}
+  .form input:focus{outline:none;border-color:var(--azul);}
+  .form button{background:var(--azul);color:#fff;border:none;border-radius:9px;padding:0 20px;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer;}
+  .form button:hover{background:var(--azul-osc);}
+  .muted{color:#8a949e;font-size:13px;margin-top:16px;}
+  .spin{display:inline-block;width:18px;height:18px;border:2px solid #cfe2f1;border-top-color:var(--azul);border-radius:50%;animation:r .7s linear infinite;vertical-align:middle;}
+  @keyframes r{to{transform:rotate(360deg);}}
+  footer{text-align:center;color:#9aa4ae;font-size:12px;margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="barra"><span style="background:#2DC700"></span><span style="background:#8AC53E"></span><span style="background:#EB1B78"></span><span style="background:#28A9E3"></span><span style="background:#EE5825"></span></div>
+<header>
+  <div class="head-in">
+    <div class="escudo">M</div>
+    <div>
+      <div class="inst-n">Ilustre Municipalidad de Cabo de Hornos</div>
+      <div class="inst-s">Verificación de autenticidad de documentos</div>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+  <h1>Verificación de documento</h1>
+  <div class="sub">Confirma la autenticidad de un documento o providencia emitido por la Municipalidad.</div>
+  <div class="card" id="card"><div style="text-align:center;color:#8a949e;padding:10px"><span class="spin"></span></div></div>
+  <footer>Sistema de Correspondencia y Gestión Documental · I. Municipalidad de Cabo de Hornos</footer>
+</div>
+<script>
+  var card = document.getElementById('card');
+  function fmt(d){ if(!d) return '—'; try{var x=new Date(d); if(isNaN(x)) return d; return ('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear();}catch(e){return d;} }
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function row(k,v){ return v==null||v===''? '' : '<tr><td class="k">'+esc(k)+'</td><td class="v">'+esc(v)+'</td></tr>'; }
+
+  function formHtml(msg, level){
+    var b = msg ? '<div class="badge '+(level||'no')+'"><span class="dot">'+(level==='ok'?'✓':'✕')+'</span>'+esc(msg)+'</div>' : '';
+    return b + '<div style="font-weight:600;margin-bottom:6px">Ingresa el código de verificación</div>'+
+      '<div class="muted" style="margin-top:0;margin-bottom:12px">Lo encuentras junto al código QR del documento.</div>'+
+      '<form class="form" onsubmit="go(event)"><input id="cod" maxlength="12" placeholder="Ej: DZZK5JHR" autocomplete="off"><button type="submit">Verificar</button></form>';
+  }
+  function go(e){ e.preventDefault(); var c=document.getElementById('cod').value.trim().toUpperCase(); if(c){ history.pushState(null,'','/verificar/'+c); load(c);} }
+
+  function renderDoc(d){
+    var f = (d.firmantes||[]).map(function(x){return '<div class="firmante">• '+esc(x.nombre)+(x.fecha_firma?' — '+fmt(x.fecha_firma):'')+'</div>';}).join('');
+    return '<div class="badge ok"><span class="dot">✓</span>'+(d.firmado?'Documento auténtico y firmado':'Documento registrado')+'</div>'+
+      '<div class="tipo">'+esc(d.tipo_documental||'Documento')+'</div>'+
+      '<table>'+
+      row('Identificador', d.identificador)+ row('Número', d.numero)+ row('Título', d.titulo)+
+      row('Estado', d.estado)+ row('Fecha de creación', fmt(d.fecha_creacion))+ row('Fecha de firma', fmt(d.fecha_firma))+
+      (f?'<tr><td class="k">Firmantes</td><td class="v">'+f+'</td></tr>':'')+
+      '<tr><td class="k">Código</td><td class="v">'+esc(d.codigo)+'</td></tr>'+
+      '</table>';
+  }
+  function renderProv(d){
+    var ac = (d.acciones||[]).map(function(a){return '<div class="firmante">• '+esc(a)+'</div>';}).join('');
+    return '<div class="badge ok"><span class="dot">✓</span>Providencia auténtica</div>'+
+      '<div class="tipo">Providencia</div>'+
+      '<table>'+
+      row('Folio', d.folio)+ row('Fecha', fmt(d.fecha))+ row('Emitida por', d.usuario_origen)+
+      row('Referencia', d.remitente)+ row('Dirigida a', d.departamento_destino)+
+      (ac?'<tr><td class="k">Acciones</td><td class="v">'+ac+'</td></tr>':'')+
+      row('Estado', d.estado)+ '<tr><td class="k">Código</td><td class="v">'+esc(d.codigo)+'</td></tr>'+
+      '</table>';
+  }
+
+  function load(codigo){
+    card.innerHTML = '<div style="text-align:center;color:#8a949e;padding:10px"><span class="spin"></span></div>';
+    fetch('/api/verificar-documento/'+encodeURIComponent(codigo))
+      .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
+      .then(function(res){
+        var d = res.j && res.j.data;
+        if(res.ok && d){ card.innerHTML = d.tipo_origen==='providencia' ? renderProv(d) : renderDoc(d); }
+        else { card.innerHTML = formHtml('No se encontró ningún documento con el código “'+codigo+'”.','no'); }
+      })
+      .catch(function(){ card.innerHTML = formHtml('No se pudo conectar con el servicio de verificación. Intenta nuevamente.','no'); });
+  }
+
+  (function(){
+    var m = location.pathname.match(/\/verificar\/([^\/?#]+)/i);
+    var codigo = m ? decodeURIComponent(m[1]) : '';
+    if(codigo){ load(codigo.toUpperCase()); } else { card.innerHTML = formHtml('', null); }
+  })();
+</script>
+</body>
+</html>

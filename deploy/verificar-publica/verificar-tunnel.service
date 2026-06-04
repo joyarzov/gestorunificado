@@ -1,0 +1,19 @@
+[Unit]
+Description=Tunel SSH inverso al VPS para verificacion publica de documentos
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Reenvia VPS:127.0.0.1:8090 -> CT106:127.0.0.1:8000 (backend Laravel)
+ExecStart=/usr/bin/ssh -NT \
+  -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+  -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+  -i /root/.ssh/tunnel_vps \
+  -R 127.0.0.1:8090:127.0.0.1:8000 \
+  joyarzo@45.228.210.11
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
