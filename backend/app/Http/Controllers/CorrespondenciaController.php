@@ -85,6 +85,8 @@ class CorrespondenciaController extends Controller
             'derivaciones.departamentoOrigen',
             'derivaciones.departamentoDestino',
             'derivaciones.usuarioOrigen',
+            'derivaciones.usuarioDestino',
+            'derivaciones.actuandoComo',
         ]);
 
         return $this->successResponse($correspondencia);

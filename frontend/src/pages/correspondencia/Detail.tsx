@@ -541,10 +541,27 @@ const CorrespondenciaDetail = () => {
               {correspondencia.derivaciones && correspondencia.derivaciones.length > 0 ? (
                 <List dense>
                   {correspondencia.derivaciones.map((der) => (
-                    <ListItem key={der.id}>
+                    <ListItem key={der.id} alignItems="flex-start">
                       <ListItemText
-                        primary={`${der.departamento_origen?.nombre} → ${der.departamento_destino?.nombre}`}
-                        secondary={format(new Date(der.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                        primary={`${der.departamento_origen?.nombre ?? '—'} → ${der.departamento_destino?.nombre ?? '—'}`}
+                        secondaryTypographyProps={{ component: 'div' }}
+                        secondary={
+                          <Box component="span" sx={{ display: 'block' }}>
+                            {(der.usuario_origen?.nombre || der.usuario_destino?.nombre) && (
+                              <Box component="span" sx={{ display: 'block', color: 'text.primary' }}>
+                                {der.usuario_origen?.nombre && (
+                                  <>De: {der.usuario_origen.nombre}
+                                    {der.actuando_como?.nombre ? ` (por ${der.actuando_como.nombre})` : ''}</>
+                                )}
+                                {der.usuario_origen?.nombre && der.usuario_destino?.nombre && '  ·  '}
+                                {der.usuario_destino?.nombre && <>Para: {der.usuario_destino.nombre}</>}
+                              </Box>
+                            )}
+                            <Box component="span" sx={{ display: 'block' }}>
+                              {format(new Date(der.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            </Box>
+                          </Box>
+                        }
                       />
                       <Chip
                         label={der.estado}
