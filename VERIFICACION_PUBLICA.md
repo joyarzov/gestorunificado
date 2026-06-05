@@ -141,10 +141,13 @@ systemctl daemon-reload && systemctl enable --now verificar-tunnel
 
 ---
 
-## 5. Pendiente: vhost del proveedor
+## 5. Vhost del proveedor
+
+> ✅ **Configurado y funcionando** (2026-06-05). `https://verificar.imcabodehornos.cl` resuelve,
+> con certificado Let's Encrypt válido, y la verificación opera de punta a punta.
 
 El gateway que controla `:443` público lo administra el **proveedor de hosting** (no el VPS).
-Hay que pedirles, igual que `soporte`:
+Lo que se les pidió, igual que `soporte`:
 
 > - **Dominio:** `verificar.imcabodehornos.cl` (DNS ya apunta a `45.228.210.11`)
 > - **Proxy reverso HTTPS →** `http://10.2.1.100:8082` (igual que soporte → `:8080`)
@@ -164,6 +167,10 @@ apuntan a la URL correcta).
 - El túnel es **saliente** desde el CT 106; la red municipal no abre puertos entrantes.
 - Rate-limit en el nginx del VPS contra scraping.
 - Código de verificación no enumerable (CSPRNG de 8 chars).
+- La página de verificación **sanea la entrada de texto** (función `san()`): solo acepta el
+  alfabeto del código (`A-Z`, `0-9`), en mayúsculas y con largo acotado (6–12). Se aplica tanto
+  al input manual como al código tomado de la URL, y el render escapa HTML (anti-XSS). El input
+  bloquea envíos concurrentes/doble submit.
 
 ---
 

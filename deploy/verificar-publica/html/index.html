@@ -70,9 +70,15 @@
     var b = msg ? '<div class="badge '+(level||'no')+'"><span class="dot">'+(level==='ok'?'✓':'✕')+'</span>'+esc(msg)+'</div>' : '';
     return b + '<div style="font-weight:600;margin-bottom:6px">Ingresa el código de verificación</div>'+
       '<div class="muted" style="margin-top:0;margin-bottom:12px">Lo encuentras junto al código QR del documento.</div>'+
-      '<form class="form" onsubmit="go(event)"><input id="cod" maxlength="12" placeholder="Ej: DZZK5JHR" autocomplete="off"><button type="submit">Verificar</button></form>';
+      '<form class="form" onsubmit="go(event)" autocomplete="off">'+
+      '<input id="cod" maxlength="12" minlength="6" placeholder="Ej: DZZK5JHR" autocomplete="off" '+
+        'autocapitalize="characters" spellcheck="false" inputmode="latin" pattern="[A-Z0-9]{6,12}" '+
+        'oninput="this.value=san(this.value)">'+
+      '<button type="submit">Verificar</button></form>';
   }
-  function go(e){ e.preventDefault(); var c=document.getElementById('cod').value.trim().toUpperCase(); if(c){ history.pushState(null,'','/verificar/'+c); load(c);} }
+  // Sanea el codigo: solo el alfabeto del codigo de verificacion (A-Z, 0-9), mayusculas, largo acotado.
+  function san(s){ return (s==null?'':String(s)).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12); }
+  function go(e){ e.preventDefault(); var c=san(document.getElementById('cod').value); if(c.length>=6){ history.pushState(null,'','/verificar/'+c); load(c);} }
 
   function renderDoc(d){
     var f = (d.firmantes||[]).map(function(x){return '<div class="firmante">• '+esc(x.nombre)+(x.fecha_firma?' — '+fmt(x.fecha_firma):'')+'</div>';}).join('');
@@ -97,7 +103,12 @@
       '</table>';
   }
 
+  var cargando = false;
   function load(codigo){
+    codigo = san(codigo);
+    if(codigo.length < 6){ card.innerHTML = formHtml('Ingresa un código válido (mínimo 6 caracteres).','no'); return; }
+    if(cargando) return;            // evita envíos concurrentes / doble submit
+    cargando = true;
     card.innerHTML = '<div style="text-align:center;color:#8a949e;padding:10px"><span class="spin"></span></div>';
     fetch('/api/verificar-documento/'+encodeURIComponent(codigo))
       .then(function(r){ return r.json().then(function(j){return {ok:r.ok,j:j};}); })
@@ -106,13 +117,14 @@
         if(res.ok && d){ card.innerHTML = d.tipo_origen==='providencia' ? renderProv(d) : renderDoc(d); }
         else { card.innerHTML = formHtml('No se encontró ningún documento con el código “'+codigo+'”.','no'); }
       })
-      .catch(function(){ card.innerHTML = formHtml('No se pudo conectar con el servicio de verificación. Intenta nuevamente.','no'); });
+      .catch(function(){ card.innerHTML = formHtml('No se pudo conectar con el servicio de verificación. Intenta nuevamente.','no'); })
+      .then(function(){ cargando = false; });
   }
 
   (function(){
     var m = location.pathname.match(/\/verificar\/([^\/?#]+)/i);
-    var codigo = m ? decodeURIComponent(m[1]) : '';
-    if(codigo){ load(codigo.toUpperCase()); } else { card.innerHTML = formHtml('', null); }
+    var codigo = m ? san(decodeURIComponent(m[1])) : '';
+    if(codigo){ load(codigo); } else { card.innerHTML = formHtml('', null); }
   })();
 </script>
 </body>
