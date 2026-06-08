@@ -24,6 +24,7 @@ use App\Http\Controllers\FondoConcursableController;
 use App\Http\Controllers\FirmaSelloController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\OrganigramaController;
+use App\Http\Controllers\DocumentoPlantillaAdminController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -310,6 +311,19 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
             Route::delete('/{firmaSello}', [FirmaSelloController::class, 'destroy']);
             Route::post('/{firmaSello}/logo', [FirmaSelloController::class, 'subirLogo']);
             Route::patch('/{firmaSello}/activar', [FirmaSelloController::class, 'activar']);
+        });
+    });
+
+    // MÓDULO MANTENEDOR DE PLANTILLAS DE DOCUMENTOS (admin)
+    // =====================================================
+    Route::middleware('role:admin')->group(function () {
+        Route::prefix('documento-plantillas')->group(function () {
+            Route::get('/', [DocumentoPlantillaAdminController::class, 'index']);
+            Route::get('/{documentoPlantilla}', [DocumentoPlantillaAdminController::class, 'show']);
+            Route::put('/{documentoPlantilla}', [DocumentoPlantillaAdminController::class, 'update']);
+            Route::post('/{documentoPlantilla}/duplicar', [DocumentoPlantillaAdminController::class, 'duplicar']);
+            Route::patch('/{documentoPlantilla}/toggle-activo', [DocumentoPlantillaAdminController::class, 'toggleActivo']);
+            Route::delete('/{documentoPlantilla}', [DocumentoPlantillaAdminController::class, 'destroy']);
         });
     });
 });

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class DocumentoPlantilla extends Model
 {
@@ -30,6 +31,9 @@ class DocumentoPlantilla extends Model
         'activo',
         'requiere_firma',
         'requiere_aprobacion',
+        'editable_admin',
+        'orden',
+        'origen',
         'creado_por',
     ];
 
@@ -38,7 +42,18 @@ class DocumentoPlantilla extends Model
         'activo' => 'boolean',
         'requiere_firma' => 'boolean',
         'requiere_aprobacion' => 'boolean',
+        'editable_admin' => 'boolean',
     ];
+
+    /**
+     * Invalida la cache de plantillas activas ante cualquier cambio,
+     * para que el mantenedor refleje las ediciones al instante.
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn () => Cache::forget('plantillas_activas'));
+        static::deleted(fn () => Cache::forget('plantillas_activas'));
+    }
 
     public function tipoDocumental()
     {
@@ -48,6 +63,11 @@ class DocumentoPlantilla extends Model
     public function documentos()
     {
         return $this->hasMany(Documento::class, 'plantilla_id');
+    }
+
+    public function plantillasPersonales()
+    {
+        return $this->hasMany(DocumentoPlantillaPersonal::class, 'plantilla_id');
     }
 
     public function creador()

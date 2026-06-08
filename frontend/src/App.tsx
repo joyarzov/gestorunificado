@@ -57,6 +57,7 @@ import DepartamentosManage from './pages/admin/DepartamentosManage'
 import FirmaSellosPage from './pages/admin/FirmaSellosPage'
 import FirmaSelloForm from './pages/admin/FirmaSelloForm'
 import Configuracion from './pages/admin/Configuracion'
+import PlantillasManage from './pages/admin/PlantillasManage'
 import Organigrama from './pages/admin/Organigrama'
 import ChangePassword from './pages/auth/ChangePassword'
 
@@ -134,6 +135,7 @@ function App() {
             <Route path="/firma-sellos" element={<FirmaSellosPage />} />
             <Route path="/firma-sellos/nuevo" element={<FirmaSelloForm />} />
             <Route path="/firma-sellos/:id/editar" element={<FirmaSelloForm />} />
+            <Route path="/plantillas" element={<PlantillasManage />} />
             <Route path="/organigrama" element={<Organigrama />} />
           </Route>
         </Route>

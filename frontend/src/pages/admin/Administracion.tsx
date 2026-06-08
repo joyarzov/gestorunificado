@@ -13,12 +13,20 @@ import {
   Settings as ConfigIcon,
   Archive as ArchiveIcon,
   Verified as SelloIcon,
+  Description as PlantillaIcon,
 } from '@mui/icons-material'
 
 const Administracion = () => {
   const navigate = useNavigate()
 
-  const modulos = [
+  const modulos: {
+    titulo: string
+    descripcion: string
+    icono: JSX.Element
+    color: string
+    ruta: string
+    disabled?: boolean
+  }[] = [
     {
       titulo: 'Usuarios',
       descripcion: 'Gestión de usuarios del sistema',
@@ -53,6 +61,13 @@ const Administracion = () => {
       icono: <SelloIcon sx={{ fontSize: 48 }} />,
       color: '#EB1B78',
       ruta: '/firma-sellos',
+    },
+    {
+      titulo: 'Plantillas de Documentos',
+      descripcion: 'Mantenedor de plantillas del módulo cero papel',
+      icono: <PlantillaIcon sx={{ fontSize: 48 }} />,
+      color: '#2DC700',
+      ruta: '/plantillas',
     },
   ]
 

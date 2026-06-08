@@ -218,7 +218,14 @@ export interface DocumentoPlantilla {
   activo: boolean
   requiere_firma: boolean
   requiere_aprobacion: boolean
+  // Metadatos del mantenedor (Fase 1)
+  editable_admin?: boolean
+  orden?: number | null
+  origen?: 'seeder' | 'admin'
   creado_por?: number
+  creador?: { id: number; nombre: string }
+  documentos_count?: number
+  plantillas_personales_count?: number
 }
 
 export interface DocumentoAdjunto {
