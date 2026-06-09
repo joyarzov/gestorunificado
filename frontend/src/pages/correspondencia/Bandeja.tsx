@@ -180,7 +180,7 @@ const BandejaEntrada = () => {
                       >
                         <ViewIcon />
                       </IconButton>
-                      {der.estado === 'pendiente' && (
+                      {der.estado === 'pendiente' && der.puede_actuar && (
                         <IconButton
                           size="small"
                           color="success"
@@ -190,7 +190,7 @@ const BandejaEntrada = () => {
                           <RecibirIcon />
                         </IconButton>
                       )}
-                      {der.estado === 'recibido' && !isAlcalde() && (
+                      {der.estado === 'recibido' && !isAlcalde() && der.puede_actuar && (
                         <IconButton
                           size="small"
                           color="primary"
@@ -199,6 +199,9 @@ const BandejaEntrada = () => {
                         >
                           <ArchivarIcon />
                         </IconButton>
+                      )}
+                      {!der.puede_actuar && (der.estado === 'pendiente' || der.estado === 'recibido') && (
+                        <Chip label="Solo lectura" size="small" variant="outlined" sx={{ ml: 0.5, height: 20, fontSize: 10 }} />
                       )}
                     </TableCell>
                   </TableRow>

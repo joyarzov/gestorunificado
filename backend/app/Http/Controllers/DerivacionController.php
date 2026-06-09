@@ -473,11 +473,16 @@ class DerivacionController extends Controller
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
         ])
-            ->where('departamento_destino_id', $ctx->departamento_id)
             ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])
+            // Dirigida a MÍ (usuario), o a MI departamento cuando no hay usuario
+            // específico. Así una derivación a una persona le llega aunque su depto
+            // no coincida con el departamento_destino guardado.
             ->where(function ($q) use ($ctx) {
-                $q->whereNull('usuario_destino_id')
-                    ->orWhere('usuario_destino_id', $ctx->id);
+                $q->where('usuario_destino_id', $ctx->id)
+                  ->orWhere(function ($q2) use ($ctx) {
+                      $q2->whereNull('usuario_destino_id')
+                         ->where('departamento_destino_id', $ctx->departamento_id);
+                  });
             })
             ->orderBy('created_at', 'desc')
             ->get();
@@ -489,7 +494,9 @@ class DerivacionController extends Controller
     {
         $user = Auth::user();
 
-        if ($derivacion->departamento_destino_id !== $user->contexto()->departamento_id) {
+        // Solo el destinatario legítimo puede recibir (usuario dirigido, o el depto
+        // cuando no hay usuario). Admin/oficina de partes supervisan, no intervienen.
+        if (!$derivacion->esDestinatario($user)) {
             return $this->errorResponse('No tienes permiso para recibir esta derivación', 403);
         }
 
@@ -606,7 +613,8 @@ class DerivacionController extends Controller
     {
         $user = Auth::user();
 
-        if ($derivacion->departamento_destino_id !== $user->contexto()->departamento_id) {
+        // Solo el destinatario legítimo puede archivar (no el supervisor que solo ve).
+        if (!$derivacion->esDestinatario($user)) {
             return $this->errorResponse('No tienes permiso para archivar esta derivación', 403);
         }
 

@@ -74,4 +74,20 @@ class Derivacion extends Model
     {
         return $query->where('estado', 'recibido');
     }
+
+    /**
+     * ¿El usuario es el destinatario legítimo de esta derivación?
+     * - Si la derivación va a un USUARIO específico → debe ser ese usuario.
+     * - Si va a nivel de DEPARTAMENTO (sin usuario) → debe estar en ese depto.
+     * Usa el contexto (respeta subrogancia). Admin/oficial NO son destinatarios
+     * por el solo hecho de supervisar: solo ven, no intervienen.
+     */
+    public function esDestinatario(User $user): bool
+    {
+        $ctx = $user->contexto();
+        if ($this->usuario_destino_id) {
+            return (int) $this->usuario_destino_id === (int) $ctx->id;
+        }
+        return (int) $this->departamento_destino_id === (int) $ctx->departamento_id;
+    }
 }

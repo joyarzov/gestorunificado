@@ -53,6 +53,37 @@ export interface AlcaldeInfo {
   departamento_nombre: string
 }
 
+export interface HiloAdjunto {
+  id: number
+  nombre: string
+  tipo_mime?: string
+  tamanio_bytes: number
+}
+
+export interface HiloItem {
+  tipo: 'derivacion' | 'mensaje'
+  id: number
+  fecha: string
+  // derivacion
+  estado?: string
+  de?: { usuario?: string | null; departamento?: string | null }
+  para?: { usuario?: string | null; departamento?: string | null }
+  observaciones?: string | null
+  acciones_para?: string[] | null
+  tiene_pdf?: boolean
+  // mensaje
+  autor?: { id: number; nombre: string }
+  es_mio?: boolean
+  mensaje?: string | null
+  adjuntos?: HiloAdjunto[]
+}
+
+export interface HiloResponse {
+  items: HiloItem[]
+  participantes: { id: number; nombre: string }[]
+  puede_responder: boolean
+}
+
 export const correspondenciaAPI = {
   // Correspondencia
   listar: async (params?: CorrespondenciaFilters) => {
@@ -195,6 +226,31 @@ export const correspondenciaAPI = {
   // Providencia
   descargarProvidencia: async (correspondenciaId: number) => {
     const response = await api.get(`/correspondencia/${correspondenciaId}/providencia`, {
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
+  // Hilo de conversación (timeline unificado: derivaciones + mensajes)
+  obtenerHilo: async (correspondenciaId: number) => {
+    const response = await api.get<ApiResponse<HiloResponse>>(`/correspondencia/${correspondenciaId}/hilo`)
+    return response.data.data
+  },
+
+  enviarMensaje: async (correspondenciaId: number, mensaje: string, archivos: File[]) => {
+    const formData = new FormData()
+    if (mensaje) formData.append('mensaje', mensaje)
+    archivos.forEach((f) => formData.append('adjuntos[]', f))
+    const response = await api.post<ApiResponse<unknown>>(
+      `/correspondencia/${correspondenciaId}/mensajes`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    return response.data
+  },
+
+  descargarMensajeAdjunto: async (adjuntoId: number) => {
+    const response = await api.get(`/correspondencia-mensajes/adjunto/${adjuntoId}/descargar`, {
       responseType: 'blob',
     })
     return response.data

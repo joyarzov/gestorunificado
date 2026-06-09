@@ -94,6 +94,8 @@ export interface Derivacion {
   estado: 'pendiente' | 'recibido' | 'archivado' | 'derivado'
   fecha_recepcion?: string
   created_at: string
+  // Solo en la bandeja: si el usuario puede actuar (recibir/archivar) o solo ver
+  puede_actuar?: boolean
 }
 
 // Tipos OIRS

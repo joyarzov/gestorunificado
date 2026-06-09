@@ -26,7 +26,6 @@ import {
   Edit as EditIcon,
   AttachFile as AttachIcon,
   Send as DerivacionIcon,
-  History as HistoryIcon,
   Visibility as ViewIcon,
   Download as DownloadIcon,
   Close as CloseIcon,
@@ -39,6 +38,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 import DerivacionDialog from '../../components/correspondencia/DerivacionDialog'
+import ConversacionHilo from '../../components/correspondencia/ConversacionHilo'
 import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
 import Snackbar from '@mui/material/Snackbar'
 
@@ -531,53 +531,8 @@ const CorrespondenciaDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Historial de derivaciones */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                <HistoryIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Derivaciones
-              </Typography>
-              {correspondencia.derivaciones && correspondencia.derivaciones.length > 0 ? (
-                <List dense>
-                  {correspondencia.derivaciones.map((der) => (
-                    <ListItem key={der.id} alignItems="flex-start">
-                      <ListItemText
-                        primary={`${der.departamento_origen?.nombre ?? '—'} → ${der.departamento_destino?.nombre ?? '—'}`}
-                        secondaryTypographyProps={{ component: 'div' }}
-                        secondary={
-                          <Box component="span" sx={{ display: 'block' }}>
-                            {(der.usuario_origen?.nombre || der.usuario_destino?.nombre) && (
-                              <Box component="span" sx={{ display: 'block', color: 'text.primary' }}>
-                                {der.usuario_origen?.nombre && (
-                                  <>De: {der.usuario_origen.nombre}
-                                    {der.actuando_como?.nombre ? ` (por ${der.actuando_como.nombre})` : ''}</>
-                                )}
-                                {der.usuario_origen?.nombre && der.usuario_destino?.nombre && '  ·  '}
-                                {der.usuario_destino?.nombre && <>Para: {der.usuario_destino.nombre}</>}
-                              </Box>
-                            )}
-                            <Box component="span" sx={{ display: 'block' }}>
-                              {format(new Date(der.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
-                            </Box>
-                          </Box>
-                        }
-                      />
-                      <Chip
-                        label={der.estado}
-                        size="small"
-                        color={der.estado === 'recibido' ? 'success' : 'warning'}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Sin derivaciones
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
+          {/* Conversación: timeline unificado (derivaciones + mensajes) */}
+          <ConversacionHilo correspondenciaId={correspondencia.id} />
         </Grid>
       </Grid>
 

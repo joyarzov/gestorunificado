@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\CorrespondenciaController;
+use App\Http\Controllers\CorrespondenciaMensajeController;
 use App\Http\Controllers\DerivacionController;
 use App\Http\Controllers\AdjuntoController;
 use App\Http\Controllers\DepartamentoController;
@@ -138,7 +139,11 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
         Route::get('/{correspondencia}/providencia', [CorrespondenciaController::class, 'descargarProvidencia']);
+        // Hilo de conversación (timeline unificado: derivaciones + mensajes)
+        Route::get('/{correspondencia}/hilo', [CorrespondenciaMensajeController::class, 'hilo']);
+        Route::post('/{correspondencia}/mensajes', [CorrespondenciaMensajeController::class, 'store']);
     });
+    Route::get('correspondencia-mensajes/adjunto/{adjunto}/descargar', [CorrespondenciaMensajeController::class, 'descargarAdjunto']);
     Route::apiResource('correspondencia', CorrespondenciaController::class)
         ->parameters(['correspondencia' => 'correspondencia']);
 

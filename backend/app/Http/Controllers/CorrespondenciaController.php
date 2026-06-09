@@ -140,7 +140,8 @@ class CorrespondenciaController extends Controller
 
     public function bandeja(Request $request)
     {
-        $ctx = Auth::user()->contexto();
+        $user = Auth::user();
+        $ctx  = $user->contexto();
 
         $query = Derivacion::with([
             'correspondencia',
@@ -149,12 +150,29 @@ class CorrespondenciaController extends Controller
             'usuarioOrigen',
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
-        ])
-            ->where('departamento_destino_id', $ctx->departamento_id)
-            ->whereIn('estado', ['pendiente', 'recibido']);
+        ])->whereIn('estado', ['pendiente', 'recibido']);
+
+        // Admin y oficina de partes (oficial) ven TODO (supervisión, solo lectura).
+        // El resto ve lo dirigido a su persona, o a su departamento (cuando la
+        // derivación no apunta a un usuario específico).
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            $query->where(function ($q) use ($ctx) {
+                $q->where('usuario_destino_id', $ctx->id)
+                  ->orWhere(function ($q2) use ($ctx) {
+                      $q2->whereNull('usuario_destino_id')
+                         ->where('departamento_destino_id', $ctx->departamento_id);
+                  });
+            });
+        }
 
         $derivaciones = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10));
+
+        // Marca por ítem si el usuario puede ACTUAR (recibir/archivar) o solo ver.
+        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user) {
+            $d->puede_actuar = $d->esDestinatario($user);
+            return $d;
+        });
 
         return $this->successResponse($derivaciones);
     }
