@@ -34,6 +34,10 @@ class DocumentoPlantilla extends Model
         'editable_admin',
         'orden',
         'origen',
+        'render_engine',
+        'estructura_json',
+        'estilo_json',
+        'version_seeder',
         'creado_por',
     ];
 
@@ -43,7 +47,15 @@ class DocumentoPlantilla extends Model
         'requiere_firma' => 'boolean',
         'requiere_aprobacion' => 'boolean',
         'editable_admin' => 'boolean',
+        'estructura_json' => 'array',
+        'estilo_json' => 'array',
     ];
+
+    /** ¿La plantilla usa el motor de render por bloques (Fase 2)? */
+    public function esMotorBloques(): bool
+    {
+        return $this->render_engine === 'bloques';
+    }
 
     /**
      * Invalida la cache de plantillas activas ante cualquier cambio,

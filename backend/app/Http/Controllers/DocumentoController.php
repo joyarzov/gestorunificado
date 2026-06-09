@@ -354,6 +354,18 @@ class DocumentoController extends Controller
         ]);
 
         $plantilla = DocumentoPlantilla::findOrFail($request->plantilla_id);
+
+        // Motor por bloques (Fase 2): devuelve un documento HTML completo.
+        if ($plantilla->esMotorBloques()) {
+            $appUrl = rtrim(config('app.verificacion_url'), '/');
+            $html = app(\App\Services\PlantillaRenderer::class)->html(
+                $plantilla,
+                $request->contenido_json,
+                ['codigo_verificacion' => 'XXXXXXXX', 'verificar_url' => $appUrl . '/verificar/XXXXXXXX']
+            );
+            return response()->json(['html' => $html, 'full' => true]);
+        }
+
         $contenidoHtml = $this->procesarPlantilla($plantilla, $request->contenido_json);
         $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, 'XXXXXXXX');
 

@@ -224,9 +224,10 @@ export const documentosAPI = {
     return response.data
   },
 
-  // Previsualizar plantilla con variables
+  // Previsualizar plantilla con variables.
+  // `full` indica que `html` es un documento HTML completo (motor por bloques, Fase 2).
   previsualizar: async (data: PreviewPlantillaData) => {
-    const response = await api.post<{ html: string }>('/documentos/previsualizar', data)
+    const response = await api.post<{ html: string; full?: boolean }>('/documentos/previsualizar', data)
     return response.data
   },
 

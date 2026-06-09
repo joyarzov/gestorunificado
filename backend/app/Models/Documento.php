@@ -240,6 +240,14 @@ class Documento extends Model
 
     public function generarPdfFinal(): void
     {
+        // Render por bloques (Fase 2): si la plantilla usa el motor de bloques,
+        // se arma el PDF con PlantillaRenderer en vez del contenido_html legacy.
+        $this->loadMissing('plantilla');
+        if ($this->plantilla && $this->plantilla->esMotorBloques()) {
+            $this->generarPdfBloques();
+            return;
+        }
+
         if (empty($this->contenido_html)) {
             return;
         }
@@ -267,6 +275,26 @@ class Documento extends Model
 
         $pdf = Pdf::loadHTML($html);
         $pdf->setPaper('letter');
+        $pdf->setOption('isRemoteEnabled', true);
+
+        $filename = 'documentos/' . $this->identificador . '_' . time() . '.pdf';
+        Storage::disk('public')->put($filename, $pdf->output());
+
+        $this->update(['archivo_pdf' => $filename]);
+    }
+
+    /** Genera el PDF usando el motor de bloques (Fase 2). */
+    private function generarPdfBloques(): void
+    {
+        $renderer = app(\App\Services\PlantillaRenderer::class);
+        $appUrl = rtrim(config('app.verificacion_url'), '/');
+        $meta = [
+            'codigo_verificacion' => $this->codigo_verificacion,
+            'verificar_url'       => $appUrl . '/verificar/' . $this->codigo_verificacion,
+        ];
+
+        $data = $renderer->viewData($this->plantilla, $this->contenido_json ?? [], $meta);
+        $pdf = Pdf::loadView('pdf.plantilla_base', $data);
         $pdf->setOption('isRemoteEnabled', true);
 
         $filename = 'documentos/' . $this->identificador . '_' . time() . '.pdf';

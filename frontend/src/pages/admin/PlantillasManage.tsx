@@ -64,8 +64,20 @@ type PapelKey = keyof typeof PAPELES
  * PDF (los mismos de Documento::generarPdfFinal) y la escala para caber en el
  * panel, de modo que la vista previa sea proporcional a la impresión.
  */
-const buildPreviewDoc = (html: string, papel: PapelKey): string => {
+const buildPreviewDoc = (html: string, papel: PapelKey, full = false): string => {
   const p = PAPELES[papel]
+  // Motor por bloques: `html` ya es un documento completo. Le inyectamos el
+  // aspecto de hoja (ancho real + sombra) y el ajuste de escala, reusando su CSS.
+  if (full) {
+    const inject = `<style>html{background:#eceff1;margin:0;padding:0;}` +
+      `body{width:${p.w}cm;min-height:${p.h}cm;margin:14px auto;background:#fff;` +
+      `box-shadow:0 1px 12px rgba(0,0,0,.22);box-sizing:border-box;}</style>` +
+      `<script>(function(){function fit(){var b=document.body;if(!b)return;b.style.zoom=1;` +
+      `var a=document.documentElement.clientWidth-28;var w=b.offsetWidth;if(w>a)b.style.zoom=a/w;}` +
+      `['load','resize'].forEach(function(e){window.addEventListener(e,fit);});` +
+      `setTimeout(fit,60);setTimeout(fit,300);fit();})();<\/script>`
+    return html.includes('</head>') ? html.replace('</head>', inject + '</head>') : inject + html
+  }
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     html,body{margin:0;padding:0;background:#eceff1;}
     #wrap{padding:14px;text-align:center;}
@@ -118,6 +130,7 @@ const PlantillasManage = () => {
 
   // Vista previa
   const [previewHtml, setPreviewHtml] = useState('')
+  const [previewFull, setPreviewFull] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [papel, setPapel] = useState<PapelKey>('carta')
 
@@ -157,8 +170,10 @@ const PlantillasManage = () => {
         contenido_json: sample,
       })
       setPreviewHtml(res.html)
+      setPreviewFull(!!res.full)
     } catch {
       setPreviewHtml('<p style="color:#999;font-family:sans-serif">No se pudo generar la vista previa.</p>')
+      setPreviewFull(false)
     } finally {
       setPreviewLoading(false)
     }
@@ -501,7 +516,7 @@ const PlantillasManage = () => {
                 )}
                 <iframe
                   title="preview"
-                  srcDoc={previewHtml ? buildPreviewDoc(previewHtml, papel) : ''}
+                  srcDoc={previewHtml ? buildPreviewDoc(previewHtml, papel, previewFull) : ''}
                   style={{ width: '100%', height: '100%', border: 'none' }}
                 />
               </Paper>
