@@ -16,10 +16,14 @@ export function buildPreviewDoc(html: string, papel: PapelKey, full = false): st
   // Motor por bloques: `html` ya es un documento completo. Le inyectamos el
   // aspecto de hoja (ancho real + sombra) y el ajuste de escala, reusando su CSS.
   if (full) {
+    // En el PDF, el pie/firma usan position:fixed (anclados a la página). En el
+    // navegador, fixed se ancla al viewport del iframe (no a la hoja), por lo que
+    // los pasamos a absolute relativos a la hoja (body) solo para la previa.
     const inject =
       `<style>html{background:#eceff1;margin:0;padding:0;}` +
       `body{width:${p.w}cm;min-height:${p.h}cm;margin:14px auto;background:#fff;` +
-      `box-shadow:0 1px 12px rgba(0,0,0,.22);box-sizing:border-box;}</style>` +
+      `box-shadow:0 1px 12px rgba(0,0,0,.22);box-sizing:border-box;position:relative;}` +
+      `.pie,.firma-area{position:absolute !important;}</style>` +
       `<script>(function(){function fit(){var b=document.body;if(!b)return;b.style.zoom=1;` +
       `var a=document.documentElement.clientWidth-28;var w=b.offsetWidth;if(w>a)b.style.zoom=a/w;}` +
       `['load','resize'].forEach(function(e){window.addEventListener(e,fit);});` +
