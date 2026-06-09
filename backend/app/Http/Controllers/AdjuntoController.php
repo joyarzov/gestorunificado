@@ -12,13 +12,32 @@ use Illuminate\Support\Facades\Storage;
 
 class AdjuntoController extends Controller
 {
+    /** Extensiones permitidas para adjuntos de la ficha de correspondencia. */
+    private const EXTENSIONES_CORRESPONDENCIA = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'rar', 'jpg', 'jpeg', 'png'];
+
     public function subirCorrespondencia(Request $request, Correspondencia $correspondencia)
     {
+        $user = Auth::user();
+
+        // La ficha de correspondencia la administra oficina de partes / admin.
+        // (Los participantes adjuntan en el hilo de conversación.)
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            return $this->errorResponse('No tienes permiso para adjuntar archivos a la ficha.', 403);
+        }
+
         $request->validate([
             'archivo' => 'required|file|max:10240', // 10MB máximo
         ]);
 
         $file = $request->file('archivo');
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, self::EXTENSIONES_CORRESPONDENCIA, true)) {
+            return $this->errorResponse(
+                "Tipo de archivo no permitido: .{$ext}. Permitidos: " . implode(', ', self::EXTENSIONES_CORRESPONDENCIA) . '.',
+                422
+            );
+        }
+
         $path = $file->store('correspondencia/' . $correspondencia->id, 'public');
 
         $adjunto = CorrespondenciaAdjunto::create([
@@ -34,6 +53,11 @@ class AdjuntoController extends Controller
 
     public function eliminar(CorrespondenciaAdjunto $adjunto)
     {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            return $this->errorResponse('No tienes permiso para eliminar adjuntos de la ficha.', 403);
+        }
+
         // Eliminar archivo físico
         Storage::disk('public')->delete($adjunto->ruta_archivo);
 

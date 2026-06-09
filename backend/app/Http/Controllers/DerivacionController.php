@@ -30,7 +30,12 @@ class DerivacionController extends Controller
             'departamentoDestino',
             'usuarioOrigen',
             'usuarioDestino',
-        ]);
+        ])
+            // Solo derivaciones de correspondencias visibles para el usuario
+            // (admin/oficial ven todo; el resto, solo donde participa).
+            ->whereHas('correspondencia', function ($q) {
+                $q->visiblesPara(Auth::user());
+            });
 
         if ($request->filled('correspondencia_id')) {
             $query->where('correspondencia_id', $request->correspondencia_id);
@@ -61,6 +66,23 @@ class DerivacionController extends Controller
         $ctx = $user->contexto();
         $correspondencia = Correspondencia::find($request->correspondencia_id);
         $esAlcaldeDerivando = $user->isAlcalde() && $correspondencia->estado === 'derivada_alcaldia';
+
+        // Autorización para derivar:
+        // - oficina de partes / admin: la primera derivación (estado pendiente);
+        // - alcalde: lo que está en su despacho (derivada_alcaldia);
+        // - funcionario: re-derivar solo lo que tiene activo en su bandeja
+        //   (es destinatario de una derivación pendiente/recibida).
+        if (!$correspondencia->esVisiblePara($user)) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+        $esOficinaPartes = ($user->isAdmin() || $user->isOficial()) && $correspondencia->estado === 'pendiente';
+        $esDestinatarioActivo = $correspondencia->derivaciones()
+            ->whereIn('estado', ['pendiente', 'recibido'])
+            ->get()
+            ->contains(fn ($d) => $d->esDestinatario($user));
+        if (!$esOficinaPartes && !$esAlcaldeDerivando && !$esDestinatarioActivo) {
+            return $this->errorResponse('No puedes derivar esta correspondencia en su estado actual.', 403);
+        }
 
         // Origen institucional = subrogado si hay actuando-como (es el alcalde
         // quien "deriva"); actor real (usuario_origen_id) sigue siendo $user,
@@ -215,20 +237,10 @@ class DerivacionController extends Controller
      */
     public function pdf(Derivacion $derivacion)
     {
-        $user = Auth::user();
-        $ctx = $user->contexto();
-
-        // Verificar acceso: origen, destino o admin. Cuando hay actuando-como,
-        // el check de depto considera al subrogado para que el subrogante vea
-        // los PDFs de las derivaciones del titular.
-        $tieneAcceso = $user->isAdmin()
-            || $derivacion->usuario_origen_id === $user->id
-            || $derivacion->usuario_destino_id === $user->id
-            || $derivacion->departamento_origen_id === $ctx->departamento_id
-            || $derivacion->departamento_destino_id === $ctx->departamento_id
-            || $user->isAlcalde();
-
-        if (!$tieneAcceso) {
+        // Misma regla de visibilidad que el resto del módulo: admin/oficial ven todo;
+        // el resto, solo derivaciones de correspondencias donde participa (la regla
+        // sigue a contexto(), así el subrogante ve los PDFs del titular).
+        if (!$derivacion->correspondencia?->esVisiblePara(Auth::user())) {
             return $this->errorResponse('Sin acceso a este documento', 403);
         }
 
@@ -448,6 +460,10 @@ class DerivacionController extends Controller
 
     public function show(Derivacion $derivacion)
     {
+        if (!$derivacion->correspondencia?->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a esta derivación.', 403);
+        }
+
         $derivacion->load([
             'correspondencia.adjuntos',
             'departamentoOrigen',

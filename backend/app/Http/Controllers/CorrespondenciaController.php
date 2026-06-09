@@ -139,6 +139,24 @@ class CorrespondenciaController extends Controller
 
     public function destroy(Correspondencia $correspondencia)
     {
+        $user = Auth::user();
+
+        // Solo oficina de partes / admin pueden eliminar registros de correspondencia.
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            return $this->errorResponse('No tienes permiso para eliminar correspondencia.', 403);
+        }
+
+        // Con derivaciones ya emitidas (providencias firmadas) el registro es parte
+        // de la trazabilidad institucional: no se elimina.
+        if ($correspondencia->derivaciones()->exists()) {
+            return $this->errorResponse('No se puede eliminar: la correspondencia tiene derivaciones registradas.', 422);
+        }
+
+        // Borrar también los archivos físicos de los adjuntos.
+        foreach ($correspondencia->adjuntos as $adjunto) {
+            Storage::disk('public')->delete($adjunto->ruta_archivo);
+        }
+
         $correspondencia->delete();
 
         return $this->successResponse(null, 'Correspondencia eliminada');
