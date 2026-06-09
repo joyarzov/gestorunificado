@@ -23,6 +23,10 @@ class CorrespondenciaMensajeController extends Controller
      */
     public function hilo(Correspondencia $correspondencia)
     {
+        if (!$correspondencia->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+
         $correspondencia->load([
             'derivaciones.usuarioOrigen', 'derivaciones.usuarioDestino',
             'derivaciones.departamentoOrigen', 'derivaciones.departamentoDestino',

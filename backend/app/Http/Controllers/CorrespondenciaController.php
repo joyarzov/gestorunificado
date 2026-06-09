@@ -13,7 +13,9 @@ class CorrespondenciaController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Correspondencia::with(['departamento', 'usuario', 'adjuntos']);
+        // Visibilidad: admin/oficial ven todo; el resto solo donde participa.
+        $query = Correspondencia::visiblesPara(Auth::user())
+            ->with(['departamento', 'usuario', 'adjuntos']);
 
         // Filtros
         if ($request->filled('estado')) {
@@ -78,6 +80,10 @@ class CorrespondenciaController extends Controller
 
     public function show(Correspondencia $correspondencia)
     {
+        if (!$correspondencia->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+
         $correspondencia->load([
             'departamento',
             'usuario',
@@ -218,6 +224,10 @@ class CorrespondenciaController extends Controller
 
     public function descargarProvidencia(Correspondencia $correspondencia)
     {
+        if (!$correspondencia->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+
         if (!$correspondencia->providencia_generada || !$correspondencia->providencia_pdf) {
             return $this->errorResponse('Esta correspondencia no tiene providencia generada', 404);
         }

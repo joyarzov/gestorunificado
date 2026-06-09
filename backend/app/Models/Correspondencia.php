@@ -64,6 +64,37 @@ class Correspondencia extends Model
         return $this->hasOne(Derivacion::class)->latestOfMany();
     }
 
+    /**
+     * Correspondencias visibles para un usuario.
+     * - admin / oficial (oficina de partes): TODAS (supervisión).
+     * - resto: solo donde participa — la creó, está en la cadena de derivaciones
+     *   (origen o destino), o fue derivada a su departamento sin usuario específico.
+     * Usa contexto() para respetar la subrogancia.
+     */
+    public function scopeVisiblesPara($query, User $user)
+    {
+        if ($user->isAdmin() || $user->isOficial()) {
+            return $query;
+        }
+        $ctx = $user->contexto();
+        return $query->where(function ($q) use ($ctx) {
+            $q->where('usuario_id', $ctx->id)
+              ->orWhereHas('derivaciones', function ($d) use ($ctx) {
+                  $d->where('usuario_origen_id', $ctx->id)
+                    ->orWhere('usuario_destino_id', $ctx->id)
+                    ->orWhere(function ($d2) use ($ctx) {
+                        $d2->whereNull('usuario_destino_id')
+                           ->where('departamento_destino_id', $ctx->departamento_id);
+                    });
+              });
+        });
+    }
+
+    public function esVisiblePara(User $user): bool
+    {
+        return static::visiblesPara($user)->whereKey($this->id)->exists();
+    }
+
     public function scopePendientes($query)
     {
         return $query->where('estado', 'pendiente');

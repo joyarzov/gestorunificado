@@ -44,6 +44,10 @@ class AdjuntoController extends Controller
 
     public function descargar(CorrespondenciaAdjunto $adjunto)
     {
+        if (!$adjunto->correspondencia?->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+
         if (!Storage::disk('public')->exists($adjunto->ruta_archivo)) {
             return $this->errorResponse('Archivo no encontrado', 404);
         }
