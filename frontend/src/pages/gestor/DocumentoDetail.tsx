@@ -104,6 +104,13 @@ const accionLabels: Record<string, string> = {
   eliminado: 'Eliminado',
 }
 
+// Tramos de "Altura del sello": el slider salta SOLO a estas posiciones (no es fluido),
+// alineadas a la grilla de apilado (cada 80pt desde y=20). Así, firmas de distintas
+// personas en el mismo documento que elijan el mismo tramo quedan en la MISMA línea.
+const ALTURA_TRAMOS = [20, 100, 180, 260, 340, 420, 500, 580, 660].map(
+  (y) => ((y - 10) / 702) * 100,
+)
+
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -126,7 +133,7 @@ const DocumentoDetail = () => {
   const [otpCode, setOtpCode] = useState('')
   const [firmaGobEnabled, setFirmaGobEnabled] = useState(false)
   const [firmaGobPurpose, setFirmaGobPurpose] = useState('')
-  const [firmaYPos, setFirmaYPos] = useState(2)           // slider 0-100, default near bottom
+  const [firmaYPos, setFirmaYPos] = useState(ALTURA_TRAMOS[0])  // arranca en el tramo más bajo
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
   const [firmaPageNum, setFirmaPageNum] = useState(1)
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
@@ -995,18 +1002,6 @@ const DocumentoDetail = () => {
                 size="small"
                 sx={{ mb: 2 }}
               />
-              {firmaGobPurpose !== 'Desatendido' && (
-                <TextField
-                  fullWidth
-                  label="Código OTP (Google Authenticator)"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  size="small"
-                  inputProps={{ maxLength: 10 }}
-                  helperText="Abra Google Authenticator en su celular e ingrese el código de 6 dígitos."
-                  sx={{ mb: 2 }}
-                />
-              )}
               {/* Selector de posición del sello */}
               {(() => {
                 const existingFirmaPositions = (documento.firmas || [])
@@ -1075,11 +1070,17 @@ const DocumentoDetail = () => {
                               onChange={(_, v) => setFirmaYPos(v as number)}
                               min={0}
                               max={100}
+                              step={null}
                               size="small"
-                              marks={[
-                                { value: 0,   label: 'Inferior' },
-                                { value: 100, label: 'Superior' },
-                              ]}
+                              marks={ALTURA_TRAMOS.map((value, i) => ({
+                                value,
+                                label:
+                                  i === 0
+                                    ? 'Inferior'
+                                    : i === ALTURA_TRAMOS.length - 1
+                                    ? 'Superior'
+                                    : undefined,
+                              }))}
                               sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                             />
                           </Box>
@@ -1101,6 +1102,19 @@ const DocumentoDetail = () => {
                             <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>Derecha</ToggleButton>
                           </ToggleButtonGroup>
                         </Box>
+
+                        {/* Código OTP - bajo el selector de posición */}
+                        {firmaGobPurpose !== 'Desatendido' && (
+                          <TextField
+                            fullWidth
+                            label="Código OTP (Google Authenticator)"
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value)}
+                            size="small"
+                            inputProps={{ maxLength: 10 }}
+                            helperText="Abra Google Authenticator en su celular e ingrese el código de 6 dígitos."
+                          />
+                        )}
                       </Box>
                     </Box>
                   </Box>

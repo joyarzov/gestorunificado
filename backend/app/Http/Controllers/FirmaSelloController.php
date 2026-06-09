@@ -26,6 +26,7 @@ class FirmaSelloController extends Controller
             'color_primario'     => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'color_secundario'   => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'color_fondo'        => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'fondo_opacidad'     => 'nullable|integer|min:0|max:100',
             'mostrar_logo'       => 'nullable|boolean',
             'nombre_institucion' => 'nullable|string|max:200',
             'texto_linea1'       => 'nullable|string|max:100',
@@ -37,6 +38,7 @@ class FirmaSelloController extends Controller
             'color_primario'     => $request->color_primario     ?? '#0071BC',
             'color_secundario'   => $request->color_secundario   ?? '#00467E',
             'color_fondo'        => $request->color_fondo        ?? '#EBF5FF',
+            'fondo_opacidad'     => $request->input('fondo_opacidad', 100),
             'mostrar_logo'       => $request->boolean('mostrar_logo', true),
             'nombre_institucion' => $request->nombre_institucion ?? 'Ilustre Municipalidad de Cabo de Hornos',
             'texto_linea1'       => $request->texto_linea1       ?? 'FIRMA ELECTRÓNICA AVANZADA',
@@ -60,15 +62,14 @@ class FirmaSelloController extends Controller
 
     public function update(Request $request, FirmaSello $firmaSello)
     {
-        if ($firmaSello->activo) {
-            return $this->errorResponse('No se puede editar el sello activo. Desactívalo primero activando otro.', 422);
-        }
-
+        // Se permite editar el sello activo: los cambios se reflejan en las firmas
+        // NUEVAS (las ya generadas no se modifican). El preview se regenera abajo.
         $request->validate([
             'nombre'             => 'sometimes|string|max:100',
             'color_primario'     => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'color_secundario'   => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
             'color_fondo'        => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'fondo_opacidad'     => 'nullable|integer|min:0|max:100',
             'mostrar_logo'       => 'nullable|boolean',
             'nombre_institucion' => 'nullable|string|max:200',
             'texto_linea1'       => 'nullable|string|max:100',
@@ -76,7 +77,7 @@ class FirmaSelloController extends Controller
         ]);
 
         $firmaSello->update($request->only([
-            'nombre', 'color_primario', 'color_secundario', 'color_fondo',
+            'nombre', 'color_primario', 'color_secundario', 'color_fondo', 'fondo_opacidad',
             'mostrar_logo', 'nombre_institucion', 'texto_linea1', 'texto_linea2',
         ]));
 
@@ -136,6 +137,7 @@ class FirmaSelloController extends Controller
             'color_primario'     => $request->input('color_primario',     '#0071BC'),
             'color_secundario'   => $request->input('color_secundario',   '#00467E'),
             'color_fondo'        => $request->input('color_fondo',        '#EBF5FF'),
+            'fondo_opacidad'     => (int) $request->input('fondo_opacidad', 100),
             'mostrar_logo'       => filter_var($request->input('mostrar_logo', true), FILTER_VALIDATE_BOOLEAN),
             'nombre_institucion' => $request->input('nombre_institucion', 'Ilustre Municipalidad de Cabo de Hornos'),
             'texto_linea1'       => $request->input('texto_linea1',       'FIRMA ELECTRÓNICA AVANZADA'),

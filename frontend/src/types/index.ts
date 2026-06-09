@@ -495,6 +495,7 @@ export interface FirmaSello {
   color_primario: string
   color_secundario: string
   color_fondo: string
+  fondo_opacidad: number
   mostrar_logo: boolean
   nombre_institucion: string
   texto_linea1: string

@@ -153,14 +153,13 @@ const FirmaSellosPage = () => {
                     {/* Acciones */}
                     <Grid item xs={12} sm={4} md={4}>
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>
-                        <Tooltip title={sello.activo ? 'El sello activo no se puede editar' : 'Editar diseño'}>
+                        <Tooltip title="Editar diseño">
                           <span>
                             <Button
                               size="small"
                               variant="outlined"
                               startIcon={<EditIcon />}
                               onClick={() => navigate(`/firma-sellos/${sello.id}/editar`)}
-                              disabled={sello.activo}
                             >
                               Editar
                             </Button>

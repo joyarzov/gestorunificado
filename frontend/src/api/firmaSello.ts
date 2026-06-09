@@ -41,7 +41,7 @@ export const firmaSelloAPI = {
     return res.data
   },
 
-  preview: async (params: Record<string, string | boolean>, logoFile?: File | null) => {
+  preview: async (params: Record<string, string | boolean | number>, logoFile?: File | null) => {
     if (logoFile) {
       // Enviar como multipart para incluir el logo seleccionado localmente
       const form = new FormData()

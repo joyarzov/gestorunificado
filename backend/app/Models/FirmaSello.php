@@ -10,13 +10,14 @@ class FirmaSello extends Model
 
     protected $fillable = [
         'nombre', 'logo_path', 'color_primario', 'color_secundario', 'color_fondo',
-        'mostrar_logo', 'nombre_institucion', 'texto_linea1', 'texto_linea2',
+        'fondo_opacidad', 'mostrar_logo', 'nombre_institucion', 'texto_linea1', 'texto_linea2',
         'activo', 'preview_path', 'creado_por',
     ];
 
     protected $casts = [
-        'mostrar_logo' => 'boolean',
-        'activo'       => 'boolean',
+        'mostrar_logo'   => 'boolean',
+        'activo'         => 'boolean',
+        'fondo_opacidad' => 'integer',
     ];
 
     public function creador()

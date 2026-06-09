@@ -164,15 +164,32 @@ class FirmaGobService
     ): string {
         $stampBase64 = $this->generateStampImage($signerName, $signerCargo, $signerRun);
 
+        // Ajustamos la caja para que calce con el aspecto real del sello (su ancho
+        // depende del nombre/textos). Conservamos el ancho —alineado a los márgenes
+        // del documento— y derivamos la altura; así FirmaGob no deforma la imagen al
+        // estirarla a la caja. Anclamos al borde inferior o superior según la posición.
+        [$llx, $lly, $urx, $ury] = [$coords[0], $coords[1], $coords[2], $coords[3]];
+        $im = @imagecreatefromstring(base64_decode($stampBase64));
+        if ($im) {
+            $aspect = imagesx($im) / max(1, imagesy($im));
+            imagedestroy($im);
+            $newH = ($urx - $llx) / max(0.1, $aspect);
+            if ($lly < 396) {              // posición inferior → anclar abajo
+                $ury = (int) round($lly + $newH);
+            } else {                        // posición superior → anclar arriba
+                $lly = (int) round($ury - $newH);
+            }
+        }
+
         return '<AgileSignerConfig>'
             . '<Application id="THIS-CONFIG">'
             . '<pdfPassword/>'
             . '<Signature>'
             . '<Visible active="true" layer2="false" label="true" pos="1">'
-            . '<llx>' . $coords[0] . '</llx>'
-            . '<lly>' . $coords[1] . '</lly>'
-            . '<urx>' . $coords[2] . '</urx>'
-            . '<ury>' . $coords[3] . '</ury>'
+            . '<llx>' . $llx . '</llx>'
+            . '<lly>' . $lly . '</lly>'
+            . '<urx>' . $urx . '</urx>'
+            . '<ury>' . $ury . '</ury>'
             . '<page>' . $page . '</page>'
             . '<image>BASE64</image>'
             . '<BASE64VALUE>' . $stampBase64 . '</BASE64VALUE>'
@@ -205,83 +222,192 @@ class FirmaGobService
         $colorPrimario      = $config['color_primario']      ?? '#0071BC';
         $colorSecundario    = $config['color_secundario']    ?? '#00467E';
         $colorFondo         = $config['color_fondo']         ?? '#EBF5FF';
-        $mostrarLogo        = (bool)($config['mostrar_logo'] ?? false);
-        $logoPath           = $config['logo_path']            ?? null;
-        $textoLinea1        = $config['texto_linea1']         ?? 'FIRMA ELECTRÓNICA AVANZADA';
-        $textoLinea2        = $config['texto_linea2']         ?? 'GOBIERNO DE CHILE';
-        $nombreInstitucion  = $config['nombre_institucion']   ?? '';
+        $mostrarLogo        = (bool)($config['mostrar_logo'] ?? true);  // por defecto: mostrar el logo municipal
+        $logoPathCfg        = $config['logo_path']            ?? null;
+        $textoLinea1        = trim((string)($config['texto_linea1']       ?? 'FIRMA ELECTRÓNICA AVANZADA'));
+        $textoLinea2        = trim((string)($config['texto_linea2']       ?? 'GOBIERNO DE CHILE'));
+        $nombreInstitucion  = trim((string)($config['nombre_institucion'] ?? ''));
+
+        // Resolver el archivo de logo: el configurado en el sello, o el logo municipal
+        // por defecto (el mismo que usan el membrete y las providencias: logo.png).
+        $logoFile = null;
+        if ($mostrarLogo) {
+            if ($logoPathCfg && file_exists(storage_path('app/public/' . $logoPathCfg))) {
+                $logoFile = storage_path('app/public/' . $logoPathCfg);
+            } elseif (file_exists(storage_path('app/public/logo.png'))) {
+                $logoFile = storage_path('app/public/logo.png');
+            }
+        }
+        $hasLogo = $logoFile !== null;
+        // Con logo, el nombre de la institución es redundante (ya va en el logo).
+        if ($hasLogo) {
+            $nombreInstitucion = '';
+        }
 
         [$rP, $gP, $bP] = $this->hexToRgb($colorPrimario);
         [$rS, $gS, $bS] = $this->hexToRgb($colorSecundario);
         [$rF, $gF, $bF] = $this->hexToRgb($colorFondo);
 
-        $w = 520;
-        $h = 140;
-        $img = imagecreatetruecolor($w, $h);
-
-        $cFondo    = imagecolorallocate($img, $rF, $gF, $bF);
-        $cPrimario = imagecolorallocate($img, $rP, $gP, $bP);
-        $cSecund   = imagecolorallocate($img, $rS, $gS, $bS);
-        $cGray     = imagecolorallocate($img, 80, 80, 80);
-
-        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $cFondo);
-        imagerectangle($img, 0, 0, $w - 1, $h - 1, $cPrimario);
-        imagerectangle($img, 1, 1, $w - 2, $h - 2, $cPrimario);
-        imageline($img, 110, 4, 110, $h - 5, $cPrimario);
-
-        // Zona izquierda: logo o círculo FEA
-        $logoMostrado = false;
-        if ($mostrarLogo && $logoPath) {
-            $fullPath = storage_path('app/public/' . $logoPath);
-            if (file_exists($fullPath)) {
-                $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-                $logoImg = match($ext) {
-                    'png'  => imagecreatefrompng($fullPath),
-                    'jpg', 'jpeg' => imagecreatefromjpeg($fullPath),
-                    default => null,
-                };
-                if ($logoImg) {
-                    // Zona disponible: x=5..105, y=10..130 → 100×120px, centrar
-                    $lw = imagesx($logoImg);
-                    $lh = imagesy($logoImg);
-                    $maxW = 90; $maxH = 100;
-                    $scale = min($maxW / $lw, $maxH / $lh);
-                    $dw = (int)($lw * $scale);
-                    $dh = (int)($lh * $scale);
-                    $dx = 5 + (int)(($maxW - $dw) / 2);
-                    $dy = 10 + (int)(($maxH - $dh) / 2);
-                    imagecopyresampled($img, $logoImg, $dx, $dy, 0, 0, $dw, $dh, $lw, $lh);
-                    imagedestroy($logoImg);
-                    $logoMostrado = true;
-                }
-            }
-        }
-        if (!$logoMostrado) {
-            imagearc($img, 56, 70, 90, 90, 0, 360, $cPrimario);
-            imagearc($img, 56, 70, 78, 78, 0, 360, $cPrimario);
-            imagestring($img, 4, 30, 60, 'FEA', $cPrimario);
-        }
-
         $fontPath       = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         $fontPathNormal = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-        $x = 120;
+        $hasTtf = function_exists('imagettftext') && file_exists($fontPath) && file_exists($fontPathNormal);
 
-        if (function_exists('imagettftext') && file_exists($fontPath)) {
-            imagettftext($img, 7, 0, $x, 18,  $cPrimario, $fontPath,       $textoLinea1);
-            imagettftext($img, 6, 0, $x, 31,  $cSecund,   $fontPathNormal, $nombreInstitucion);
-            imagettftext($img, 6, 0, $x, 43,  $cSecund,   $fontPathNormal, $textoLinea2);
-            imagettftext($img, 8, 0, $x, 63,  $cGray,     $fontPath,       $signerName  ?? '');
-            imagettftext($img, 7, 0, $x, 79,  $cGray,     $fontPathNormal, $signerCargo ?? '');
-            imagettftext($img, 7, 0, $x, 95,  $cGray,     $fontPathNormal, 'RUT: ' . ($signerRun ?? ''));
-            imagettftext($img, 7, 0, $x, 111, $cGray,     $fontPathNormal, now()->timezone('America/Santiago')->format('d/m/Y H:i'));
+        // Factor de supersampling: rasterizamos a ~3x el tamaño lógico para que el
+        // sello quede NÍTIDO al hacer zoom en el PDF. La caja física la define
+        // FirmaGob por coordenadas (positions()); más píxeles = más resolución,
+        // NO más tamaño en la hoja.
+        $S = 3;
+
+        $fecha = now()->timezone('America/Santiago')->format('d/m/Y H:i');
+
+        // Líneas a dibujar (tamaño de fuente en pt LÓGICOS; se escalan por $S).
+        // 'c' = color (p=primario, s=secundario, g=gris); 'adv' = avance vertical
+        // (baseline-a-baseline) lógico antes de dibujar esta línea.
+        $headerLines = array_values(array_filter([
+            ['t' => $textoLinea1,       'pt' => 15, 'f' => $fontPath,       'c' => 'p', 'adv' => 20],
+            ['t' => $nombreInstitucion, 'pt' => 12, 'f' => $fontPathNormal, 'c' => 's', 'adv' => 18],
+            ['t' => $textoLinea2,       'pt' => 12, 'f' => $fontPathNormal, 'c' => 's', 'adv' => 18],
+        ], fn ($l) => $l['t'] !== ''));
+
+        $signerLines = array_values(array_filter([
+            ['t' => trim((string)($signerName  ?? '')),       'pt' => 20, 'f' => $fontPath,       'c' => 'g', 'adv' => 30],
+            ['t' => trim((string)($signerCargo ?? '')),       'pt' => 15, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 23],
+            ['t' => ($signerRun ? 'RUT: ' . $signerRun : ''), 'pt' => 14, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 21],
+            ['t' => $fecha,                                    'pt' => 14, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 21],
+        ], fn ($l) => $l['t'] !== ''));
+
+        // Mide el ancho de un texto en PÍXELES FINALES (ya escalado por $S).
+        $measureW = function (string $text, int $pt, string $font) use ($S, $hasTtf): int {
+            if ($text === '') return 0;
+            if ($hasTtf) {
+                $b = imagettfbbox($pt * $S, 0, $font, $text);
+                return (int) abs($b[2] - $b[0]);
+            }
+            return (int) (strlen($text) * $pt * $S * 0.6);
+        };
+
+        // --- Layout vertical (cursor en px lógicos) + ancho máximo (px finales) ---
+        $padTop = 16; $padBottom = 16; $groupGap = 12;
+        $cursor = $padTop;
+        $maxTextW = 0;          // px finales
+        $items = [];
+        foreach ($headerLines as $l) {
+            $cursor += $l['adv'];
+            $maxTextW = max($maxTextW, $measureW($l['t'], $l['pt'], $l['f']));
+            $items[] = ['l' => $l, 'y' => $cursor];
+        }
+        $cursor += $groupGap;
+        foreach ($signerLines as $l) {
+            $cursor += $l['adv'];
+            $maxTextW = max($maxTextW, $measureW($l['t'], $l['pt'], $l['f']));
+            $items[] = ['l' => $l, 'y' => $cursor];
+        }
+        $contentHLogical = $cursor + $padBottom;
+
+        // --- Altura del sello ---
+        $textPadL  = 16;
+        $textPadR  = 22;
+        $hLogical  = max($contentHLogical, 150);
+        $h = (int) ($hLogical * $S);
+
+        // --- Zona izquierda: logo municipal (ajustado a la altura, con tope de ancho)
+        //     o, si no hay logo, el emblema "FEA". El ancho de la zona es dinámico. ---
+        $logoImg = null; $logoDrawWlog = 0.0; $logoDrawHlog = 0.0;
+        if ($hasLogo) {
+            $ext = strtolower(pathinfo($logoFile, PATHINFO_EXTENSION));
+            $logoImg = match ($ext) {
+                'png'         => @imagecreatefrompng($logoFile),
+                'jpg', 'jpeg' => @imagecreatefromjpeg($logoFile),
+                default       => null,
+            };
+            if ($logoImg) {
+                $lw = imagesx($logoImg); $lh = imagesy($logoImg);
+                $logoDrawHlog = $hLogical - 24;
+                $logoDrawWlog = $logoDrawHlog * ($lw / max(1, $lh));
+                if ($logoDrawWlog > 260) {           // tope de ancho para logos muy apaisados
+                    $logoDrawWlog = 260;
+                    $logoDrawHlog = $logoDrawWlog * ($lh / max(1, $lw));
+                }
+            } else {
+                $hasLogo = false;
+            }
+        }
+        $logoZoneW = $hasLogo ? (int) ceil($logoDrawWlog + 24) : 116;
+
+        $textXFinal = (int) (($logoZoneW + $textPadL) * $S);
+        $w = max($textXFinal + $maxTextW + (int) ($textPadR * $S), (int) (300 * $S));
+
+        $img = imagecreatetruecolor($w, $h);
+        imagesavealpha($img, true);
+
+        // Opacidad del fondo (0 = transparente, 100 = sólido; default sólido).
+        // Permite un sello con fondo translúcido para ver el documento detrás.
+        $fondoOpacidad = max(0, min(100, (int)($config['fondo_opacidad'] ?? config('firmagob.fondo_opacidad', 100))));
+        $bgAlpha = (int) round(127 * (1 - $fondoOpacidad / 100));
+        imagealphablending($img, false);
+        $cFondo = imagecolorallocatealpha($img, $rF, $gF, $bF, $bgAlpha);
+        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $cFondo);
+        imagealphablending($img, true);
+
+        $cPrimario = imagecolorallocate($img, $rP, $gP, $bP);
+        $cSecund   = imagecolorallocate($img, $rS, $gS, $bS);
+        $cGray     = imagecolorallocate($img, 70, 70, 70);
+        $palette   = ['p' => $cPrimario, 's' => $cSecund, 'g' => $cGray];
+
+        // Borde
+        imagesetthickness($img, $S);
+        imagerectangle($img, (int) ($S / 2), (int) ($S / 2), $w - 1 - (int) ($S / 2), $h - 1 - (int) ($S / 2), $cPrimario);
+        imagesetthickness($img, 1);
+
+        // Divisor vertical entre logo y texto
+        $divX = (int) ($logoZoneW * $S);
+        imagesetthickness($img, max(1, (int) round($S * 0.6)));
+        imageline($img, $divX, 6 * $S, $divX, $h - 6 * $S, $cPrimario);
+        imagesetthickness($img, 1);
+
+        // --- Dibujar zona izquierda: logo municipal o emblema FEA ---
+        $logoMostrado = false;
+        if ($hasLogo && $logoImg) {
+            $dw = (int) ($logoDrawWlog * $S);
+            $dh = (int) ($logoDrawHlog * $S);
+            $dx = (int) (($divX - $dw) / 2);
+            $dy = (int) (($h - $dh) / 2);
+            imagealphablending($img, true);
+            imagecopyresampled($img, $logoImg, $dx, $dy, 0, 0, $dw, $dh, imagesx($logoImg), imagesy($logoImg));
+            imagedestroy($logoImg);
+            $logoMostrado = true;
+        }
+        if (!$logoMostrado) {
+            $cx = (int) ($divX / 2);
+            $cy = (int) ($h / 2);
+            $d1 = (int) (min($logoZoneW, $hLogical) * $S * 0.62);
+            $d2 = (int) ($d1 * 0.82);
+            imagesetthickness($img, max(1, (int) round($S * 0.8)));
+            imageellipse($img, $cx, $cy, $d1, $d1, $cPrimario);
+            imageellipse($img, $cx, $cy, $d2, $d2, $cPrimario);
+            imagesetthickness($img, 1);
+            if ($hasTtf) {
+                $feaPt = 16 * $S;
+                $bb = imagettfbbox($feaPt, 0, $fontPath, 'FEA');
+                $fw = abs($bb[2] - $bb[0]);
+                $fh = abs($bb[7] - $bb[1]);
+                imagettftext($img, $feaPt, 0, (int) ($cx - $fw / 2), (int) ($cy + $fh / 2), $cPrimario, $fontPath, 'FEA');
+            } else {
+                imagestring($img, 5, (int) ($cx - 14), (int) ($cy - 8), 'FEA', $cPrimario);
+            }
+        }
+
+        // --- Texto (derecha) ---
+        if ($hasTtf) {
+            foreach ($items as $it) {
+                $l = $it['l'];
+                imagettftext($img, $l['pt'] * $S, 0, $textXFinal, (int) ($it['y'] * $S), $palette[$l['c']], $l['f'], $l['t']);
+            }
         } else {
-            imagestring($img, 3, $x, 5,   $textoLinea1,                 $cPrimario);
-            imagestring($img, 1, $x, 20,  $nombreInstitucion,           $cSecund);
-            imagestring($img, 1, $x, 30,  $textoLinea2,                 $cSecund);
-            imagestring($img, 4, $x, 50,  $signerName  ?? '',           $cGray);
-            imagestring($img, 2, $x, 70,  $signerCargo ?? '',           $cGray);
-            imagestring($img, 2, $x, 85,  'RUT: ' . ($signerRun ?? ''), $cGray);
-            imagestring($img, 2, $x, 100, now()->timezone('America/Santiago')->format('d/m/Y H:i'), $cGray);
+            foreach ($items as $it) {
+                $l = $it['l'];
+                imagestring($img, 4, $textXFinal, (int) ($it['y'] * $S) - 12, $l['t'], $palette[$l['c']]);
+            }
         }
 
         ob_start();

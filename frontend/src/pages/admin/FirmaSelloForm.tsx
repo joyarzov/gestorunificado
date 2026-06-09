@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box, Typography, Button, Card, CardContent, Grid, TextField,
   FormControlLabel, Switch, Alert, CircularProgress, Divider,
-  Chip,
+  Chip, Slider,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -20,6 +20,7 @@ const defaults = {
   color_primario: '#0071BC',
   color_secundario: '#00467E',
   color_fondo: '#EBF5FF',
+  fondo_opacidad: 100,
   mostrar_logo: true,
   nombre_institucion: 'Ilustre Municipalidad de Cabo de Hornos',
   texto_linea1: 'FIRMA ELECTRÓNICA AVANZADA',
@@ -40,6 +41,7 @@ const FirmaSelloForm = () => {
   const [loading, setLoading] = useState(esEdicion)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [esActivo, setEsActivo] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -54,12 +56,14 @@ const FirmaSelloForm = () => {
           color_primario: s.color_primario,
           color_secundario: s.color_secundario,
           color_fondo: s.color_fondo,
+          fondo_opacidad: s.fondo_opacidad ?? 100,
           mostrar_logo: s.mostrar_logo,
           nombre_institucion: s.nombre_institucion,
           texto_linea1: s.texto_linea1,
           texto_linea2: s.texto_linea2,
         })
         if (s.logo_path) setLogoActual(s.logo_path)
+        setEsActivo(s.activo)
       })
       .catch(() => setError('Error al cargar el diseño'))
       .finally(() => setLoading(false))
@@ -70,10 +74,11 @@ const FirmaSelloForm = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       try {
-        const params: Record<string, string | boolean> = {
+        const params: Record<string, string | boolean | number> = {
           color_primario:     form.color_primario,
           color_secundario:   form.color_secundario,
           color_fondo:        form.color_fondo,
+          fondo_opacidad:     form.fondo_opacidad,
           mostrar_logo:       form.mostrar_logo,
           nombre_institucion: form.nombre_institucion,
           texto_linea1:       form.texto_linea1,
@@ -97,7 +102,7 @@ const FirmaSelloForm = () => {
     return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
   }, [])
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleChange = (field: string, value: string | boolean | number) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -235,6 +240,35 @@ const FirmaSelloForm = () => {
                 </Grid>
               </Grid>
 
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                  Opacidad del fondo: <strong>{form.fondo_opacidad}%</strong>
+                  {form.fondo_opacidad === 0
+                    ? ' · transparente'
+                    : form.fondo_opacidad === 100
+                    ? ' · sólido'
+                    : ' · translúcido'}
+                </Typography>
+                <Box sx={{ px: 1 }}>
+                  <Slider
+                    value={form.fondo_opacidad}
+                    onChange={(_, v) => handleChange('fondo_opacidad', v as number)}
+                    min={0}
+                    max={100}
+                    step={5}
+                    marks={[
+                      { value: 0, label: '0%' },
+                      { value: 100, label: '100%' },
+                    ]}
+                    size="small"
+                    sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
+                  />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  0% = transparente (se ve el documento detrás) · 100% = sólido. Recomendado 100% u 85–95% para un tinte sutil.
+                </Typography>
+              </Box>
+
               <Divider>Logo institucional</Divider>
 
               <FormControlLabel
@@ -293,8 +327,10 @@ const FirmaSelloForm = () => {
                 </Button>
               </Box>
 
-              <Alert severity="info" sx={{ mt: 1 }}>
-                Guardar no activa el diseño. Actívalo desde el listado cuando estés listo.
+              <Alert severity={esActivo ? 'warning' : 'info'} sx={{ mt: 1 }}>
+                {esActivo
+                  ? 'Estás editando el sello ACTIVO: los cambios se aplican a las firmas nuevas (las ya firmadas no se modifican).'
+                  : 'Guardar no activa el diseño. Actívalo desde el listado cuando estés listo.'}
               </Alert>
             </CardContent>
           </Card>
