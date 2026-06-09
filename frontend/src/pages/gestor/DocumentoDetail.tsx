@@ -995,6 +995,18 @@ const DocumentoDetail = () => {
                 size="small"
                 sx={{ mb: 2 }}
               />
+              {firmaGobPurpose !== 'Desatendido' && (
+                <TextField
+                  fullWidth
+                  label="Código OTP (Google Authenticator)"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  size="small"
+                  inputProps={{ maxLength: 10 }}
+                  helperText="Abra Google Authenticator en su celular e ingrese el código de 6 dígitos."
+                  sx={{ mb: 2 }}
+                />
+              )}
               {/* Selector de posición del sello */}
               {(() => {
                 const existingFirmaPositions = (documento.firmas || [])
@@ -1094,17 +1106,6 @@ const DocumentoDetail = () => {
                   </Box>
                 )
               })()}
-              {firmaGobPurpose !== 'Desatendido' && (
-                <TextField
-                  fullWidth
-                  label="Código OTP (Google Authenticator)"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  size="small"
-                  inputProps={{ maxLength: 10 }}
-                  helperText="Abra Google Authenticator en su celular e ingrese el código de 6 dígitos."
-                />
-              )}
             </>
           )}
         </DialogContent>
