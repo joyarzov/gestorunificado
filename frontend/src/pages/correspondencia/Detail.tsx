@@ -461,6 +461,11 @@ const CorrespondenciaDetail = () => {
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Conversación: timeline unificado (derivaciones + mensajes) */}
+          <Box sx={{ mt: { xs: 2, md: 3 } }}>
+            <ConversacionHilo correspondenciaId={correspondencia.id} />
+          </Box>
         </Grid>
 
         {/* Panel lateral */}
@@ -531,8 +536,6 @@ const CorrespondenciaDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Conversación: timeline unificado (derivaciones + mensajes) */}
-          <ConversacionHilo correspondenciaId={correspondencia.id} />
         </Grid>
       </Grid>
 
