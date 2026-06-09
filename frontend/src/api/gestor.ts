@@ -296,6 +296,12 @@ export const documentosAPI = {
     return response.data
   },
 
+  // Devuelve un documento rechazado a borrador para corregirlo y reenviarlo.
+  devolverABorrador: async (id: number) => {
+    const response = await api.post<ApiResponse<Documento>>(`/documentos/${id}/devolver-a-borrador`)
+    return response.data
+  },
+
   agregarFirmante: async (id: number, usuarioId: number) => {
     const response = await api.post<ApiResponse<{ id: number }>>(`/documentos/${id}/agregar-firmante`, {
       usuario_id: usuarioId,

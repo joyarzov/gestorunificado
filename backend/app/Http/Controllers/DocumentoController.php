@@ -718,6 +718,19 @@ class DocumentoController extends Controller
                 );
             }
 
+            // Notificar a los demás firmantes asignados que el circuito fue rechazado
+            $otrosFirmantes = $documento->firmantesAsignados->where('id', '!=', $user->id);
+            if ($otrosFirmantes->isNotEmpty()) {
+                NotificacionService::enviar(
+                    $otrosFirmantes,
+                    'cero_papel',
+                    'documento_firma_rechazada',
+                    'Documento rechazado',
+                    "El documento \"{$documento->titulo}\" ({$documento->numero}) fue rechazado por {$user->nombre} y ya no requiere tu firma. Motivo: {$request->motivo}",
+                    ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                );
+            }
+
             DB::commit();
 
             $documento->load(['firmas.usuario']);
@@ -727,6 +740,40 @@ class DocumentoController extends Controller
             DB::rollBack();
             return $this->errorResponse('Error al rechazar firma: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Devuelve un documento RECHAZADO a borrador para corregirlo y reenviarlo a
+     * firma. Permitido al creador del documento o a un administrador. Conserva el
+     * historial del rechazo (firmas y trazabilidad previas).
+     */
+    public function devolverABorrador(Documento $documento)
+    {
+        $user = Auth::user();
+
+        if ($documento->estado !== Documento::ESTADO_RECHAZADO) {
+            return $this->errorResponse('Solo se puede devolver a borrador un documento rechazado.', 400);
+        }
+
+        if ($documento->creado_por !== $user->id && !$user->hasRole('admin')) {
+            return $this->errorResponse('No tienes permisos para corregir este documento.', 403);
+        }
+
+        $documento->update([
+            'estado'          => Documento::ESTADO_BORRADOR,
+            'actualizado_por' => $user->id,
+        ]);
+
+        DocumentoTrazabilidad::registrar(
+            $documento->id,
+            'documento_devuelto_correccion',
+            "Documento devuelto a borrador para corrección por {$user->nombre}"
+        );
+
+        return $this->successResponse(
+            $documento->load(['firmantesAsignados', 'tipoDocumental', 'plantilla']),
+            'Documento devuelto a borrador. Ya puedes editarlo y reenviarlo a firma.'
+        );
     }
 
     /**

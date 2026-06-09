@@ -241,6 +241,7 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
         Route::post('/{documento}/enviar-firma', [DocumentoController::class, 'enviarAFirma']);
         Route::post('/{documento}/firmar', [DocumentoController::class, 'firmar']);
         Route::post('/{documento}/rechazar-firma', [DocumentoController::class, 'rechazarFirma']);
+        Route::post('/{documento}/devolver-a-borrador', [DocumentoController::class, 'devolverABorrador']);
         Route::post('/{documento}/agregar-firmante', [DocumentoController::class, 'agregarFirmante']);
         Route::get('/{documento}/trazabilidad', [DocumentoController::class, 'trazabilidad']);
     });

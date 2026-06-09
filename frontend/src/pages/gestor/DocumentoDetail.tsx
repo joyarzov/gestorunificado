@@ -354,6 +354,21 @@ const DocumentoDetail = () => {
     }
   }
 
+  const handleDevolverABorrador = async () => {
+    if (!id) return
+    setActionLoading(true)
+    try {
+      await documentosAPI.devolverABorrador(parseInt(id))
+      setSnackbar({ open: true, message: 'Documento devuelto a borrador. Ya puedes corregirlo.', severity: 'success' })
+      navigate(`/documentos/${id}/editar`)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al devolver a borrador'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleEnviarDocumento = async (destinatarioIds?: number[]) => {
     if (!id) return
     setActionLoading(true)
@@ -413,6 +428,12 @@ const DocumentoDetail = () => {
     ((documento?.firmantes_asignados && documento.firmantes_asignados.length > 0) || documento?.firmante_asignado_id)
 
   const puedeFirmar = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo
+
+  // Recuperación de un documento rechazado: el creador (o admin) puede corregirlo
+  const esCreadorOAdmin = documento?.creado_por === user?.id || !!user?.roles?.includes('admin')
+  const firmaRechazo = (documento?.firmas || []).filter(f => f.estado === 'rechazado').slice(-1)[0]
+  const motivoRechazo = firmaRechazo?.observacion || firmaRechazo?.observaciones || ''
+  const puedeCorregir = documento?.estado === 'rechazado' && esCreadorOAdmin
 
   // El creador puede enviar el documento firmado
   // Para memos: tiene destinatario preestablecido → enviar directo (solo una vez)
@@ -561,8 +582,29 @@ const DocumentoDetail = () => {
               Editar
             </Button>
           )}
+          {puedeCorregir && (
+            <Button
+              variant="contained"
+              color="warning"
+              startIcon={actionLoading ? <CircularProgress size={20} /> : <EditIcon />}
+              onClick={handleDevolverABorrador}
+              disabled={actionLoading}
+            >
+              Corregir y reenviar
+            </Button>
+          )}
         </Box>
       </Box>
+
+      {documento.estado === 'rechazado' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <strong>Documento rechazado.</strong>
+          {motivoRechazo ? <> Motivo: «{motivoRechazo}».</> : null}
+          {puedeCorregir
+            ? ' Usa «Corregir y reenviar» para devolverlo a borrador, editarlo y volver a enviarlo a firma.'
+            : ' El creador debe corregirlo y reenviarlo.'}
+        </Alert>
+      )}
 
       <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={8}>
