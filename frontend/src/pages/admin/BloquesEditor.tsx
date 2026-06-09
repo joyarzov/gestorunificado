@@ -29,6 +29,8 @@ const CATALOGO: { tipo: string; label: string }[] = [
   { tipo: 'membrete', label: 'Membrete (logo + institución)' },
   { tipo: 'titulo', label: 'Título' },
   { tipo: 'ref_fecha', label: 'Referencia / fecha' },
+  { tipo: 'de_para', label: 'DE / PARA' },
+  { tipo: 'destinatario', label: 'Destinatario (A:)' },
   { tipo: 'seccion', label: 'Sección (título + cuerpo)' },
   { tipo: 'parrafo', label: 'Párrafo' },
   { tipo: 'qr_pie', label: 'Pie con QR' },
@@ -185,6 +187,23 @@ const BloquesEditor = ({ estructura, onEstructuraChange, estilo, onEstiloChange,
           </>
         )
       }
+      case 'de_para':
+        return (
+          <>
+            {varSelect(i, 'de_var', 'Variable «DE»')}
+            {varSelect(i, 'para_var', 'Variable «PARA»')}
+          </>
+        )
+      case 'destinatario':
+        return (
+          <>
+            {varSelect(i, 'nombre_var', 'Variable nombre')}
+            {varSelect(i, 'cargo_var', 'Variable cargo (opcional)')}
+            {varSelect(i, 'institucion_var', 'Variable institución (opcional)')}
+            <FormControlLabel control={<Checkbox size="small" checked={!!p.presente}
+              onChange={(e) => setProp(i, 'presente', e.target.checked)} />} label="Mostrar «PRESENTE»" />
+          </>
+        )
       case 'qr_pie':
         return (
           <TextField size="small" fullWidth label="Texto del pie"

@@ -1,4 +1,4 @@
-<div class="ref-fecha">
+<div class="ref-fecha" style="text-align: {{ $props['align'] ?? 'right' }};">
     @foreach($props['items'] ?? [] as $item)
         <p>
             <strong>{{ $item['label'] ?? '' }}</strong>
