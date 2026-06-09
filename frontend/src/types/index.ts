@@ -206,6 +206,23 @@ export interface ExpedienteActividad {
   created_at: string
 }
 
+// Render por bloques (Fase 2)
+export interface BloquePlantilla {
+  tipo: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  props?: Record<string, any>
+}
+
+export interface EstiloPlantilla {
+  fuente_tamano?: string
+  regla_azul?: boolean
+  membrete?: { color?: string; institucion?: string; subtitulo?: string; mostrar?: boolean }
+  logo?: { mostrar?: boolean; max_ancho?: string }
+  barra_colores?: { mostrar?: boolean; colores?: string[] }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [k: string]: any
+}
+
 export interface DocumentoPlantilla {
   id: number
   nombre: string
@@ -226,6 +243,10 @@ export interface DocumentoPlantilla {
   creador?: { id: number; nombre: string }
   documentos_count?: number
   plantillas_personales_count?: number
+  // Render por bloques (Fase 2)
+  render_engine?: 'html_legacy' | 'bloques'
+  estructura_json?: BloquePlantilla[] | null
+  estilo_json?: EstiloPlantilla | null
 }
 
 export interface DocumentoAdjunto {

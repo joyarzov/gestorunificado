@@ -50,6 +50,7 @@ import {
 import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
 import { DocumentoPlantilla, PlantillaPersonal, PlantillaPersonalContenido, Expediente, User, Departamento } from '../../types'
+import { buildPreviewDoc } from '../../utils/previewDoc'
 import { useAuth } from '../../contexts/AuthContext'
 
 // Nombres de artículos en español
@@ -119,6 +120,7 @@ const DocumentoNew = () => {
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [previewHtml, setPreviewHtml] = useState('')
+  const [previewFull, setPreviewFull] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
 
   // Responsive document preview scaling
@@ -622,6 +624,7 @@ const DocumentoNew = () => {
         contenido_json: variablesCompletas
       })
       setPreviewHtml(response.html)
+      setPreviewFull(!!response.full)
     } catch (error) {
       console.error('Error generando preview:', error)
     } finally {
@@ -1158,6 +1161,16 @@ const DocumentoNew = () => {
     </Box>
   )
 
+  // Previa del motor por bloques (Fase 2): el backend devuelve un documento HTML
+  // completo, que se muestra en un iframe escalado a hoja (proporcional al PDF).
+  const renderBloquesPreview = () => (
+    <iframe
+      title="preview-bloques"
+      srcDoc={buildPreviewDoc(previewHtml, 'carta', true)}
+      style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+    />
+  )
+
   // Renderizar paso 2: Completar datos (split layout: form izquierda, preview derecha sticky)
   const renderStep2 = () => {
     if (!selectedPlantilla) return null
@@ -1414,7 +1427,7 @@ const DocumentoNew = () => {
               overflow: 'auto',
             }}
           >
-            {previewHtml ? renderPaginatedPreview() : (
+            {previewHtml ? (previewFull ? renderBloquesPreview() : renderPaginatedPreview()) : (
               <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
                 Complete los campos para ver la previsualización
               </Typography>
@@ -1422,7 +1435,7 @@ const DocumentoNew = () => {
           </Box>
         </Box>
         {/* Div oculto para medir el alto real del contenido renderizado al ancho útil de la hoja */}
-        {previewHtml && (
+        {previewHtml && !previewFull && (
           <Box
             ref={measureRef}
             sx={{
@@ -1598,7 +1611,7 @@ const DocumentoNew = () => {
               overflow: 'auto',
             }}
           >
-            {previewHtml ? renderPaginatedPreview() : (
+            {previewHtml ? (previewFull ? renderBloquesPreview() : renderPaginatedPreview()) : (
               <Typography color="text.secondary" sx={{ textAlign: 'center', pt: 10 }}>
                 Sin previsualización
               </Typography>

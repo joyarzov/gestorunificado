@@ -30,6 +30,9 @@ import {
   Paper,
   ToggleButton,
   ToggleButtonGroup,
+  Tabs,
+  Tab,
+  Switch,
 } from '@mui/material'
 import {
   Edit as EditIcon,
@@ -41,7 +44,9 @@ import {
 } from '@mui/icons-material'
 import { adminPlantillasAPI } from '../../api/adminPlantillas'
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
-import { DocumentoPlantilla, TipoDocumental } from '../../types'
+import { DocumentoPlantilla, TipoDocumental, BloquePlantilla, EstiloPlantilla } from '../../types'
+import { buildPreviewDoc, PapelKey } from '../../utils/previewDoc'
+import BloquesEditor from './BloquesEditor'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const msgError = (err: any, fallback: string) =>
@@ -50,62 +55,6 @@ const msgError = (err: any, fallback: string) =>
 interface VariableRow {
   clave: string
   descripcion: string
-}
-
-// Tamaños de papel en cm (carta = US letter; oficio = formato chileno 21,6 × 33)
-const PAPELES = {
-  carta: { w: 21.59, h: 27.94, label: 'Carta' },
-  oficio: { w: 21.6, h: 33.0, label: 'Oficio' },
-} as const
-type PapelKey = keyof typeof PAPELES
-
-/**
- * Envuelve el HTML del documento en una hoja con el tamaño/márgenes reales del
- * PDF (los mismos de Documento::generarPdfFinal) y la escala para caber en el
- * panel, de modo que la vista previa sea proporcional a la impresión.
- */
-const buildPreviewDoc = (html: string, papel: PapelKey, full = false): string => {
-  const p = PAPELES[papel]
-  // Motor por bloques: `html` ya es un documento completo. Le inyectamos el
-  // aspecto de hoja (ancho real + sombra) y el ajuste de escala, reusando su CSS.
-  if (full) {
-    const inject = `<style>html{background:#eceff1;margin:0;padding:0;}` +
-      `body{width:${p.w}cm;min-height:${p.h}cm;margin:14px auto;background:#fff;` +
-      `box-shadow:0 1px 12px rgba(0,0,0,.22);box-sizing:border-box;}</style>` +
-      `<script>(function(){function fit(){var b=document.body;if(!b)return;b.style.zoom=1;` +
-      `var a=document.documentElement.clientWidth-28;var w=b.offsetWidth;if(w>a)b.style.zoom=a/w;}` +
-      `['load','resize'].forEach(function(e){window.addEventListener(e,fit);});` +
-      `setTimeout(fit,60);setTimeout(fit,300);fit();})();<\/script>`
-    return html.includes('</head>') ? html.replace('</head>', inject + '</head>') : inject + html
-  }
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    html,body{margin:0;padding:0;background:#eceff1;}
-    #wrap{padding:14px;text-align:center;}
-    /* inline-block conserva el ancho fijo de la hoja (no se encoge como flex) */
-    #sheet{
-      display:inline-block;text-align:left;vertical-align:top;
-      width:${p.w}cm;min-height:${p.h}cm;background:#fff;box-sizing:border-box;
-      padding:1.2cm 2cm 1.5cm 2.5cm;
-      box-shadow:0 1px 12px rgba(0,0,0,.22);
-      font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#1a1a1a;
-    }
-    #sheet > div{max-width:100% !important;padding:0 !important;margin:0 !important;}
-    img{max-width:100%;height:auto;}
-  </style></head><body>
-    <div id="wrap"><div id="sheet">${html}</div></div>
-    <script>
-      function fit(){
-        var s=document.getElementById('sheet');if(!s)return;
-        s.style.zoom=1;
-        var avail=document.documentElement.clientWidth-28;
-        var w=s.offsetWidth;
-        if(w>avail){ s.style.zoom=avail/w; }
-      }
-      ['load','resize'].forEach(function(e){window.addEventListener(e,fit);});
-      document.addEventListener('DOMContentLoaded',fit);
-      setTimeout(fit,60);setTimeout(fit,300);fit();
-    </script>
-  </body></html>`
 }
 
 const PlantillasManage = () => {
@@ -127,6 +76,12 @@ const PlantillasManage = () => {
     requiere_aprobacion: false,
   })
   const [variables, setVariables] = useState<VariableRow[]>([])
+
+  // Diseño por bloques (Fase 2)
+  const [tab, setTab] = useState<'general' | 'diseno'>('general')
+  const [renderEngine, setRenderEngine] = useState<'html_legacy' | 'bloques'>('html_legacy')
+  const [estructura, setEstructura] = useState<BloquePlantilla[]>([])
+  const [estilo, setEstilo] = useState<EstiloPlantilla>({})
 
   // Vista previa
   const [previewHtml, setPreviewHtml] = useState('')
@@ -179,6 +134,33 @@ const PlantillasManage = () => {
     }
   }, [])
 
+  // Previa en vivo de la estructura/estilo SIN guardar (editor de bloques).
+  const cargarPreviewBloques = useCallback(async (estr: BloquePlantilla[], est: EstiloPlantilla, vars: VariableRow[]) => {
+    setPreviewLoading(true)
+    try {
+      const sample: Record<string, string> = {}
+      vars.forEach((v) => { sample[v.clave] = v.descripcion || v.clave })
+      const res = await adminPlantillasAPI.previsualizarBloques({ estructura_json: estr, estilo_json: est, contenido_json: sample })
+      setPreviewHtml(res.html)
+      setPreviewFull(!!res.full)
+    } catch {
+      setPreviewHtml('<p style="color:#999;font-family:sans-serif">No se pudo generar la vista previa.</p>')
+      setPreviewFull(false)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [])
+
+  // Refresca la previa (con debounce) según la pestaña activa.
+  useEffect(() => {
+    if (!editing) return
+    const t = setTimeout(() => {
+      if (tab === 'diseno' && renderEngine === 'bloques') cargarPreviewBloques(estructura, estilo, variables)
+      else cargarPreview(editing, variables)
+    }, 400)
+    return () => clearTimeout(t)
+  }, [editing, tab, renderEngine, estructura, estilo, variables, cargarPreview, cargarPreviewBloques])
+
   const handleEdit = (p: DocumentoPlantilla) => {
     setEditing(p)
     setForm({
@@ -194,8 +176,12 @@ const PlantillasManage = () => {
       descripcion: String(descripcion ?? ''),
     }))
     setVariables(vars)
+    setRenderEngine(p.render_engine === 'bloques' ? 'bloques' : 'html_legacy')
+    setEstructura(Array.isArray(p.estructura_json) ? p.estructura_json : [])
+    setEstilo(p.estilo_json || {})
+    setTab('general')
     setPreviewHtml('')
-    cargarPreview(p, vars)
+    // la previa la carga el efecto según la pestaña
   }
 
   const handleSave = async () => {
@@ -214,6 +200,9 @@ const PlantillasManage = () => {
         requiere_firma: form.requiere_firma,
         requiere_aprobacion: form.requiere_aprobacion,
         variables_json,
+        render_engine: renderEngine,
+        // Solo se envía la estructura/estilo cuando el motor es de bloques.
+        ...(renderEngine === 'bloques' ? { estructura_json: estructura, estilo_json: estilo } : {}),
       })
       setToast(res.message || 'Plantilla actualizada')
       setEditing(null)
@@ -385,6 +374,12 @@ const PlantillasManage = () => {
           <Grid container spacing={3}>
             {/* Formulario */}
             <Grid item xs={12} md={6}>
+              <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+                <Tab value="general" label="General" />
+                <Tab value="diseno" label="Diseño" />
+              </Tabs>
+
+              {tab === 'general' && (<>
               <TextField
                 label="Nombre"
                 fullWidth
@@ -454,8 +449,8 @@ const PlantillasManage = () => {
                 Variables del formulario
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                La clave corresponde al marcador {'{{clave}}'} en el documento. Aquí editas la etiqueta de ayuda
-                que verá el funcionario. La edición del contenido y el diseño llega en la Fase 2.
+                La clave corresponde al marcador {'{{clave}}'} en el documento. Aquí editas la etiqueta de
+                ayuda que verá el funcionario. La estructura y el estilo se editan en la pestaña «Diseño».
               </Typography>
               {variables.length === 0 && (
                 <Typography variant="caption" color="text.secondary">Esta plantilla no declara variables.</Typography>
@@ -482,6 +477,37 @@ const PlantillasManage = () => {
                   </Grid>
                 </Grid>
               ))}
+              </>)}
+
+              {tab === 'diseno' && (
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={renderEngine === 'bloques'}
+                        onChange={(e) => setRenderEngine(e.target.checked ? 'bloques' : 'html_legacy')}
+                      />
+                    }
+                    label="Usar diseño por bloques"
+                  />
+                  {renderEngine === 'bloques' ? (
+                    <Box sx={{ mt: 1 }}>
+                      <BloquesEditor
+                        estructura={estructura}
+                        onEstructuraChange={setEstructura}
+                        estilo={estilo}
+                        onEstiloChange={setEstilo}
+                        variables={variables.map((v) => v.clave)}
+                      />
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      Esta plantilla usa el motor clásico (HTML). Activa «diseño por bloques» para
+                      editar su estructura y estilo visualmente.
+                    </Typography>
+                  )}
+                </Box>
+              )}
             </Grid>
 
             {/* Vista previa */}
@@ -501,7 +527,9 @@ const PlantillasManage = () => {
                   <Button
                     size="small"
                     startIcon={<PreviewIcon />}
-                    onClick={() => editing && cargarPreview(editing, variables)}
+                    onClick={() => editing && (tab === 'diseno' && renderEngine === 'bloques'
+                      ? cargarPreviewBloques(estructura, estilo, variables)
+                      : cargarPreview(editing, variables))}
                     disabled={previewLoading}
                   >
                     Actualizar

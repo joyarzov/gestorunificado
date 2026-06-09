@@ -319,6 +319,7 @@ Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::prefix('documento-plantillas')->group(function () {
             Route::get('/', [DocumentoPlantillaAdminController::class, 'index']);
+            Route::post('/previsualizar-bloques', [DocumentoPlantillaAdminController::class, 'previsualizarBloques']);
             Route::get('/{documentoPlantilla}', [DocumentoPlantillaAdminController::class, 'show']);
             Route::put('/{documentoPlantilla}', [DocumentoPlantillaAdminController::class, 'update']);
             Route::post('/{documentoPlantilla}/duplicar', [DocumentoPlantillaAdminController::class, 'duplicar']);

@@ -50,12 +50,17 @@ class DocumentoPlantillaAdminController extends Controller
             'requiere_firma'      => 'sometimes|boolean',
             'requiere_aprobacion' => 'sometimes|boolean',
             'orden'               => 'nullable|integer|min:0',
+            // Diseño por bloques (Fase 2)
+            'render_engine'       => 'sometimes|in:html_legacy,bloques',
+            'estructura_json'     => 'nullable|array',
+            'estilo_json'         => 'nullable|array',
         ]);
 
-        // En F1 no se editan codigo ni contenido_html (siguen gestionados por seeder).
+        // No se editan codigo ni contenido_html (el contenido_html legacy queda como respaldo).
         $documentoPlantilla->update($request->only([
             'nombre', 'descripcion', 'tipo_documental_id', 'variables_json',
             'activo', 'requiere_firma', 'requiere_aprobacion', 'orden',
+            'render_engine', 'estructura_json', 'estilo_json',
         ]));
 
         $documentoPlantilla->load(['tipoDocumental:id,nombre,codigo', 'creador:id,nombre'])
@@ -130,5 +135,31 @@ class DocumentoPlantillaAdminController extends Controller
         $documentoPlantilla->delete();
 
         return $this->successResponse(null, 'Plantilla eliminada');
+    }
+
+    /**
+     * Previsualiza una estructura/estilo de bloques SIN guardar, para el editor
+     * visual. Devuelve un documento HTML completo (igual que el motor de bloques).
+     */
+    public function previsualizarBloques(Request $request)
+    {
+        $request->validate([
+            'estructura_json' => 'required|array',
+            'estilo_json'     => 'nullable|array',
+            'contenido_json'  => 'nullable|array',
+        ]);
+
+        $plantilla = new \App\Models\DocumentoPlantilla(['render_engine' => 'bloques']);
+        $plantilla->estructura_json = $request->estructura_json;
+        $plantilla->estilo_json = $request->estilo_json ?? [];
+
+        $appUrl = rtrim(config('app.verificacion_url'), '/');
+        $html = app(\App\Services\PlantillaRenderer::class)->html(
+            $plantilla,
+            $request->contenido_json ?? [],
+            ['codigo_verificacion' => 'XXXXXXXX', 'verificar_url' => $appUrl . '/verificar/XXXXXXXX']
+        );
+
+        return response()->json(['html' => $html, 'full' => true]);
     }
 }

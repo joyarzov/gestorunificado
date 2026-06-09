@@ -1,5 +1,5 @@
 import api from './axios'
-import { ApiResponse, DocumentoPlantilla } from '../types'
+import { ApiResponse, DocumentoPlantilla, BloquePlantilla, EstiloPlantilla } from '../types'
 
 // Mantenedor de plantillas de documentos (solo admin).
 // Los endpoints devuelven ApiResponse<...>; las funciones retornan response.data.
@@ -31,6 +31,19 @@ export const adminPlantillasAPI = {
 
   eliminar: async (id: number) => {
     const response = await api.delete<ApiResponse<null>>(`/documento-plantillas/${id}`)
+    return response.data
+  },
+
+  // Previsualiza una estructura/estilo de bloques sin guardar (editor visual).
+  previsualizarBloques: async (data: {
+    estructura_json: BloquePlantilla[]
+    estilo_json: EstiloPlantilla
+    contenido_json?: Record<string, string>
+  }) => {
+    const response = await api.post<{ html: string; full?: boolean }>(
+      '/documento-plantillas/previsualizar-bloques',
+      data
+    )
     return response.data
   },
 }

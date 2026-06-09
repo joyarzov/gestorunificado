@@ -3,51 +3,30 @@
 namespace Database\Seeders;
 
 use App\Models\DocumentoPlantilla;
-use App\Models\TipoDocumental;
 use Illuminate\Database\Seeder;
 
 /**
  * Fase 2 — porte incremental de plantillas al motor por bloques.
  *
- * Crea una versión "bloques" del Decreto Alcaldicio (render_engine = 'bloques')
- * que produce el diseño institucional unificado (membrete, barra de colores,
- * secciones, firma y pie con QR anclado). Se crea INACTIVA para no alterar la
- * creación de documentos mientras se valida; es visible sólo en el mantenedor.
+ * Cutover del Decreto Alcaldicio (PLT_DECRETO_001) al motor por bloques, con el
+ * diseño institucional unificado (membrete, barra de colores, secciones, firma y
+ * pie con QR anclado). Idempotente: sólo define estructura_json/estilo_json y
+ * cambia render_engine; no toca el contenido_html legacy (queda como respaldo
+ * para revertir con render_engine = 'html_legacy').
  */
 class DocumentoPlantillaBloquesSeeder extends Seeder
 {
     public function run(): void
     {
-        $tipoDecreto = TipoDocumental::where('codigo', 'DEC')->first();
-
-        DocumentoPlantilla::updateOrCreate(
-            ['codigo' => 'PLT_DECRETO_BLOQUES'],
-            [
-                'nombre'              => 'Decreto Alcaldicio (bloques)',
-                'descripcion'         => 'Versión por bloques del decreto, con diseño institucional unificado (Fase 2).',
-                'tipo_documental_id'  => $tipoDecreto?->id,
-                'contenido_html'      => '',
-                'render_engine'       => 'bloques',
-                'estructura_json'     => $this->estructuraDecreto(),
-                'estilo_json'         => [],
-                'variables_json'      => [
-                    'numero'            => 'Número del decreto',
-                    'fecha'             => 'Fecha de emisión (ej: 15 de enero de 2026)',
-                    'referencia'        => 'Referencia o materia del decreto',
-                    'vistos'            => 'VISTOS Y CONSIDERANDO (texto completo)',
-                    'texto_decreto'     => 'Texto del decreto',
-                    'articulos_html'    => 'Artículos dinámicos (generado)',
-                    'firmas_html'       => 'Firmas (generado)',
-                    'distribucion_html' => 'Distribución (generado)',
-                ],
-                'activo'              => false,
-                'requiere_firma'      => true,
-                'requiere_aprobacion' => true,
-                'editable_admin'      => true,
-                'origen'              => 'seeder',
-                'creado_por'          => 1,
-            ]
-        );
+        $decreto = DocumentoPlantilla::where('codigo', 'PLT_DECRETO_001')->first();
+        if ($decreto) {
+            $decreto->update([
+                'render_engine'   => 'bloques',
+                'estructura_json' => $this->estructuraDecreto(),
+                'estilo_json'     => [],
+                'version_seeder'  => 1,
+            ]);
+        }
     }
 
     private function estructuraDecreto(): array
