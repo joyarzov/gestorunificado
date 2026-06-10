@@ -350,37 +350,46 @@ const DerivacionDialog = ({
                 </ToggleButtonGroup>
 
                 {tipoDestino === 'funcionarios' && (
-                  <>
-                    <Autocomplete
-                      options={departamentos}
-                      getOptionLabel={(opt) => opt.nombre}
-                      value={selectedDepto}
-                      onChange={(_, value) => setSelectedDepto(value)}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Filtrar por departamento (opcional)" />
-                      )}
-                    />
-                    <Autocomplete
-                      multiple
-                      options={filteredUsuarios}
-                      getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
-                      value={selectedUsuarios}
-                      onChange={(_, value) => setSelectedUsuarios(value)}
-                      renderTags={(value, getTagProps) =>
-                        value.map((opt, index) => (
-                          <Chip
-                            {...getTagProps({ index })}
-                            key={opt.id}
-                            label={opt.nombre}
-                            size="small"
-                          />
-                        ))
-                      }
-                      renderInput={(params) => (
-                        <TextField {...params} label="Funcionario(s) destino" required={selectedUsuarios.length === 0} />
-                      )}
-                    />
-                  </>
+                  /* Sin filtro por departamento: se busca por nombre entre TODOS
+                     los funcionarios, para poder mezclar destinos de distintos
+                     departamentos en una misma derivación. */
+                  <Autocomplete
+                    multiple
+                    options={usuarios}
+                    getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
+                    value={selectedUsuarios}
+                    onChange={(_, value) => setSelectedUsuarios(value)}
+                    renderOption={(props, opt) => (
+                      <Box component="li" {...props} key={opt.id}>
+                        <Box>
+                          <Typography variant="body2">{opt.nombre}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {[opt.cargo, departamentos.find((d) => d.id === opt.departamento_id)?.nombre]
+                              .filter(Boolean)
+                              .join(' · ') || opt.rut}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((opt, index) => (
+                        <Chip
+                          {...getTagProps({ index })}
+                          key={opt.id}
+                          label={opt.nombre}
+                          size="small"
+                        />
+                      ))
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Funcionario(s) destino"
+                        required={selectedUsuarios.length === 0}
+                        helperText="Busca por nombre; puedes combinar funcionarios de distintos departamentos"
+                      />
+                    )}
+                  />
                 )}
 
                 {tipoDestino === 'departamento' && (
