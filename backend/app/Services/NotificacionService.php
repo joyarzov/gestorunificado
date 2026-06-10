@@ -33,11 +33,15 @@ class NotificacionService
     ): void {
         $data['modulo'] = $modulo; // disponible también dentro del payload para el frontend
 
+        $directos = [];
         foreach (self::resolverUsuarios($destinatarios) as $user) {
             if (!$user || !$user->id || !($user->activo ?? true)) {
                 continue;
             }
+            $directos[$user->id] = $user;
+        }
 
+        foreach ($directos as $user) {
             $notif = Notificacion::create([
                 'user_id' => $user->id,
                 'modulo'  => $modulo,
@@ -48,6 +52,37 @@ class NotificacionService
             ]);
 
             self::encolarEmail($user, $notif, $modulo, $titulo, $mensaje, $data);
+        }
+
+        // Subrogancia: si un destinatario está ausente (subrogancia activa), su
+        // subrogante recibe un aviso espejo para que nada quede sin ver. No se
+        // duplica si el subrogante ya era destinatario directo, y no cascadea
+        // (el subrogante del subrogante no se notifica).
+        foreach ($directos as $user) {
+            if (!$user->subrogante_id || !$user->tieneSubroganciaActiva()) {
+                continue;
+            }
+            if (isset($directos[$user->subrogante_id])) {
+                continue;
+            }
+            $subrogante = User::find($user->subrogante_id);
+            if (!$subrogante || !$subrogante->activo) {
+                continue;
+            }
+
+            $mensajeEspejo = "Para {$user->nombre}, a quien subrogas: {$mensaje}";
+            $dataEspejo = $data + ['subrogado_de' => ['id' => $user->id, 'nombre' => $user->nombre]];
+
+            $notif = Notificacion::create([
+                'user_id' => $subrogante->id,
+                'modulo'  => $modulo,
+                'tipo'    => $tipo,
+                'titulo'  => $titulo,
+                'mensaje' => $mensajeEspejo,
+                'data'    => $dataEspejo,
+            ]);
+
+            self::encolarEmail($subrogante, $notif, $modulo, $titulo, $mensajeEspejo, $dataEspejo);
         }
     }
 
