@@ -11,19 +11,40 @@ class Correspondencia extends Model
 
     protected $table = 'correspondencia';
 
+    /** Series de folio para salidas, por tipo de documento. */
+    public const TIPOS_SALIDA = [
+        'oficio' => 'OF',
+        'ordinario' => 'ORD',
+        'circular' => 'CIRC',
+        'carta' => 'CARTA',
+    ];
+
     protected $fillable = [
+        'folio',
+        'direccion',
         'numero_documento',
+        'tipo_documento_salida',
         'remitente',
         'fecha_documento',
         'fecha_recibo',
         'descripcion',
         'departamento_id',
+        'respuesta_a_id',
         'fecha_revision',
         'fecha_envio',
         'usuario_id',
         'estado',
         'providencia_pdf',
         'providencia_generada',
+        'documento_ruta',
+        'documento_nombre',
+        'firmante_nombre',
+        'medio_despacho',
+        'fecha_despacho',
+        'referencia_despacho',
+        'despachada_por',
+        'motivo_devolucion',
+        'respondida_at',
     ];
 
     protected $casts = [
@@ -31,8 +52,30 @@ class Correspondencia extends Model
         'fecha_recibo' => 'date',
         'fecha_revision' => 'date',
         'fecha_envio' => 'date',
+        'fecha_despacho' => 'date',
         'providencia_generada' => 'boolean',
+        'respondida_at' => 'datetime',
     ];
+
+    /**
+     * Folio correlativo por serie y año, calculado desde la propia tabla
+     * (mismo patrón que PROV-/LIBRO-). El índice único de `folio` protege
+     * contra carreras: si dos creaciones simultáneas calculan el mismo
+     * número, la segunda falla en vez de duplicar.
+     */
+    public static function siguienteFolio(string $prefijo): string
+    {
+        $anio = now()->year;
+        $ultimo = static::where('folio', 'like', "{$prefijo}-{$anio}-%")
+            ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
+            ->first();
+
+        $siguiente = $ultimo
+            ? (int) substr($ultimo->folio, strrpos($ultimo->folio, '-') + 1) + 1
+            : 1;
+
+        return sprintf('%s-%d-%05d', $prefijo, $anio, $siguiente);
+    }
 
     public function departamento()
     {
@@ -62,6 +105,33 @@ class Correspondencia extends Model
     public function ultimaDerivacion()
     {
         return $this->hasOne(Derivacion::class)->latestOfMany();
+    }
+
+    /** Entrada a la que responde esta salida. */
+    public function respuestaA()
+    {
+        return $this->belongsTo(self::class, 'respuesta_a_id');
+    }
+
+    /** Salidas que responden esta entrada. */
+    public function respuestas()
+    {
+        return $this->hasMany(self::class, 'respuesta_a_id');
+    }
+
+    public function despachadaPor()
+    {
+        return $this->belongsTo(User::class, 'despachada_por');
+    }
+
+    public function scopeEntradas($query)
+    {
+        return $query->where('direccion', 'entrada');
+    }
+
+    public function scopeSalidas($query)
+    {
+        return $query->where('direccion', 'salida');
     }
 
     /**

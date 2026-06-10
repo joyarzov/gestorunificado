@@ -14,7 +14,9 @@ class CorrespondenciaController extends Controller
     public function index(Request $request)
     {
         // Visibilidad: admin/oficial ven todo; el resto solo donde participa.
+        // Este listado es de ENTRADAS; las salidas tienen su propio módulo.
         $query = Correspondencia::visiblesPara(Auth::user())
+            ->entradas()
             ->with(['departamento', 'usuario', 'adjuntos']);
 
         // Filtros
@@ -69,6 +71,9 @@ class CorrespondenciaController extends Controller
                 'descripcion',
                 'departamento_id',
             ]),
+            // Folio de ingreso: correlativo institucional propio, por año.
+            'folio' => Correspondencia::siguienteFolio('ING'),
+            'direccion' => 'entrada',
             'usuario_id' => Auth::id(),
             'estado' => 'pendiente',
         ]);
@@ -93,6 +98,8 @@ class CorrespondenciaController extends Controller
             'derivaciones.usuarioOrigen',
             'derivaciones.usuarioDestino',
             'derivaciones.actuandoComo',
+            'respuestas:id,folio,tipo_documento_salida,estado,remitente,fecha_despacho,respuesta_a_id',
+            'respuestaA:id,folio,remitente',
         ]);
 
         return $this->successResponse($correspondencia);
@@ -206,6 +213,7 @@ class CorrespondenciaController extends Controller
         // Mismos criterios de visibilidad que el listado: cada usuario ve
         // contadores de SU universo (admin/oficial, el total del municipio).
         $porEstado = Correspondencia::visiblesPara(Auth::user())
+            ->entradas()
             ->selectRaw('estado, COUNT(*) as n')
             ->groupBy('estado')
             ->pluck('n', 'estado');
@@ -241,6 +249,7 @@ class CorrespondenciaController extends Controller
         }
 
         $query = Correspondencia::visiblesPara($user)
+            ->entradas()
             ->with(['departamento', 'usuario', 'derivaciones.usuarioDestino', 'derivaciones.departamentoDestino']);
 
         if ($request->filled('estado')) {
@@ -282,7 +291,7 @@ class CorrespondenciaController extends Controller
             // BOM UTF-8 para que Excel reconozca acentos; separador ";" (Excel es-CL)
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, [
-                'ID', 'N° Documento', 'Remitente', 'Fecha Documento', 'Fecha Recibo',
+                'Folio', 'N° Documento', 'Remitente', 'Fecha Documento', 'Fecha Recibo',
                 'Departamento', 'Descripción', 'Estado', 'Derivada a', 'Folio Providencia', 'Ingresada por',
             ], ';');
 
@@ -293,7 +302,7 @@ class CorrespondenciaController extends Controller
                 $folios = $c->derivaciones->pluck('folio')->filter()->implode(', ');
 
                 fputcsv($out, [
-                    $c->id,
+                    $c->folio ?? $c->id,
                     $c->numero_documento,
                     $c->remitente,
                     $c->fecha_documento?->format('d-m-Y'),

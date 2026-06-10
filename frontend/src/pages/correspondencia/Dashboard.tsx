@@ -218,7 +218,7 @@ const CorrespondenciaDashboard = () => {
                           primary={
                             <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
                               <Typography variant="body2" fontWeight={600}>
-                                {c.numero_documento || `#${c.id}`} — {c.remitente}
+                                {c.folio || c.numero_documento || `#${c.id}`} — {c.remitente}
                               </Typography>
                               <Chip size="small" label={est.label} color={est.color} variant="outlined" />
                             </Stack>

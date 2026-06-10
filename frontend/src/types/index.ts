@@ -45,9 +45,20 @@ export interface AuthState {
 }
 
 // Tipos de correspondencia
+export type CorrespondenciaEstado =
+  // ciclo de entrada
+  | 'pendiente' | 'derivada_alcaldia' | 'en_proceso' | 'derivada_funcionario' | 'completada' | 'archivado'
+  // ciclo de salida
+  | 'reservada' | 'por_despachar' | 'despachada' | 'devuelta' | 'anulada'
+
+export type TipoDocumentoSalida = 'oficio' | 'ordinario' | 'circular' | 'carta'
+
 export interface Correspondencia {
   id: number
+  folio?: string
+  direccion?: 'entrada' | 'salida'
   numero_documento?: string
+  tipo_documento_salida?: TipoDocumentoSalida
   remitente: string
   fecha_documento?: string
   fecha_recibo: string
@@ -56,11 +67,24 @@ export interface Correspondencia {
   departamento?: Departamento
   usuario_id?: number
   usuario?: User
-  estado: 'pendiente' | 'derivada_alcaldia' | 'en_proceso' | 'derivada_funcionario' | 'completada' | 'archivado'
+  estado: CorrespondenciaEstado
   providencia_pdf?: string
   providencia_generada?: boolean
   adjuntos?: Adjunto[]
   derivaciones?: Derivacion[]
+  // salida
+  respuesta_a_id?: number | null
+  respuesta_a?: { id: number; folio?: string; remitente: string } | null
+  respuestas?: Correspondencia[]
+  documento_nombre?: string | null
+  firmante_nombre?: string | null
+  medio_despacho?: string | null
+  fecha_despacho?: string | null
+  referencia_despacho?: string | null
+  despachada_por_user?: { id: number; nombre: string } | null
+  motivo_devolucion?: string | null
+  // entrada
+  respondida_at?: string | null
   created_at: string
   updated_at: string
 }

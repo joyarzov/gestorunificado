@@ -111,8 +111,8 @@
     <table class="registros">
         <thead>
             <tr>
-                <th style="width:28px;">N&deg;</th>
-                <th style="width:75px;">N&deg; Documento</th>
+                <th style="width:78px;">Folio</th>
+                <th style="width:72px;">N&deg; Documento</th>
                 <th style="width:62px;">F. Recibo</th>
                 <th>Remitente</th>
                 <th>Materia</th>
@@ -125,7 +125,7 @@
         <tbody>
             @forelse($registros as $i => $r)
             <tr>
-                <td>{{ $i + 1 }}</td>
+                <td>{{ $r['folio'] ?? ($i + 1) }}</td>
                 <td>{{ $r['numero_documento'] ?: '—' }}</td>
                 <td>{{ $r['fecha_recibo'] }}</td>
                 <td>{{ $r['remitente'] }}</td>

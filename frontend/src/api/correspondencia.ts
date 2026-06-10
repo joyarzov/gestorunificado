@@ -96,6 +96,20 @@ export interface LibroCorrespondencia {
   generado_por?: number | { id: number; nombre: string; cargo?: string }
 }
 
+export interface SalidasResponse {
+  items: Correspondencia[]
+  total: number
+  page: number
+  last_page: number
+  counts: {
+    reservada: number
+    por_despachar: number
+    devuelta: number
+    despachada: number
+    anulada: number
+  }
+}
+
 export interface BandejaResponse {
   items: Derivacion[]
   total: number
@@ -146,6 +160,62 @@ export const correspondenciaAPI = {
   obtenerAlcaldeInfo: async () => {
     const response = await api.get<ApiResponse<AlcaldeInfo>>('/correspondencia/alcalde-info')
     return response.data
+  },
+
+  // ===== Correspondencia de SALIDA =====
+  salidasListar: async (params?: { estado?: string; page?: number; per_page?: number }) => {
+    const response = await api.get<ApiResponse<SalidasResponse>>('/correspondencia/salidas', { params })
+    return response.data
+  },
+
+  salidaReservar: async (data: {
+    tipo_documento: string
+    materia: string
+    destinatario?: string
+    respuesta_a_id?: number
+  }) => {
+    const response = await api.post<ApiResponse<Correspondencia>>('/correspondencia/salidas/reservar', data)
+    return response.data
+  },
+
+  salidaSubirDocumento: async (
+    id: number,
+    documento: File,
+    destinatario: string,
+    firmanteNombre: string,
+    fechaDocumento?: string,
+  ) => {
+    const form = new FormData()
+    form.append('documento', documento)
+    form.append('destinatario', destinatario)
+    form.append('firmante_nombre', firmanteNombre)
+    if (fechaDocumento) form.append('fecha_documento', fechaDocumento)
+    const response = await api.post<ApiResponse<Correspondencia>>(
+      `/correspondencia/salidas/${id}/documento`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return response.data
+  },
+
+  salidaDespachar: async (id: number, data: { medio_despacho: string; fecha_despacho?: string; referencia_despacho?: string }) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/salidas/${id}/despachar`, data)
+    return response.data
+  },
+
+  salidaDevolver: async (id: number, motivo: string) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/salidas/${id}/devolver`, { motivo })
+    return response.data
+  },
+
+  salidaAnular: async (id: number, motivo: string) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/salidas/${id}/anular`, { motivo })
+    return response.data
+  },
+
+  salidaDescargarDocumento: async (id: number) => {
+    const response = await api.get(`/correspondencia/salidas/${id}/documento`, { responseType: 'blob' })
+    return response.data as Blob
   },
 
   // Libro de Correspondencia (oficial de partes / admin)

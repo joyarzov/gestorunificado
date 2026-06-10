@@ -18,6 +18,7 @@ import CorrespondenciaDetail from './pages/correspondencia/Detail'
 import BandejaEntrada from './pages/correspondencia/Bandeja'
 import CorrespondenciaSearch from './pages/correspondencia/Search'
 import LibroCorrespondencia from './pages/correspondencia/LibroCorrespondencia'
+import Salidas from './pages/correspondencia/Salidas'
 
 // Verificación pública
 import VerificarDocumento from './pages/verificacion/VerificarDocumento'
@@ -102,6 +103,7 @@ function App() {
             <Route path="/correspondencia/:id/editar" element={<CorrespondenciaCreate />} />
             <Route path="/buscar" element={<CorrespondenciaSearch />} />
             <Route path="/libro-correspondencia" element={<LibroCorrespondencia />} />
+            <Route path="/salidas" element={<Salidas />} />
 
             {/* OIRS Admin */}
             <Route path="/oirs-admin" element={<OirsDashboard />} />

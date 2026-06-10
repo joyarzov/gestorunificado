@@ -188,6 +188,7 @@ class LibroCorrespondenciaController extends Controller
             'derivaciones.usuarioDestino:id,nombre',
             'derivaciones.departamentoDestino:id,nombre',
         ])
+            ->entradas()
             ->whereDate('fecha_recibo', '>=', $desde)
             ->whereDate('fecha_recibo', '<=', $hasta)
             ->orderBy('fecha_recibo')
@@ -195,6 +196,7 @@ class LibroCorrespondenciaController extends Controller
             ->get();
 
         $registros = $correspondencias->map(fn ($c) => [
+            'folio' => $c->folio,
             'numero_documento' => $c->numero_documento,
             'fecha_recibo' => $c->fecha_recibo?->format('d-m-Y'),
             'remitente' => $c->remitente,

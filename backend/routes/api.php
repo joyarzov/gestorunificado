@@ -149,6 +149,15 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/search', [CorrespondenciaController::class, 'search']);
         Route::get('/exportar', [CorrespondenciaController::class, 'exportar']);
 
+        // Correspondencia de SALIDA (reserva de número → cola de despacho)
+        Route::get('/salidas', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'index']);
+        Route::post('/salidas/reservar', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'reservar']);
+        Route::post('/salidas/{salida}/documento', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'subirDocumento']);
+        Route::post('/salidas/{salida}/despachar', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'despachar']);
+        Route::post('/salidas/{salida}/devolver', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'devolver']);
+        Route::post('/salidas/{salida}/anular', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'anular']);
+        Route::get('/salidas/{salida}/documento', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'descargarDocumento']);
+
         // Libro de Correspondencia (oficial de partes / admin)
         Route::get('/libros', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'index']);
         Route::post('/libros/preview', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'preview']);

@@ -39,7 +39,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 
-import { ESTADO_CORRESPONDENCIA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
+import { ESTADO_CORRESPONDENCIA, ESTADOS_ENTRADA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 
 const CorrespondenciaList = () => {
   const navigate = useNavigate()
@@ -217,8 +217,8 @@ const CorrespondenciaList = () => {
                 onChange={(e) => setEstado(e.target.value)}
               >
                 <MenuItem value="">Todos</MenuItem>
-                {Object.entries(ESTADO_CORRESPONDENCIA).map(([key, { label }]) => (
-                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                {ESTADOS_ENTRADA.map((key) => (
+                  <MenuItem key={key} value={key}>{ESTADO_CORRESPONDENCIA[key].label}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -269,7 +269,7 @@ const CorrespondenciaList = () => {
           <Table sx={{ minWidth: 750 }}>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
+                <TableCell>Folio</TableCell>
                 <TableCell>Nº Documento</TableCell>
                 <TableCell>Remitente</TableCell>
                 <TableCell>Fecha Recibo</TableCell>
@@ -296,7 +296,7 @@ const CorrespondenciaList = () => {
               ) : (
                 correspondencias.map((item) => (
                   <TableRow key={item.id} hover>
-                    <TableCell>{item.id}</TableCell>
+                    <TableCell><strong>{item.folio || `#${item.id}`}</strong></TableCell>
                     <TableCell>{item.numero_documento || '-'}</TableCell>
                     <TableCell>{item.remitente}</TableCell>
                     <TableCell>

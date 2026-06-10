@@ -21,6 +21,7 @@ import {
   AccountTree as OrganigramaIcon,
   Person as PersonIcon,
   MenuBook as LibroIcon,
+  Outbox as SalidaIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -160,6 +161,9 @@ export const getSidebarItems = (
         items.push({ text: 'Ingresar correspondencia', path: '/ingresar', icon: CreateIcon })
         items.push({ text: 'Libro de Correspondencia', path: '/libro-correspondencia', icon: LibroIcon })
       }
+      // Salidas: todos pueden reservar número y subir su documento;
+      // Partes ve la cola completa y despacha.
+      items.push({ text: 'Salidas', path: '/salidas', icon: SalidaIcon })
       items.push({ text: 'Búsqueda avanzada', path: '/buscar', icon: SearchIcon })
       return items
     }

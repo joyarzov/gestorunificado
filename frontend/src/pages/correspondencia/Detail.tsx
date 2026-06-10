@@ -20,6 +20,8 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  TextField,
+  MenuItem,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -31,6 +33,7 @@ import {
   Close as CloseIcon,
   PictureAsPdf as PdfIcon,
   CheckCircle as CheckCircleIcon,
+  Reply as ReplyIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { Correspondencia, Adjunto } from '../../types'
@@ -42,7 +45,7 @@ import ConversacionHilo from '../../components/correspondencia/ConversacionHilo'
 import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
 import Snackbar from '@mui/material/Snackbar'
 
-import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
+import { estadoCorrespondencia, TIPOS_DOCUMENTO_SALIDA } from '../../utils/estadoCorrespondencia'
 
 const CorrespondenciaDetail = () => {
   const { id } = useParams()
@@ -75,6 +78,32 @@ const CorrespondenciaDetail = () => {
   const [acuseDialogOpen, setAcuseDialogOpen] = useState(false)
   const [acuseDerivacionId, setAcuseDerivacionId] = useState<number | null>(null)
   const [acuseLoading, setAcuseLoading] = useState(false)
+
+  // Preparar respuesta (reserva de número de salida vinculada)
+  const [respuestaOpen, setRespuestaOpen] = useState(false)
+  const [respuestaForm, setRespuestaForm] = useState({ tipo_documento: 'oficio', materia: '' })
+  const [respuestaLoading, setRespuestaLoading] = useState(false)
+
+  const handlePrepararRespuesta = async () => {
+    if (!correspondencia) return
+    setRespuestaLoading(true)
+    try {
+      const res = await correspondenciaAPI.salidaReservar({
+        tipo_documento: respuestaForm.tipo_documento,
+        materia: respuestaForm.materia.trim(),
+        destinatario: correspondencia.remitente,
+        respuesta_a_id: correspondencia.id,
+      })
+      setRespuestaOpen(false)
+      setRespuestaForm({ tipo_documento: 'oficio', materia: '' })
+      setSnackbar({ open: true, message: res.message || `Número reservado: ${res.data.folio}` })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo reservar el número' })
+    } finally {
+      setRespuestaLoading(false)
+    }
+  }
 
   // PDF Viewer
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -320,14 +349,30 @@ const CorrespondenciaDetail = () => {
             Volver
           </Button>
           <Typography variant="h4" fontWeight="bold">
-            Correspondencia #{correspondencia.id}
+            {correspondencia.folio || `Correspondencia #${correspondencia.id}`}
           </Typography>
           <Chip
             label={estadoCorrespondencia(correspondencia.estado).label}
             color={estadoCorrespondencia(correspondencia.estado).color}
           />
+          {correspondencia.respondida_at && (
+            <Chip
+              label={`Respondida${correspondencia.respuestas?.find((r) => r.estado === 'despachada')?.folio ? ' · ' + correspondencia.respuestas.find((r) => r.estado === 'despachada')!.folio : ''}`}
+              color="success"
+              variant="outlined"
+            />
+          )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {correspondencia.estado !== 'pendiente' && (
+            <Button
+              variant="outlined"
+              startIcon={<ReplyIcon />}
+              onClick={() => setRespuestaOpen(true)}
+            >
+              Preparar respuesta
+            </Button>
+          )}
           {(isAdmin() || isOficial()) && isPendienteSinDerivaciones && (
             <Button
               variant="contained"
@@ -520,8 +565,81 @@ const CorrespondenciaDetail = () => {
             </CardContent>
           </Card>
 
+          {/* Respuestas (salidas vinculadas) */}
+          {correspondencia.respuestas && correspondencia.respuestas.length > 0 && (
+            <Card sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  <ReplyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Respuestas
+                </Typography>
+                <List dense>
+                  {correspondencia.respuestas.map((r) => (
+                    <ListItem key={r.id} disablePadding sx={{ py: 0.5 }}>
+                      <ListItemText
+                        primary={<strong>{r.folio}</strong>}
+                        secondary={
+                          <Chip
+                            size="small"
+                            label={estadoCorrespondencia(r.estado).label}
+                            color={estadoCorrespondencia(r.estado).color}
+                            sx={{ height: 20, fontSize: 11, mt: 0.25 }}
+                          />
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+                <Typography variant="caption" color="text.secondary">
+                  Gestión del despacho en el menú Salidas.
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+
         </Grid>
       </Grid>
+
+      {/* Dialog: preparar respuesta (reserva número de salida vinculada) */}
+      <Dialog open={respuestaOpen} onClose={() => setRespuestaOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Preparar respuesta · {correspondencia.folio || `#${correspondencia.id}`}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <Alert severity="info">
+              Se reservará el número de la serie elegida. Redacta y firma el documento con ese número,
+              y luego sube el PDF firmado desde el menú <strong>Salidas</strong> para su despacho.
+            </Alert>
+            <TextField
+              select
+              fullWidth
+              label="Tipo de documento"
+              value={respuestaForm.tipo_documento}
+              onChange={(e) => setRespuestaForm({ ...respuestaForm, tipo_documento: e.target.value })}
+            >
+              {Object.entries(TIPOS_DOCUMENTO_SALIDA).map(([k, v]) => (
+                <MenuItem key={k} value={k}>{v}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              required
+              label="Materia"
+              value={respuestaForm.materia}
+              onChange={(e) => setRespuestaForm({ ...respuestaForm, materia: e.target.value })}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRespuestaOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handlePrepararRespuesta}
+            disabled={respuestaLoading || !respuestaForm.materia.trim()}
+          >
+            {respuestaLoading ? <CircularProgress size={20} /> : 'Reservar número'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog derivación */}
       <DerivacionDialog
