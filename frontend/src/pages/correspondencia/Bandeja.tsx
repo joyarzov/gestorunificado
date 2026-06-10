@@ -31,7 +31,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 const BandejaEntrada = () => {
   const navigate = useNavigate()
-  const { isAlcalde, user, actuandoComo } = useAuth()
+  const { user, actuandoComo } = useAuth()
   const [derivaciones, setDerivaciones] = useState<Derivacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -190,7 +190,7 @@ const BandejaEntrada = () => {
                           <RecibirIcon />
                         </IconButton>
                       )}
-                      {der.estado === 'recibido' && !isAlcalde() && der.puede_actuar && (
+                      {der.estado === 'recibido' && der.puede_actuar && (
                         <IconButton
                           size="small"
                           color="primary"

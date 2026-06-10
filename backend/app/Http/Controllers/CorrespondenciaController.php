@@ -100,10 +100,10 @@ class CorrespondenciaController extends Controller
 
     public function update(Request $request, Correspondencia $correspondencia)
     {
-        // Solo oficial de partes o admin pueden editar, y solo mientras siga pendiente.
+        // Solo oficial de partes o admin pueden editar, y solo mientras siga
+        // pendiente. Usa roles EFECTIVOS (respeta el perfil activo elegido).
         $user = Auth::user();
-        $roles = is_array($user->roles ?? null) ? $user->roles : [];
-        $puedeEditar = in_array('admin', $roles, true) || in_array('oficial', $roles, true);
+        $puedeEditar = $user->isAdmin() || $user->isOficial();
         if (!$puedeEditar) {
             return $this->errorResponse('Solo la Oficina de Partes o un administrador pueden editar la correspondencia', 403);
         }
@@ -203,14 +203,21 @@ class CorrespondenciaController extends Controller
 
     public function estadisticas()
     {
+        // Mismos criterios de visibilidad que el listado: cada usuario ve
+        // contadores de SU universo (admin/oficial, el total del municipio).
+        $porEstado = Correspondencia::visiblesPara(Auth::user())
+            ->selectRaw('estado, COUNT(*) as n')
+            ->groupBy('estado')
+            ->pluck('n', 'estado');
+
         $stats = [
-            'total' => Correspondencia::count(),
-            'pendientes' => Correspondencia::where('estado', 'pendiente')->count(),
-            'derivada_alcaldia' => Correspondencia::where('estado', 'derivada_alcaldia')->count(),
-            'en_proceso' => Correspondencia::where('estado', 'en_proceso')->count(),
-            'derivada_funcionario' => Correspondencia::where('estado', 'derivada_funcionario')->count(),
-            'completada' => Correspondencia::where('estado', 'completada')->count(),
-            'archivadas' => Correspondencia::where('estado', 'archivado')->count(),
+            'total' => $porEstado->sum(),
+            'pendientes' => (int) ($porEstado['pendiente'] ?? 0),
+            'derivada_alcaldia' => (int) ($porEstado['derivada_alcaldia'] ?? 0),
+            'en_proceso' => (int) ($porEstado['en_proceso'] ?? 0),
+            'derivada_funcionario' => (int) ($porEstado['derivada_funcionario'] ?? 0),
+            'completada' => (int) ($porEstado['completada'] ?? 0),
+            'archivadas' => (int) ($porEstado['archivado'] ?? 0),
         ];
 
         return $this->successResponse($stats);

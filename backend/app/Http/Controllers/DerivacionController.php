@@ -698,24 +698,34 @@ class DerivacionController extends Controller
             'fecha_recepcion' => now(),
         ]);
 
-        // Actualizar correspondencia a completada
+        // Completar la correspondencia SOLO cuando todos los destinatarios
+        // acusaron recibo. Con derivación múltiple (varios funcionarios o
+        // "todos"), el primer acuse no debe marcarla Completada.
         $correspondencia = $derivacion->correspondencia;
         if ($correspondencia && in_array($correspondencia->estado, ['derivada_funcionario', 'derivada_alcaldia'])) {
-            $correspondencia->update(['estado' => 'completada']);
+            $quedanPendientes = Derivacion::where('correspondencia_id', $correspondencia->id)
+                ->where('estado', 'pendiente')
+                ->exists();
 
-            // Marcar la derivación del alcalde como completada
-            Derivacion::where('correspondencia_id', $correspondencia->id)
-                ->where('estado', 'derivado')
-                ->update(['estado' => 'recibido']);
+            if (!$quedanPendientes) {
+                $correspondencia->update(['estado' => 'completada']);
+
+                // Marcar la derivación del alcalde como completada
+                Derivacion::where('correspondencia_id', $correspondencia->id)
+                    ->where('estado', 'derivado')
+                    ->update(['estado' => 'recibido']);
+            }
 
             // Notificar al usuario que derivó originalmente
             if ($derivacion->usuario_origen_id) {
                 NotificacionService::enviar(
                     $derivacion->usuario_origen_id,
                     'correspondencia',
-                    'correspondencia_completada',
-                    'Correspondencia completada',
-                    "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
+                    $quedanPendientes ? 'correspondencia_recibida_parcial' : 'correspondencia_completada',
+                    $quedanPendientes ? 'Acuse de recibo' : 'Correspondencia completada',
+                    $quedanPendientes
+                        ? "{$user->nombre} recibió la correspondencia de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
+                        : "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }
