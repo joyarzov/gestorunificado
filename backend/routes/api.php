@@ -114,13 +114,16 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         });
     });
 
-    // Usuarios
+    // Usuarios: el directorio (funcionarios) es para cualquier autenticado;
+    // la gestión (CRUD, activar, resetear contraseña) es solo de admin.
     Route::prefix('users')->group(function () {
         Route::get('/funcionarios', [UserController::class, 'funcionarios']);
-        Route::post('/{user}/activate', [UserController::class, 'activar']);
-        Route::post('/{user}/change-password', [UserController::class, 'cambiarPassword']);
+        Route::middleware('role:admin')->group(function () {
+            Route::post('/{user}/activate', [UserController::class, 'activar']);
+            Route::post('/{user}/change-password', [UserController::class, 'cambiarPassword']);
+        });
     });
-    Route::apiResource('users', UserController::class);
+    Route::apiResource('users', UserController::class)->middleware('role:admin');
 
     // Notificaciones
     Route::prefix('notificaciones')->group(function () {
