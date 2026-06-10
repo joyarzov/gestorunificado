@@ -14,6 +14,9 @@ import {
   FormControlLabel,
   Checkbox,
   Alert,
+  ToggleButton,
+  ToggleButtonGroup,
+  Chip,
 } from '@mui/material'
 import {
   CheckCircle as SuccessIcon,
@@ -59,6 +62,9 @@ const DerivacionDialog = ({
   const [usuarios, setUsuarios] = useState<User[]>([])
   const [selectedDepto, setSelectedDepto] = useState<Departamento | null>(null)
   const [selectedUsuario, setSelectedUsuario] = useState<User | null>(null)
+  // Modo alcalde: destino flexible (funcionarios específicos / depto completo / todos)
+  const [tipoDestino, setTipoDestino] = useState<'funcionarios' | 'departamento' | 'todos'>('funcionarios')
+  const [selectedUsuarios, setSelectedUsuarios] = useState<User[]>([])
   const [observaciones, setObservaciones] = useState('')
   const [accionesPara, setAccionesPara] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -119,13 +125,31 @@ const DerivacionDialog = ({
     )
   }
 
+  // Destino según modalidad. En modo alcalde el departamento ya no es
+  // obligatorio: se puede derivar a funcionario(s), a un depto completo o a todos.
+  const buildDestino = () => {
+    if (!esModoFuncionario || readOnly) {
+      return {
+        departamento_destino_id: selectedDepto?.id,
+        usuario_destino_id: selectedUsuario?.id,
+      }
+    }
+    if (tipoDestino === 'todos') return { derivar_a_todos: true }
+    if (tipoDestino === 'departamento') return { departamento_destino_id: selectedDepto?.id }
+    return { usuario_destino_ids: selectedUsuarios.map((u) => u.id) }
+  }
+
+  const destinoValido = esModoFuncionario && !readOnly
+    ? (tipoDestino === 'todos'
+        || (tipoDestino === 'departamento' ? !!selectedDepto : selectedUsuarios.length > 0))
+    : !!selectedDepto
+
   const handleSubmit = async () => {
-    if (!selectedDepto) return
+    if (!destinoValido) return
 
     const formData: CreateDerivacionData = {
       correspondencia_id: correspondenciaId,
-      departamento_destino_id: selectedDepto.id,
-      usuario_destino_id: selectedUsuario?.id,
+      ...buildDestino(),
       observaciones: observaciones || undefined,
       acciones_para: esModoFuncionario && accionesPara.length > 0 ? accionesPara : undefined,
     }
@@ -138,8 +162,7 @@ const DerivacionDialog = ({
       try {
         const { blob, token } = await correspondenciaAPI.previewDerivar({
           correspondencia_id: correspondenciaId,
-          departamento_destino_id: selectedDepto.id,
-          usuario_destino_id: selectedUsuario?.id,
+          ...buildDestino(),
           observaciones: observaciones || undefined,
           acciones_para: accionesPara.length > 0 ? accionesPara : undefined,
         })
@@ -205,6 +228,8 @@ const DerivacionDialog = ({
     revokePreview()
     setSelectedDepto(null)
     setSelectedUsuario(null)
+    setSelectedUsuarios([])
+    setTipoDestino('funcionarios')
     setObservaciones('')
     setAccionesPara([])
     setShowSuccess(false)
@@ -304,29 +329,111 @@ const DerivacionDialog = ({
           </Box>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <Autocomplete
-              options={departamentos}
-              getOptionLabel={(opt) => opt.nombre}
-              value={selectedDepto}
-              onChange={(_, value) => {
-                setSelectedDepto(value)
-                setSelectedUsuario(null)
-              }}
-              readOnly={readOnly}
-              renderInput={(params) => (
-                <TextField {...params} label="Departamento destino" required />
-              )}
-            />
-            <Autocomplete
-              options={filteredUsuarios}
-              getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
-              value={selectedUsuario}
-              onChange={(_, value) => setSelectedUsuario(value)}
-              readOnly={readOnly}
-              renderInput={(params) => (
-                <TextField {...params} label="Usuario destino (opcional)" />
-              )}
-            />
+            {esModoFuncionario && !readOnly ? (
+              <>
+                <ToggleButtonGroup
+                  exclusive
+                  fullWidth
+                  size="small"
+                  color="primary"
+                  value={tipoDestino}
+                  onChange={(_, value) => {
+                    if (!value) return
+                    setTipoDestino(value)
+                    setSelectedDepto(null)
+                    setSelectedUsuarios([])
+                  }}
+                >
+                  <ToggleButton value="funcionarios">Funcionario(s)</ToggleButton>
+                  <ToggleButton value="departamento">Departamento</ToggleButton>
+                  <ToggleButton value="todos">Todos</ToggleButton>
+                </ToggleButtonGroup>
+
+                {tipoDestino === 'funcionarios' && (
+                  <>
+                    <Autocomplete
+                      options={departamentos}
+                      getOptionLabel={(opt) => opt.nombre}
+                      value={selectedDepto}
+                      onChange={(_, value) => setSelectedDepto(value)}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Filtrar por departamento (opcional)" />
+                      )}
+                    />
+                    <Autocomplete
+                      multiple
+                      options={filteredUsuarios}
+                      getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
+                      value={selectedUsuarios}
+                      onChange={(_, value) => setSelectedUsuarios(value)}
+                      renderTags={(value, getTagProps) =>
+                        value.map((opt, index) => (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={opt.id}
+                            label={opt.nombre}
+                            size="small"
+                          />
+                        ))
+                      }
+                      renderInput={(params) => (
+                        <TextField {...params} label="Funcionario(s) destino" required={selectedUsuarios.length === 0} />
+                      )}
+                    />
+                  </>
+                )}
+
+                {tipoDestino === 'departamento' && (
+                  <Autocomplete
+                    options={departamentos}
+                    getOptionLabel={(opt) => opt.nombre}
+                    value={selectedDepto}
+                    onChange={(_, value) => setSelectedDepto(value)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Departamento destino"
+                        required
+                        helperText="La correspondencia llegará a la bandeja de todos los funcionarios del departamento"
+                      />
+                    )}
+                  />
+                )}
+
+                {tipoDestino === 'todos' && (
+                  <Alert severity="warning">
+                    Se derivará a <strong>todos los funcionarios activos</strong> del municipio
+                    ({usuarios.length}). Cada uno la recibirá en su bandeja de entrada.
+                  </Alert>
+                )}
+              </>
+            ) : (
+              <>
+                <Autocomplete
+                  options={departamentos}
+                  getOptionLabel={(opt) => opt.nombre}
+                  value={selectedDepto}
+                  onChange={(_, value) => {
+                    setSelectedDepto(value)
+                    setSelectedUsuario(null)
+                  }}
+                  readOnly={readOnly}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Departamento destino" required />
+                  )}
+                />
+                <Autocomplete
+                  options={filteredUsuarios}
+                  getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
+                  value={selectedUsuario}
+                  onChange={(_, value) => setSelectedUsuario(value)}
+                  readOnly={readOnly}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Usuario destino (opcional)" />
+                  )}
+                />
+              </>
+            )}
 
             {esModoFuncionario && (
               <Box>
@@ -371,7 +478,7 @@ const DerivacionDialog = ({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={loading || previewLoading || !selectedDepto}
+          disabled={loading || previewLoading || !destinoValido}
         >
           {loading || previewLoading ? <CircularProgress size={20} /> : 'Derivar'}
         </Button>

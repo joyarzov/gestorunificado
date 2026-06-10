@@ -22,8 +22,10 @@ export interface CreateCorrespondenciaData {
 
 export interface CreateDerivacionData {
   correspondencia_id: number
-  departamento_destino_id: number
+  departamento_destino_id?: number
   usuario_destino_id?: number
+  usuario_destino_ids?: number[]
+  derivar_a_todos?: boolean
   observaciones?: string
   acciones_para?: string[]
   otp?: string
@@ -35,8 +37,10 @@ export interface CreateDerivacionData {
 
 export interface PreviewDerivarData {
   correspondencia_id: number
-  departamento_destino_id: number
+  departamento_destino_id?: number
   usuario_destino_id?: number
+  usuario_destino_ids?: number[]
+  derivar_a_todos?: boolean
   observaciones?: string
   acciones_para?: string[]
 }
