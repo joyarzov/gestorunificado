@@ -93,14 +93,35 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     }
   }
 
+  // "Nombre (Cargo)" o el departamento como respaldo.
+  const conCargo = (p?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }) => (
+    p?.usuario ? (
+      <>
+        <strong>{p.usuario}</strong>
+        {p.cargo ? ` (${p.cargo})` : ''}
+      </>
+    ) : (
+      <strong>{p?.departamento || '—'}</strong>
+    )
+  )
+
   const renderDerivacion = (it: HiloItem) => (
     <Box key={`d-${it.id}`} sx={{ my: 1.5 }}>
       <Divider>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', flexWrap: 'wrap', justifyContent: 'center' }}>
           <DerivIcon fontSize="small" />
           <Typography variant="caption">
-            <strong>{it.de?.usuario || it.de?.departamento || '—'}</strong> derivó a{' '}
-            <strong>{it.para?.usuario || it.para?.departamento || '—'}</strong>
+            {conCargo(it.de)}
+            {it.actuando_como && (
+              <>
+                {', como subrogante de '}
+                <strong>{it.actuando_como.nombre}</strong>
+                {it.actuando_como.cargo ? ` (${it.actuando_como.cargo})` : ''}
+                {','}
+              </>
+            )}
+            {' derivó a '}
+            {conCargo(it.para)}
           </Typography>
           <Chip
             label={it.estado}
@@ -134,6 +155,11 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
       >
         <Typography variant="caption" fontWeight="bold" color="primary">
           {it.autor?.nombre}
+          {it.autor?.cargo && (
+            <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 400 }}>
+              {` · ${it.autor.cargo}`}
+            </Typography>
+          )}
         </Typography>
         {it.mensaje && (
           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.25 }}>

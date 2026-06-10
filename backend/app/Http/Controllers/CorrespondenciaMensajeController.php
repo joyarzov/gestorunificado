@@ -30,6 +30,7 @@ class CorrespondenciaMensajeController extends Controller
         $correspondencia->load([
             'derivaciones.usuarioOrigen', 'derivaciones.usuarioDestino',
             'derivaciones.departamentoOrigen', 'derivaciones.departamentoDestino',
+            'derivaciones.actuandoComo',
             'mensajes.usuario', 'mensajes.adjuntos',
         ]);
 
@@ -41,8 +42,20 @@ class CorrespondenciaMensajeController extends Controller
                 'id'            => $d->id,
                 'fecha'         => $d->created_at,
                 'estado'        => $d->estado,
-                'de'            => ['usuario' => $d->usuarioOrigen?->nombre, 'departamento' => $d->departamentoOrigen?->nombre],
-                'para'          => ['usuario' => $d->usuarioDestino?->nombre, 'departamento' => $d->departamentoDestino?->nombre],
+                'de'            => [
+                    'usuario'      => $d->usuarioOrigen?->nombre,
+                    'cargo'        => $d->usuarioOrigen?->cargo,
+                    'departamento' => $d->departamentoOrigen?->nombre,
+                ],
+                'para'          => [
+                    'usuario'      => $d->usuarioDestino?->nombre,
+                    'cargo'        => $d->usuarioDestino?->cargo,
+                    'departamento' => $d->departamentoDestino?->nombre,
+                ],
+                // Subrogado en cuyo nombre se derivó (si el origen actuó como subrogante).
+                'actuando_como' => $d->actuandoComo
+                    ? ['nombre' => $d->actuandoComo->nombre, 'cargo' => $d->actuandoComo->cargo]
+                    : null,
                 'observaciones' => $d->observaciones,
                 'acciones_para' => $d->acciones_para,
                 'tiene_pdf'     => !empty($d->pdf_ruta),
@@ -54,7 +67,7 @@ class CorrespondenciaMensajeController extends Controller
                 'tipo'     => 'mensaje',
                 'id'       => $m->id,
                 'fecha'    => $m->created_at,
-                'autor'    => ['id' => $m->usuario?->id, 'nombre' => $m->usuario?->nombre],
+                'autor'    => ['id' => $m->usuario?->id, 'nombre' => $m->usuario?->nombre, 'cargo' => $m->usuario?->cargo],
                 'es_mio'   => $m->usuario_id === Auth::id(),
                 'mensaje'  => $m->mensaje,
                 'adjuntos' => $m->adjuntos->map(fn ($a) => [

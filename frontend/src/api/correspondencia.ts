@@ -66,13 +66,14 @@ export interface HiloItem {
   fecha: string
   // derivacion
   estado?: string
-  de?: { usuario?: string | null; departamento?: string | null }
-  para?: { usuario?: string | null; departamento?: string | null }
+  de?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }
+  para?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }
+  actuando_como?: { nombre: string; cargo?: string | null } | null
   observaciones?: string | null
   acciones_para?: string[] | null
   tiene_pdf?: boolean
   // mensaje
-  autor?: { id: number; nombre: string }
+  autor?: { id: number; nombre: string; cargo?: string | null }
   es_mio?: boolean
   mensaje?: string | null
   adjuntos?: HiloAdjunto[]
