@@ -65,9 +65,12 @@ function App() {
   return (
     <>
       <Routes>
-        {/* Rutas públicas */}
-        <Route path="/" element={<PublicHome />} />
+        {/* La página de inicio es el login de funcionarios. El portal
+            ciudadano sigue disponible en /portal-ciudadano (su acceso
+            público definitivo se configurará después). */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/portal-ciudadano" element={<PublicHome />} />
         <Route path="/oirs" element={<OirsPublicForm />} />
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />
         <Route path="/verificar" element={<VerificarDocumento />} />

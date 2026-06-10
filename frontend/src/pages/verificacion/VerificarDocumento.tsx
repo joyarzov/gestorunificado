@@ -106,7 +106,7 @@ const VerificarDocumento = () => {
         <Container maxWidth="md">
           <Button
             startIcon={<BackIcon />}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/portal-ciudadano')}
             sx={{ color: 'white', mb: 2 }}
           >
             Volver al portal

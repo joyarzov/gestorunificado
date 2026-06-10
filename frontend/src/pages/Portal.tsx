@@ -187,7 +187,7 @@ const Portal = () => {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/portal-ciudadano')}
                 sx={{
                   color: 'white',
                   borderColor: 'rgba(255, 255, 255, 0.3)',

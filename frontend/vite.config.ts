@@ -6,7 +6,14 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['doc.australbyte.cl'],
+    allowedHosts: [
+      'localhost',
+      '192.168.0.106',
+      'docmunicipal.local',
+      'doc.australbyte.cl',
+      'gestormunicipal.imcabodehornos.cl',
+      'gestor.imcabodehornos.cl',
+    ],
     proxy: {
       '/api': {
         target: 'http://backend:8000',

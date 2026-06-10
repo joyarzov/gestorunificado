@@ -142,7 +142,7 @@ const OirsPublicForm = () => {
                 Puede consultar el estado de su solicitud usando el folio y su RUT o el código de seguimiento.
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                <Button variant="outlined" onClick={() => navigate('/')}>
+                <Button variant="outlined" onClick={() => navigate('/portal-ciudadano')}>
                   Volver al Inicio
                 </Button>
                 <Button variant="contained" onClick={() => navigate('/oirs/consultar')}>
@@ -169,7 +169,7 @@ const OirsPublicForm = () => {
         <Container maxWidth="md">
           <Button
             startIcon={<BackIcon />}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/portal-ciudadano')}
             sx={{ color: 'white', mb: 2 }}
           >
             Volver

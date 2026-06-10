@@ -155,8 +155,8 @@ const Login = () => {
           </Box>
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Button variant="text" onClick={() => navigate('/')} size="small">
-              Volver al inicio
+            <Button variant="text" onClick={() => navigate('/portal-ciudadano')} size="small">
+              Ir al Portal Ciudadano
             </Button>
           </Box>
         </CardContent>

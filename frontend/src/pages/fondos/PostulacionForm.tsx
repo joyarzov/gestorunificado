@@ -263,7 +263,7 @@ const PostulacionForm = () => {
         </Box>
         <Container maxWidth="md" sx={{ py: 4 }}>
           <Alert severity="warning">No hay fondos concursables abiertos actualmente.</Alert>
-          <Button onClick={() => navigate('/')} sx={{ mt: 2 }}>Volver al inicio</Button>
+          <Button onClick={() => navigate('/portal-ciudadano')} sx={{ mt: 2 }}>Volver al inicio</Button>
         </Container>
       </Box>
     )
@@ -302,7 +302,7 @@ const PostulacionForm = () => {
               <Button
                 variant="outlined"
                 startIcon={<HomeIcon />}
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/portal-ciudadano')}
               >
                 Volver al Inicio
               </Button>
@@ -805,7 +805,7 @@ const PostulacionForm = () => {
           {/* Navigation */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button
-              onClick={activeStep === 0 ? () => navigate('/') : handleBack}
+              onClick={activeStep === 0 ? () => navigate('/portal-ciudadano') : handleBack}
               startIcon={<BackIcon />}
             >
               {activeStep === 0 ? 'Volver' : 'Anterior'}

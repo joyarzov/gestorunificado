@@ -212,7 +212,7 @@ const SeguimientoPostulacion = () => {
         <Box sx={{ textAlign: 'center', mt: 3 }}>
           <Button
             startIcon={<HomeIcon />}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/portal-ciudadano')}
           >
             Volver al Inicio
           </Button>
