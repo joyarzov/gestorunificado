@@ -12,7 +12,10 @@ return [
 
     'guard' => ['web'],
 
-    'expiration' => null,
+    // Vida máxima del token en minutos desde su creación (720 = 12 horas,
+    // una jornada). Al expirar, el API responde 401 y el frontend redirige
+    // al login. Sobreescribible con SANCTUM_EXPIRATION en .env.
+    'expiration' => env('SANCTUM_EXPIRATION', 720),
 
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
 
