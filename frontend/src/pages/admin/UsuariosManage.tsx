@@ -230,7 +230,24 @@ const UsuariosManage = () => {
 
       <Card>
         <TableContainer>
-          <Table sx={{ minWidth: 900 }}>
+          <Table
+            size="small"
+            sx={{
+              minWidth: 860,
+              tableLayout: 'fixed',
+              '& td, & th': { py: 1 },
+            }}
+          >
+            <colgroup>
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: 132 }} />
+            </colgroup>
             <TableHead>
               <TableRow>
                 <TableCell>RUT</TableCell>
@@ -261,15 +278,17 @@ const UsuariosManage = () => {
               ) : (
                 usuarios.map((user) => (
                   <TableRow key={user.id} hover>
-                    <TableCell>{user.rut}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{user.rut}</TableCell>
                     <TableCell>{user.nombre}</TableCell>
                     <TableCell>{user.cargo || '-'}</TableCell>
-                    <TableCell>{user.email || '-'}</TableCell>
+                    <TableCell sx={{ wordBreak: 'break-word' }}>{user.email || '-'}</TableCell>
                     <TableCell>{user.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
-                      {user.roles?.map((role) => (
-                        <Chip key={role} label={role} size="small" sx={{ mr: 0.5 }} />
-                      ))}
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {user.roles?.map((role) => (
+                          <Chip key={role} label={role} size="small" />
+                        ))}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -278,7 +297,7 @@ const UsuariosManage = () => {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <IconButton size="small" onClick={() => handleOpenDialog(user)}>
                         <EditIcon />
                       </IconButton>
