@@ -37,6 +37,11 @@ use Illuminate\Support\Facades\Route;
 // Rutas públicas de autenticación
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
+    // Restablecimiento de contraseña (público, con rate-limit anti abuso)
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'solicitar'])
+        ->middleware('throttle:5,1');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'restablecer'])
+        ->middleware('throttle:5,1');
 });
 
 // Rutas públicas OIRS

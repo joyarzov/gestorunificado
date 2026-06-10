@@ -154,7 +154,12 @@ const Login = () => {
             </Button>
           </Box>
 
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Button variant="text" size="small" onClick={() => navigate('/recuperar-password')}>
+              ¿Olvidaste tu contraseña?
+            </Button>
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
             <Button variant="text" onClick={() => navigate('/portal-ciudadano')} size="small">
               Ir al Portal Ciudadano
             </Button>

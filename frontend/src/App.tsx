@@ -5,6 +5,8 @@ import AppLayout from './components/layout/AppLayout'
 
 // Pages
 import Login from './pages/auth/Login'
+import RecuperarPassword from './pages/auth/RecuperarPassword'
+import RestablecerPassword from './pages/auth/RestablecerPassword'
 import PublicHome from './pages/PublicHome'
 import Portal from './pages/Portal'
 
@@ -70,6 +72,8 @@ function App() {
             público definitivo se configurará después). */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/recuperar-password" element={<RecuperarPassword />} />
+        <Route path="/restablecer-password" element={<RestablecerPassword />} />
         <Route path="/portal-ciudadano" element={<PublicHome />} />
         <Route path="/oirs" element={<OirsPublicForm />} />
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />

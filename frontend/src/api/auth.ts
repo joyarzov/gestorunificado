@@ -38,4 +38,18 @@ export const authAPI = {
     const response = await api.put<ApiResponse<User>>('/auth/profile', data)
     return response.data
   },
+
+  forgotPassword: async (rut: string) => {
+    const response = await api.post<ApiResponse<null>>('/auth/forgot-password', { rut })
+    return response.data
+  },
+
+  resetPassword: async (token: string, password: string, passwordConfirmation: string) => {
+    const response = await api.post<ApiResponse<null>>('/auth/reset-password', {
+      token,
+      password,
+      password_confirmation: passwordConfirmation,
+    })
+    return response.data
+  },
 }
