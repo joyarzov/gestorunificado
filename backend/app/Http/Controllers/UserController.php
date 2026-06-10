@@ -114,6 +114,10 @@ class UserController extends Controller
     {
         $user->update(['activo' => false]);
 
+        // El bloqueo es inmediato: se revocan todas sus sesiones activas,
+        // no solo se impide el próximo login.
+        $user->tokens()->delete();
+
         return $this->successResponse(null, 'Usuario desactivado');
     }
 

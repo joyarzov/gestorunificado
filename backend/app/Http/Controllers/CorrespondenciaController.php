@@ -228,6 +228,88 @@ class CorrespondenciaController extends Controller
         return $this->index($request);
     }
 
+    /**
+     * Exporta el libro de correspondencia a CSV (compatible con Excel),
+     * respetando los mismos filtros del listado. Solo Oficina de Partes
+     * y administradores.
+     */
+    public function exportar(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            return $this->errorResponse('Solo la Oficina de Partes o un administrador pueden exportar', 403);
+        }
+
+        $query = Correspondencia::visiblesPara($user)
+            ->with(['departamento', 'usuario', 'derivaciones.usuarioDestino', 'derivaciones.departamentoDestino']);
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+        if ($request->filled('departamento_id')) {
+            $query->where('departamento_id', $request->departamento_id);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_recibo', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_recibo', '<=', $request->fecha_hasta);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('remitente', 'like', "%{$search}%")
+                    ->orWhere('numero_documento', 'like', "%{$search}%")
+                    ->orWhere('descripcion', 'like', "%{$search}%");
+            });
+        }
+
+        $correspondencias = $query->orderBy('fecha_recibo')->orderBy('id')->get();
+
+        $estadoLabels = [
+            'pendiente' => 'Pendiente',
+            'derivada_alcaldia' => 'Derivada a Alcaldía',
+            'en_proceso' => 'En Proceso',
+            'derivada_funcionario' => 'Derivada a Funcionario',
+            'completada' => 'Completada',
+            'archivado' => 'Archivada',
+        ];
+
+        $filename = 'libro-correspondencia-' . now()->format('Y-m-d_Hi') . '.csv';
+
+        return response()->streamDownload(function () use ($correspondencias, $estadoLabels) {
+            $out = fopen('php://output', 'w');
+            // BOM UTF-8 para que Excel reconozca acentos; separador ";" (Excel es-CL)
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'ID', 'N° Documento', 'Remitente', 'Fecha Documento', 'Fecha Recibo',
+                'Departamento', 'Descripción', 'Estado', 'Derivada a', 'Folio Providencia', 'Ingresada por',
+            ], ';');
+
+            foreach ($correspondencias as $c) {
+                $destinos = $c->derivaciones
+                    ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
+                    ->filter()->unique()->implode(', ');
+                $folios = $c->derivaciones->pluck('folio')->filter()->implode(', ');
+
+                fputcsv($out, [
+                    $c->id,
+                    $c->numero_documento,
+                    $c->remitente,
+                    $c->fecha_documento?->format('d-m-Y'),
+                    $c->fecha_recibo?->format('d-m-Y'),
+                    $c->departamento?->nombre,
+                    $c->descripcion,
+                    $estadoLabels[$c->estado] ?? $c->estado,
+                    $destinos,
+                    $folios,
+                    $c->usuario?->nombre,
+                ], ';');
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
     public function getAlcaldeInfo()
     {
         $alcalde = User::where('activo', true)

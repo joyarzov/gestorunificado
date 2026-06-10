@@ -565,7 +565,7 @@ class DerivacionController extends Controller
         return $this->successResponse($derivacion);
     }
 
-    public function pendientes()
+    public function pendientes(Request $request)
     {
         // Switch limpio: si hay subrogancia activa (X-Actuando-Como), la bandeja
         // es la del subrogado. Sin toggle, es la propia. El usuario real
@@ -573,36 +573,54 @@ class DerivacionController extends Controller
         $user = Auth::user();
         $ctx = $user->contexto();
 
-        $derivaciones = Derivacion::with([
+        // Base: dirigida a MÍ (usuario), o a MI departamento cuando no hay
+        // usuario específico. Así una derivación a una persona le llega aunque
+        // su depto no coincida con el departamento_destino guardado.
+        $base = Derivacion::where(function ($q) use ($ctx) {
+            $q->where('usuario_destino_id', $ctx->id)
+              ->orWhere(function ($q2) use ($ctx) {
+                  $q2->whereNull('usuario_destino_id')
+                     ->where('departamento_destino_id', $ctx->departamento_id);
+              });
+        });
+
+        // Contadores de ambas pestañas (independientes de la página actual)
+        $counts = [
+            'pendientes' => (clone $base)->whereIn('estado', ['pendiente', 'derivado'])->count(),
+            'recibidas'  => (clone $base)->where('estado', 'recibido')->count(),
+        ];
+
+        $estados = $request->input('tab') === 'recibidas'
+            ? ['recibido']
+            : ['pendiente', 'derivado'];
+
+        $derivaciones = (clone $base)->with([
             'correspondencia',
             'departamentoOrigen',
             'usuarioOrigen',
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
         ])
-            ->whereIn('estado', ['pendiente', 'recibido', 'derivado'])
-            // Dirigida a MÍ (usuario), o a MI departamento cuando no hay usuario
-            // específico. Así una derivación a una persona le llega aunque su depto
-            // no coincida con el departamento_destino guardado.
-            ->where(function ($q) use ($ctx) {
-                $q->where('usuario_destino_id', $ctx->id)
-                  ->orWhere(function ($q2) use ($ctx) {
-                      $q2->whereNull('usuario_destino_id')
-                         ->where('departamento_destino_id', $ctx->departamento_id);
-                  });
-            })
+            ->whereIn('estado', $estados)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($request->input('per_page', 30));
 
         // Igual que CorrespondenciaController::bandeja(): marca por ítem si el
         // usuario puede ACTUAR (recibir/archivar) o solo ver. Sin este campo el
         // frontend muestra "Solo lectura" aunque el usuario sea el destinatario.
-        $derivaciones->transform(function (Derivacion $d) use ($user) {
+        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user) {
             $d->puede_actuar = $d->esDestinatario($user);
             return $d;
         });
 
-        return $this->successResponse($derivaciones);
+        return $this->successResponse([
+            'items'     => $derivaciones->items(),
+            'total'     => $derivaciones->total(),
+            'page'      => $derivaciones->currentPage(),
+            'last_page' => $derivaciones->lastPage(),
+            'per_page'  => $derivaciones->perPage(),
+            'counts'    => $counts,
+        ]);
     }
 
     public function recibir(Request $request, Derivacion $derivacion)

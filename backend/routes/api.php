@@ -36,7 +36,8 @@ use Illuminate\Support\Facades\Route;
 
 // Rutas públicas de autenticación
 Route::prefix('auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
+    // Anti fuerza bruta: 5 intentos por minuto por IP
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     // Restablecimiento de contraseña (público, con rate-limit anti abuso)
     Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'solicitar'])
         ->middleware('throttle:5,1');
@@ -146,6 +147,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/estadisticas', [CorrespondenciaController::class, 'estadisticas']);
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
+        Route::get('/exportar', [CorrespondenciaController::class, 'exportar']);
         Route::get('/{correspondencia}/providencia', [CorrespondenciaController::class, 'descargarProvidencia']);
         // Hilo de conversación (timeline unificado: derivaciones + mensajes)
         Route::get('/{correspondencia}/hilo', [CorrespondenciaMensajeController::class, 'hilo']);

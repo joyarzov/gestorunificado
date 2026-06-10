@@ -83,6 +83,15 @@ export interface HiloItem {
   adjuntos?: HiloAdjunto[]
 }
 
+export interface BandejaResponse {
+  items: Derivacion[]
+  total: number
+  page: number
+  last_page: number
+  per_page: number
+  counts: { pendientes: number; recibidas: number }
+}
+
 export interface HiloResponse {
   items: HiloItem[]
   participantes: { id: number; nombre: string }[]
@@ -126,6 +135,11 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  exportar: async (params?: CorrespondenciaFilters) => {
+    const response = await api.get('/correspondencia/exportar', { params, responseType: 'blob' })
+    return response.data as Blob
+  },
+
   estadisticas: async () => {
     const response = await api.get<ApiResponse<{
       total: number
@@ -149,8 +163,8 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  derivacionesPendientes: async () => {
-    const response = await api.get<ApiResponse<Derivacion[]>>('/derivaciones/pendientes')
+  derivacionesPendientes: async (params?: { tab?: 'pendientes' | 'recibidas'; page?: number; per_page?: number }) => {
+    const response = await api.get<ApiResponse<BandejaResponse>>('/derivaciones/pendientes', { params })
     return response.data
   },
 

@@ -17,6 +17,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  Pagination,
 } from '@mui/material'
 import {
   Visibility as ViewIcon,
@@ -36,17 +37,27 @@ const BandejaEntrada = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState(0)
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
+  const [counts, setCounts] = useState({ pendientes: 0, recibidas: 0 })
 
   useEffect(() => {
     loadBandeja()
-  }, [actuandoComo?.id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actuandoComo?.id, tab, page])
 
   const loadBandeja = async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await correspondenciaAPI.derivacionesPendientes()
-      setDerivaciones(response.data)
+      const response = await correspondenciaAPI.derivacionesPendientes({
+        tab: tab === 0 ? 'pendientes' : 'recibidas',
+        page,
+        per_page: 30,
+      })
+      setDerivaciones(response.data.items)
+      setLastPage(response.data.last_page)
+      setCounts(response.data.counts)
     } catch (err) {
       setError('Error al cargar la bandeja de entrada')
       console.error(err)
@@ -73,11 +84,8 @@ const BandejaEntrada = () => {
     }
   }
 
-  const filteredDerivaciones = derivaciones.filter((d) => {
-    if (tab === 0) return d.estado === 'pendiente' || d.estado === 'derivado'
-    if (tab === 1) return d.estado === 'recibido'
-    return true
-  })
+  // El filtrado por pestaña y la paginación (30 por página) los hace el backend.
+  const filteredDerivaciones = derivaciones
 
   return (
     <Box>
@@ -99,15 +107,11 @@ const BandejaEntrada = () => {
       <Card>
         <Tabs
           value={tab}
-          onChange={(_, newValue) => setTab(newValue)}
+          onChange={(_, newValue) => { setTab(newValue); setPage(1) }}
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab
-            label={`Por recibir (${derivaciones.filter((d) => d.estado === 'pendiente' || d.estado === 'derivado').length})`}
-          />
-          <Tab
-            label={`Recibidas (${derivaciones.filter((d) => d.estado === 'recibido').length})`}
-          />
+          <Tab label={`Por recibir (${counts.pendientes})`} />
+          <Tab label={`Recibidas (${counts.recibidas})`} />
         </Tabs>
 
         <TableContainer>
@@ -210,6 +214,17 @@ const BandejaEntrada = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        {lastPage > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5, borderTop: '1px solid #eee' }}>
+            <Pagination
+              count={lastPage}
+              page={page}
+              onChange={(_, value) => setPage(value)}
+              color="primary"
+              size="small"
+            />
+          </Box>
+        )}
       </Card>
     </Box>
   )

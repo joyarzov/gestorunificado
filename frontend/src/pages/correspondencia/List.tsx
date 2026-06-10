@@ -30,6 +30,7 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Clear as ClearIcon,
+  FileDownload as DownloadIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { departamentosAPI } from '../../api/common'
@@ -106,6 +107,30 @@ const CorrespondenciaList = () => {
 
   const hayFiltrosActivos = search || estado || departamentoId || fechaDesde || fechaHasta
 
+  const [exportando, setExportando] = useState(false)
+  const handleExportar = async () => {
+    setExportando(true)
+    try {
+      const blob = await correspondenciaAPI.exportar({
+        search: search || undefined,
+        estado: estado || undefined,
+        departamento_id: departamentoId ? Number(departamentoId) : undefined,
+        fecha_desde: fechaDesde || undefined,
+        fecha_hasta: fechaHasta || undefined,
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `libro-correspondencia-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exportando:', error)
+    } finally {
+      setExportando(false)
+    }
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
@@ -113,6 +138,15 @@ const CorrespondenciaList = () => {
           Correspondencia
         </Typography>
         {(isAdmin() || isOficial()) && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={exportando ? <CircularProgress size={16} /> : <DownloadIcon />}
+            onClick={handleExportar}
+            disabled={exportando}
+          >
+            Exportar
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -120,6 +154,7 @@ const CorrespondenciaList = () => {
           >
             Nueva Correspondencia
           </Button>
+          </Box>
         )}
       </Box>
 
