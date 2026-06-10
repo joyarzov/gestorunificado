@@ -480,7 +480,8 @@ class DerivacionController extends Controller
         // Switch limpio: si hay subrogancia activa (X-Actuando-Como), la bandeja
         // es la del subrogado. Sin toggle, es la propia. El usuario real
         // (Auth::user()) solo importa para trazabilidad y firma, no aquí.
-        $ctx = Auth::user()->contexto();
+        $user = Auth::user();
+        $ctx = $user->contexto();
 
         $derivaciones = Derivacion::with([
             'correspondencia',
@@ -502,6 +503,14 @@ class DerivacionController extends Controller
             })
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Igual que CorrespondenciaController::bandeja(): marca por ítem si el
+        // usuario puede ACTUAR (recibir/archivar) o solo ver. Sin este campo el
+        // frontend muestra "Solo lectura" aunque el usuario sea el destinatario.
+        $derivaciones->transform(function (Derivacion $d) use ($user) {
+            $d->puede_actuar = $d->esDestinatario($user);
+            return $d;
+        });
 
         return $this->successResponse($derivaciones);
     }
