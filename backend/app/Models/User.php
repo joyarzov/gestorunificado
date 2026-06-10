@@ -138,7 +138,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Roles efectivos: propios ∪ roles del subrogado si hay actuandoComo activo.
+     * Perfil con el que el usuario eligió operar en esta request (header
+     * X-Perfil-Activo, validado por el middleware PerfilActivo). Acota los
+     * roles efectivos a ese único rol: un oficial que entra como "usuario"
+     * NO debe conservar la visibilidad de oficial.
+     */
+    protected ?string $perfilActivo = null;
+
+    public function setPerfilActivo(?string $rol): void
+    {
+        $this->perfilActivo = $rol;
+    }
+
+    /**
+     * Roles efectivos: propios ∪ roles del subrogado si hay actuandoComo activo,
+     * acotados al perfil activo si el cliente declaró uno.
      */
     public function getRolesEfectivos(): array
     {
@@ -148,6 +162,9 @@ class User extends Authenticatable
                 $propios,
                 $this->actuandoComo->roles ?? []
             )));
+        }
+        if ($this->perfilActivo !== null && in_array($this->perfilActivo, $propios, true)) {
+            return [$this->perfilActivo];
         }
         return $propios;
     }

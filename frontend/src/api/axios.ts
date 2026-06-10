@@ -11,7 +11,9 @@ const api = axios.create({
 })
 
 // Interceptor para agregar token y, si estoy "actuando como" otro usuario
-// por subrogancia, el header X-Actuando-Como con su id.
+// por subrogancia, el header X-Actuando-Como con su id. El perfil elegido
+// viaja en X-Perfil-Activo para que el backend acote los roles efectivos
+// (un oficial en perfil "usuario" no debe ver como oficial).
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -21,6 +23,10 @@ api.interceptors.request.use(
     const actuandoComoId = sessionStorage.getItem('actuandoComoId')
     if (actuandoComoId) {
       config.headers['X-Actuando-Como'] = actuandoComoId
+    }
+    const selectedRole = sessionStorage.getItem('selectedRole')
+    if (selectedRole) {
+      config.headers['X-Perfil-Activo'] = selectedRole
     }
     return config
   },

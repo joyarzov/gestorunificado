@@ -78,7 +78,7 @@ Route::prefix('fondos-publico')->group(function () {
 });
 
 // Rutas protegidas
-Route::middleware(['auth:sanctum', 'actuando.como'])->group(function () {
+Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(function () {
 
     // Auth
     Route::prefix('auth')->group(function () {
