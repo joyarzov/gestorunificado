@@ -38,23 +38,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 
-const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
-  pendiente: 'warning',
-  derivada_alcaldia: 'secondary',
-  en_proceso: 'info',
-  derivada_funcionario: 'info',
-  completada: 'success',
-  archivado: 'success',
-}
-
-const estadoLabels: Record<string, string> = {
-  pendiente: 'Pendiente',
-  derivada_alcaldia: 'Derivada a Alcaldía',
-  en_proceso: 'En Proceso',
-  derivada_funcionario: 'Derivada a Funcionario',
-  completada: 'Completada',
-  archivado: 'Archivada',
-}
+import { ESTADO_CORRESPONDENCIA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 
 const CorrespondenciaList = () => {
   const navigate = useNavigate()
@@ -198,7 +182,7 @@ const CorrespondenciaList = () => {
                 onChange={(e) => setEstado(e.target.value)}
               >
                 <MenuItem value="">Todos</MenuItem>
-                {Object.entries(estadoLabels).map(([key, label]) => (
+                {Object.entries(ESTADO_CORRESPONDENCIA).map(([key, { label }]) => (
                   <MenuItem key={key} value={key}>{label}</MenuItem>
                 ))}
               </Select>
@@ -286,8 +270,8 @@ const CorrespondenciaList = () => {
                     <TableCell>{item.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={estadoLabels[item.estado] || item.estado}
-                        color={estadoColors[item.estado] || 'default'}
+                        label={estadoCorrespondencia(item.estado).label}
+                        color={estadoCorrespondencia(item.estado).color}
                         size="small"
                       />
                     </TableCell>

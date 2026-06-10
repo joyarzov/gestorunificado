@@ -29,21 +29,15 @@ import {
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { useAuth } from '../../contexts/AuthContext'
 import { Correspondencia } from '../../types'
+import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface Stats {
   total: number
   pendientes: number
   en_proceso: number
   archivadas: number
-}
-
-const estadoLabel: Record<string, { label: string; color: 'default' | 'primary' | 'success' | 'warning' | 'info' | 'error' }> = {
-  pendiente: { label: 'Pendiente', color: 'warning' },
-  derivada_alcaldia: { label: 'En alcaldía', color: 'info' },
-  en_proceso: { label: 'En proceso', color: 'primary' },
-  derivada_funcionario: { label: 'Derivada', color: 'info' },
-  completada: { label: 'Completada', color: 'success' },
-  archivado: { label: 'Archivada', color: 'default' },
 }
 
 const CorrespondenciaDashboard = () => {
@@ -208,7 +202,7 @@ const CorrespondenciaDashboard = () => {
             ) : (
               <List disablePadding>
                 {recientes.map((c, idx) => {
-                  const est = estadoLabel[c.estado] ?? { label: c.estado, color: 'default' as const }
+                  const est = estadoCorrespondencia(c.estado)
                   return (
                     <Box key={c.id}>
                       {idx > 0 && <Divider component="li" />}
@@ -231,7 +225,7 @@ const CorrespondenciaDashboard = () => {
                           }
                           secondary={
                             <Typography variant="caption" color="text.secondary">
-                              Recibida: {c.fecha_recibo}
+                              Recibida: {c.fecha_recibo ? format(new Date(c.fecha_recibo), 'dd/MM/yyyy', { locale: es }) : '—'}
                               {c.departamento?.nombre ? ` · ${c.departamento.nombre}` : ''}
                             </Typography>
                           }

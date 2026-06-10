@@ -103,10 +103,10 @@ const BandejaEntrada = () => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab
-            label={`Pendientes (${derivaciones.filter((d) => d.estado === 'pendiente' || d.estado === 'derivado').length})`}
+            label={`Por recibir (${derivaciones.filter((d) => d.estado === 'pendiente' || d.estado === 'derivado').length})`}
           />
           <Tab
-            label={`Recibidos (${derivaciones.filter((d) => d.estado === 'recibido').length})`}
+            label={`Recibidas (${derivaciones.filter((d) => d.estado === 'recibido').length})`}
           />
         </Tabs>
 
@@ -167,7 +167,7 @@ const BandejaEntrada = () => {
                     <TableCell>{der.departamento_origen?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={der.estado === 'pendiente' ? 'Pendiente' : der.estado === 'recibido' ? 'Recibido' : der.estado === 'derivado' ? 'Derivado a funcionario' : der.estado}
+                        label={der.estado === 'pendiente' ? 'Por recibir' : der.estado === 'recibido' ? 'Recibida' : der.estado === 'derivado' ? 'Derivada a Funcionario' : der.estado}
                         color={der.estado === 'pendiente' ? 'warning' : der.estado === 'derivado' ? 'info' : 'success'}
                         size="small"
                       />

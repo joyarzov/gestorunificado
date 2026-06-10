@@ -42,23 +42,7 @@ import ConversacionHilo from '../../components/correspondencia/ConversacionHilo'
 import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
 import Snackbar from '@mui/material/Snackbar'
 
-const estadoColors: Record<string, 'warning' | 'info' | 'success' | 'secondary'> = {
-  pendiente: 'warning',
-  derivada_alcaldia: 'secondary',
-  en_proceso: 'info',
-  derivada_funcionario: 'info',
-  completada: 'success',
-  archivado: 'success',
-}
-
-const estadoLabels: Record<string, string> = {
-  pendiente: 'Pendiente',
-  derivada_alcaldia: 'Derivada a Alcaldía',
-  en_proceso: 'En Proceso',
-  derivada_funcionario: 'Derivada a Funcionario',
-  completada: 'Completada',
-  archivado: 'Archivada',
-}
+import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 
 const CorrespondenciaDetail = () => {
   const { id } = useParams()
@@ -339,8 +323,8 @@ const CorrespondenciaDetail = () => {
             Correspondencia #{correspondencia.id}
           </Typography>
           <Chip
-            label={estadoLabels[correspondencia.estado] || correspondencia.estado}
-            color={estadoColors[correspondencia.estado]}
+            label={estadoCorrespondencia(correspondencia.estado).label}
+            color={estadoCorrespondencia(correspondencia.estado).color}
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>

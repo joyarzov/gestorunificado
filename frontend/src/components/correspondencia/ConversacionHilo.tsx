@@ -106,32 +106,34 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
   )
 
   const renderDerivacion = (it: HiloItem) => (
-    <Box key={`d-${it.id}`} sx={{ my: 1.5 }}>
+    <Box key={`d-${it.id}`} sx={{ my: 1.5, color: 'text.secondary' }}>
+      {/* La frase va FUERA del Divider: dentro de él no se quiebra de línea y
+          con los cargos el texto largo se salía de la tarjeta. */}
       <Divider>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <DerivIcon fontSize="small" />
-          <Typography variant="caption">
-            {conCargo(it.de)}
-            {it.actuando_como && (
-              <>
-                {', como subrogante de '}
-                <strong>{it.actuando_como.nombre}</strong>
-                {it.actuando_como.cargo ? ` (${it.actuando_como.cargo})` : ''}
-                {','}
-              </>
-            )}
-            {' derivó a '}
-            {conCargo(it.para)}
-          </Typography>
-          <Chip
-            label={it.estado}
-            size="small"
-            color={it.estado === 'recibido' ? 'success' : 'warning'}
-            sx={{ height: 18, fontSize: 10 }}
-          />
-          <Typography variant="caption">· {fechaCorta(it.fecha)}</Typography>
-        </Box>
+        <DerivIcon fontSize="small" sx={{ display: 'block', color: 'text.disabled' }} />
       </Divider>
+      <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 0.5, px: 1 }}>
+        {conCargo(it.de)}
+        {it.actuando_como && (
+          <>
+            {', como subrogante de '}
+            <strong>{it.actuando_como.nombre}</strong>
+            {it.actuando_como.cargo ? ` (${it.actuando_como.cargo})` : ''}
+            {','}
+          </>
+        )}
+        {' derivó a '}
+        {conCargo(it.para)}
+      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+        <Chip
+          label={it.estado}
+          size="small"
+          color={it.estado === 'recibido' ? 'success' : 'warning'}
+          sx={{ height: 18, fontSize: 10 }}
+        />
+        <Typography variant="caption">· {fechaCorta(it.fecha)}</Typography>
+      </Box>
       {it.observaciones && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5, fontStyle: 'italic' }}>
           "{it.observaciones}"
