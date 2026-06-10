@@ -83,6 +83,19 @@ export interface HiloItem {
   adjuntos?: HiloAdjunto[]
 }
 
+export interface LibroCorrespondencia {
+  id: number
+  folio: string
+  fecha_desde: string
+  fecha_hasta: string
+  total_registros: number
+  codigo_verificacion: string
+  firmado: boolean
+  created_at: string
+  generado_por_user?: { id: number; nombre: string; cargo?: string }
+  generado_por?: number | { id: number; nombre: string; cargo?: string }
+}
+
 export interface BandejaResponse {
   items: Derivacion[]
   total: number
@@ -133,6 +146,37 @@ export const correspondenciaAPI = {
   obtenerAlcaldeInfo: async () => {
     const response = await api.get<ApiResponse<AlcaldeInfo>>('/correspondencia/alcalde-info')
     return response.data
+  },
+
+  // Libro de Correspondencia (oficial de partes / admin)
+  librosListar: async (page = 1) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<LibroCorrespondencia>>>('/correspondencia/libros', { params: { page } })
+    return response.data
+  },
+
+  libroPreview: async (fechaDesde: string, fechaHasta: string): Promise<PreviewResult> => {
+    const response = await api.post('/correspondencia/libros/preview', {
+      fecha_desde: fechaDesde,
+      fecha_hasta: fechaHasta,
+    }, { responseType: 'blob' })
+    const token = (response.headers['x-preview-token'] || response.headers['X-Preview-Token']) as string
+    return { blob: response.data as Blob, token }
+  },
+
+  libroFirmar: async (previewToken: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number) => {
+    const response = await api.post<ApiResponse<LibroCorrespondencia>>('/correspondencia/libros/firmar', {
+      preview_token: previewToken,
+      otp,
+      firma_y: firmaY,
+      firma_page: firmaPage,
+      firma_col: firmaCol,
+    })
+    return response.data
+  },
+
+  libroDescargar: async (id: number) => {
+    const response = await api.get(`/correspondencia/libros/${id}/descargar`, { responseType: 'blob' })
+    return response.data as Blob
   },
 
   exportar: async (params?: CorrespondenciaFilters) => {

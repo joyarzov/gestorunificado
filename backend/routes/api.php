@@ -148,6 +148,12 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
         Route::get('/exportar', [CorrespondenciaController::class, 'exportar']);
+
+        // Libro de Correspondencia (oficial de partes / admin)
+        Route::get('/libros', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'index']);
+        Route::post('/libros/preview', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'preview']);
+        Route::post('/libros/firmar', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'firmar']);
+        Route::get('/libros/{libro}/descargar', [\App\Http\Controllers\LibroCorrespondenciaController::class, 'descargar']);
         Route::get('/{correspondencia}/providencia', [CorrespondenciaController::class, 'descargarProvidencia']);
         // Hilo de conversación (timeline unificado: derivaciones + mensajes)
         Route::get('/{correspondencia}/hilo', [CorrespondenciaMensajeController::class, 'hilo']);

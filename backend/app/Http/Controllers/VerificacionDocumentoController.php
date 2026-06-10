@@ -63,6 +63,25 @@ class VerificacionDocumentoController extends Controller
             ]);
         }
 
+        // Buscar en libros de correspondencia
+        $libro = \App\Models\LibroCorrespondencia::with('generadoPor:id,nombre,cargo')
+            ->where('codigo_verificacion', $codigo)
+            ->first();
+
+        if ($libro) {
+            return $this->successResponse([
+                'tipo_origen' => 'libro_correspondencia',
+                'codigo' => $libro->codigo_verificacion,
+                'folio' => $libro->folio,
+                'fecha' => $libro->created_at,
+                'fecha_desde' => $libro->fecha_desde?->format('Y-m-d'),
+                'fecha_hasta' => $libro->fecha_hasta?->format('Y-m-d'),
+                'total_registros' => $libro->total_registros,
+                'firmado' => $libro->firmado,
+                'generado_por' => $libro->generadoPor?->nombre,
+            ]);
+        }
+
         return $this->errorResponse('Documento no encontrado. El código de verificación ingresado no corresponde a ningún documento registrado.', 404);
     }
 }

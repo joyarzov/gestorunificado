@@ -20,6 +20,7 @@ import {
   Tune as TuneIcon,
   AccountTree as OrganigramaIcon,
   Person as PersonIcon,
+  MenuBook as LibroIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -157,6 +158,7 @@ export const getSidebarItems = (
       // Ingreso de correspondencia: solo oficial de partes (y admin)
       if (ctx.isOficial || ctx.isAdmin) {
         items.push({ text: 'Ingresar correspondencia', path: '/ingresar', icon: CreateIcon })
+        items.push({ text: 'Libro de Correspondencia', path: '/libro-correspondencia', icon: LibroIcon })
       }
       items.push({ text: 'Búsqueda avanzada', path: '/buscar', icon: SearchIcon })
       return items
