@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacitación · Módulo de Correspondencia · Municipalidad de Cabo de Hornos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul: #0071BC;
+    --azul-oscuro: #005a96;
+    --azul-claro: #3391cc;
+    --gris: #4D4D4D;
+    --c1: #2DC700; --c2: #8AC53E; --c3: #EB1B78; --c4: #28A9E3; --c5: #EE5825;
+    --fondo: #f5f7fa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Montserrat', 'Segoe UI', sans-serif;
+    color: var(--gris);
+    background: #1a1a2e;
+    overflow: hidden;
+  }
+
+  /* ====== Estructura de diapositivas ====== */
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+  }
+  .slide.active { display: flex; }
+
+  .colorbar { display: flex; height: 8px; flex: none; }
+  .colorbar span { flex: 1; }
+  .colorbar span:nth-child(1){background:var(--c1)} .colorbar span:nth-child(2){background:var(--c2)}
+  .colorbar span:nth-child(3){background:var(--c3)} .colorbar span:nth-child(4){background:var(--c4)}
+  .colorbar span:nth-child(5){background:var(--c5)}
+
+  .head {
+    background: var(--azul); color: #fff;
+    padding: 18px 56px; display: flex; align-items: center; gap: 18px; flex: none;
+  }
+  .head img { height: 44px; }
+  .head .titulo { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .head .sub { font-size: 12px; opacity: .85; font-weight: 500; }
+
+  .cuerpo { flex: 1; padding: 36px 64px; overflow: auto; }
+  .cuerpo h2 { color: var(--azul); font-size: 30px; font-weight: 800; margin-bottom: 6px; }
+  .cuerpo h3 { color: var(--azul-oscuro); font-size: 19px; font-weight: 700; margin: 18px 0 8px; }
+  .cuerpo p, .cuerpo li { font-size: 16.5px; line-height: 1.55; }
+  .cuerpo ul, .cuerpo ol { margin: 10px 0 10px 24px; }
+  .cuerpo li { margin-bottom: 7px; }
+  .lead { font-size: 18px !important; color: #666; margin-bottom: 14px; }
+  strong { color: var(--azul-oscuro); }
+
+  /* Portada y separadores de sección */
+  .slide.azul { background: linear-gradient(160deg, var(--azul) 0%, var(--azul-oscuro) 100%); color: #fff; }
+  .slide.azul .centro {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 40px; gap: 18px;
+  }
+  .slide.azul h1 { font-size: 46px; font-weight: 800; line-height: 1.15; }
+  .slide.azul .sub1 { font-size: 22px; font-weight: 600; opacity: .95; }
+  .slide.azul .sub2 { font-size: 15px; opacity: .8; font-weight: 500; }
+  .slide.azul img.logo { height: 110px; }
+  .badge-rol {
+    display: inline-block; background: rgba(255,255,255,.15); border: 1.5px solid rgba(255,255,255,.5);
+    border-radius: 30px; padding: 9px 26px; font-size: 15px; font-weight: 700; letter-spacing: 2px;
+  }
+
+  /* Tarjetas y grids */
+  .grid { display: grid; gap: 16px; margin-top: 14px; }
+  .grid.c2 { grid-template-columns: 1fr 1fr; }
+  .grid.c3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card {
+    background: var(--fondo); border: 1px solid #e3e8ee; border-radius: 12px; padding: 18px 20px;
+    border-top: 4px solid var(--azul);
+  }
+  .card h4 { color: var(--azul); font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .card p, .card li { font-size: 14.5px; line-height: 1.5; }
+  .card ul { margin: 6px 0 0 18px; }
+  .card.v1 { border-top-color: var(--c1); } .card.v2 { border-top-color: var(--c4); }
+  .card.v3 { border-top-color: var(--c5); } .card.v4 { border-top-color: var(--c3); }
+
+  /* Chips de estado */
+  .chip {
+    display: inline-block; border-radius: 14px; padding: 3px 14px; font-size: 13px; font-weight: 600; color: #fff;
+    white-space: nowrap;
+  }
+  .chip.warning { background: #ed6c02; } .chip.info { background: #0288d1; }
+  .chip.success { background: #2e7d32; } .chip.secondary { background: #9c27b0; }
+  .chip.outline { background: #fff; color: var(--gris); border: 1px solid #bbb; }
+
+  table.tabla { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  table.tabla th { background: var(--azul); color: #fff; font-size: 14px; padding: 9px 14px; text-align: left; }
+  table.tabla td { border-bottom: 1px solid #e3e8ee; padding: 9px 14px; font-size: 14.5px; }
+  table.tabla tr:nth-child(even) td { background: var(--fondo); }
+
+  /* Flujo */
+  .flujo { display: flex; align-items: stretch; gap: 0; margin: 22px 0; }
+  .paso {
+    flex: 1; background: var(--fondo); border: 1.5px solid #dbe3ea; border-radius: 12px;
+    padding: 16px 14px; text-align: center; position: relative;
+  }
+  .paso .n {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--azul); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; margin: 0 auto 8px;
+  }
+  .paso b { display: block; color: var(--azul-oscuro); font-size: 14.5px; margin-bottom: 5px; }
+  .paso span { font-size: 12.5px; color: #667; line-height: 1.4; display: block; }
+  .flecha { display: flex; align-items: center; padding: 0 8px; color: var(--azul); font-size: 26px; font-weight: 800; }
+
+  .urlbox {
+    background: var(--fondo); border: 2px dashed var(--azul); border-radius: 12px;
+    padding: 16px 22px; margin: 14px 0; text-align: center;
+  }
+  .urlbox .url { font-size: 26px; font-weight: 800; color: var(--azul); letter-spacing: .5px; }
+  .urlbox .alt { font-size: 14px; color: #667; margin-top: 4px; }
+  code {
+    background: #eef3f8; border: 1px solid #d7e3ee; border-radius: 6px;
+    padding: 1px 8px; font-size: 14px; color: var(--azul-oscuro); font-family: 'SF Mono', Consolas, monospace;
+  }
+  .nota {
+    background: #fff7e6; border-left: 4px solid var(--c5); border-radius: 8px;
+    padding: 12px 16px; margin-top: 14px; font-size: 14.5px;
+  }
+  .ok { background: #f0faf0; border-left-color: var(--c1); }
+
+  /* Navegación */
+  .nav {
+    position: fixed; bottom: 18px; right: 22px; display: flex; gap: 8px; z-index: 50;
+  }
+  .nav button {
+    background: var(--azul); color: #fff; border: none; border-radius: 8px;
+    width: 42px; height: 42px; font-size: 19px; cursor: pointer; font-family: inherit;
+  }
+  .nav button:hover { background: var(--azul-oscuro); }
+  .contador {
+    position: fixed; bottom: 27px; left: 26px; font-size: 13px; color: #fff;
+    background: rgba(0,0,0,.35); border-radius: 14px; padding: 4px 14px; z-index: 50; font-weight: 600;
+  }
+  .progreso { position: fixed; top: 0; left: 0; height: 4px; background: var(--c5); z-index: 60; transition: width .25s; }
+
+  .pie {
+    flex: none; padding: 10px 64px; border-top: 1px solid #eee; display: flex;
+    justify-content: space-between; font-size: 11.5px; color: #999; background: #fff;
+  }
+
+  @media print {
+    body { overflow: visible; background: #fff; }
+    .slide { display: flex !important; position: relative; page-break-after: always; height: 100vh; }
+    .nav, .contador, .progreso { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 · PORTADA -->
+<section class="slide azul active">
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="centro">
+    <img class="logo" src="/logo_blanco.png" alt="Municipalidad de Cabo de Hornos">
+    <h1>Plataforma de Gestión<br>Documental Municipal</h1>
+    <div class="sub1">Módulo de Correspondencia — Capacitación de usuarios</div>
+    <div class="sub2">Ilustre Municipalidad de Cabo de Hornos · Junio 2026</div>
+  </div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+</section>
+
+<!-- 2 · AGENDA -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Agenda</div><div class="sub">Capacitación · Módulo de Correspondencia</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>¿Qué veremos hoy?</h2>
+    <div class="grid c2">
+      <div class="card v2"><h4>1 · Acceso a la plataforma</h4><p>URL de acceso, certificado de seguridad, inicio de sesión y contraseñas.</p></div>
+      <div class="card v1"><h4>2 · El flujo de la correspondencia</h4><p>Desde que un documento llega al municipio hasta que se completa, con sus estados.</p></div>
+      <div class="card v3"><h4>3 · Capacitación por rol</h4><p>Oficina de Partes, Alcalde y subrogante, y funcionarios destinatarios.</p></div>
+      <div class="card v4"><h4>4 · Notificaciones y buenas prácticas</h4><p>Avisos por campana y correo, seguridad de la cuenta y recomendaciones.</p></div>
+    </div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 3 · QUÉ ES -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">La plataforma</div><div class="sub">¿Qué es y para qué sirve?</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Una sola plataforma para la correspondencia municipal</h2>
+    <p class="lead">Reemplaza el registro en papel y los traspasos a mano por un flujo digital con respaldo y trazabilidad completa.</p>
+    <div class="grid c2">
+      <div class="card v1"><h4>📋 Registro digital</h4><p>Toda correspondencia que llega al municipio queda registrada con número, remitente, fecha y sus archivos adjuntos digitalizados.</p></div>
+      <div class="card v2"><h4>🔁 Derivación con trazabilidad</h4><p>Cada derivación queda registrada: quién la envió, a quién, cuándo y con qué instrucciones. Nada se pierde.</p></div>
+      <div class="card v3"><h4>✍️ Providencias firmadas electrónicamente</h4><p>El Alcalde firma las providencias con firma electrónica avanzada (clave OTP), con folio y código QR verificable.</p></div>
+      <div class="card v4"><h4>🔔 Notificaciones automáticas</h4><p>Cada actor recibe aviso en la plataforma y en su correo institucional cuando le llega correspondencia o un mensaje.</p></div>
+    </div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 4 · ACCESO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Acceso a la plataforma</div><div class="sub">URL e inicio de sesión</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>¿Cómo entro?</h2>
+    <div class="urlbox">
+      <div class="url">https://docmunicipal.local</div>
+      <div class="alt">Alternativa dentro de la red municipal: <code>http://192.168.0.106:3001</code></div>
+    </div>
+    <h3>Inicio de sesión</h3>
+    <ul>
+      <li>Se ingresa con <strong>RUT</strong> (formato <code>12345678-9</code>, sin puntos) y <strong>contraseña</strong>.</li>
+      <li>Si tu cuenta tiene más de un perfil (por ejemplo, Oficial de Partes y Usuario), la plataforma te pedirá <strong>elegir con cuál perfil entrar</strong>. Lo que puedes ver y hacer depende del perfil elegido.</li>
+      <li>Si eres <strong>subrogante</strong> de otra persona con subrogancia activa, también verás la opción <em>"Actuar como…"</em>.</li>
+    </ul>
+    <div class="nota">La plataforma funciona <strong>solo dentro de la red municipal</strong>. No es accesible desde internet.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 5 · CERTIFICADO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Certificado de seguridad</div><div class="sub">Instalación única por equipo</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Para navegar con el candado 🔒 (HTTPS)</h2>
+    <p class="lead">La plataforma usa un certificado propio de la red municipal. Para que el navegador la reconozca como segura, hay que instalar el certificado <strong>una sola vez en cada equipo</strong>.</p>
+    <h3>Pasos de instalación (Windows)</h3>
+    <ol>
+      <li><strong>Descargar el certificado</strong> desde: <code>http://192.168.0.106:3001/certificado-municipal.crt</code></li>
+      <li>Hacer <strong>doble clic</strong> sobre el archivo descargado → botón <strong>"Instalar certificado…"</strong>.</li>
+      <li>Ubicación del almacén: <strong>Equipo local</strong> → Siguiente.</li>
+      <li>Marcar <strong>"Colocar todos los certificados en el siguiente almacén"</strong> → Examinar → <strong>"Entidades de certificación raíz de confianza"</strong> → Siguiente → Finalizar.</li>
+      <li><strong>Cerrar y volver a abrir el navegador</strong>. Al entrar a <code>https://docmunicipal.local</code> ya debe aparecer el candado.</li>
+    </ol>
+    <div class="nota ok">Si el equipo es administrado por Informática, este paso puede venir ya hecho. Si ves la advertencia "La conexión no es privada", significa que falta este paso.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 6 · CONTRASEÑAS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Tu cuenta</div><div class="sub">Contraseñas y sesión</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Contraseñas y sesión</h2>
+    <div class="grid c2">
+      <div class="card v2"><h4>🔑 ¿Olvidaste tu contraseña?</h4>
+        <ul>
+          <li>En la pantalla de login, pulsa <strong>"¿Olvidaste tu contraseña?"</strong>.</li>
+          <li>Ingresa tu RUT: recibirás un <strong>enlace en tu correo institucional</strong> (válido por 60 minutos, de un solo uso).</li>
+          <li>Define tu nueva contraseña (mínimo 8 caracteres).</li>
+        </ul>
+      </div>
+      <div class="card v1"><h4>🔄 Cambiar la contraseña estando dentro</h4>
+        <p>Menú de usuario → <strong>Cambiar contraseña</strong>. Ahí también puedes definir tu <strong>subrogante</strong>.</p>
+      </div>
+      <div class="card v3"><h4>⏱️ Duración de la sesión</h4>
+        <p>La sesión dura <strong>12 horas</strong> desde el inicio. Después de eso, la plataforma pedirá iniciar sesión nuevamente.</p>
+      </div>
+      <div class="card v4"><h4>👤 Una sesión a la vez</h4>
+        <p>Al iniciar sesión en un equipo, se <strong>cierra automáticamente</strong> la sesión que tuvieras abierta en otro.</p>
+      </div>
+    </div>
+    <div class="nota">Es importante que tu <strong>correo institucional esté registrado y correcto</strong> en tu ficha de usuario: es el canal para recuperar contraseña y recibir notificaciones.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 7 · FLUJO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">El flujo de la correspondencia</div><div class="sub">Visión general</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>De la recepción a la completitud</h2>
+    <div class="flujo">
+      <div class="paso"><div class="n">1</div><b>Oficina de Partes</b><span>Recibe el documento, lo registra con sus adjuntos y lo deriva a Alcaldía.</span></div>
+      <div class="flecha">→</div>
+      <div class="paso"><div class="n">2</div><b>Alcalde</b><span>Revisa en su bandeja, genera la providencia, la firma con OTP y deriva.</span></div>
+      <div class="flecha">→</div>
+      <div class="paso"><div class="n">3</div><b>Funcionario(s)</b><span>Reciben en su bandeja, marcan como recibida y gestionan lo instruido.</span></div>
+      <div class="flecha">→</div>
+      <div class="paso"><div class="n">4</div><b>Completada</b><span>La correspondencia queda completada, con toda su trazabilidad y conversación.</span></div>
+    </div>
+    <h3>Durante todo el flujo</h3>
+    <ul>
+      <li>Cada paso queda registrado en la <strong>Conversación</strong> de la correspondencia (quién derivó a quién, con cargos y subrogancias).</li>
+      <li>Los participantes pueden intercambiar <strong>mensajes y archivos</strong> en el hilo, como un chat formal.</li>
+      <li>Los involucrados reciben <strong>notificaciones</strong> en cada novedad.</li>
+    </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 8 · ESTADOS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Estados</div><div class="sub">Cómo leer la plataforma</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Estados de una correspondencia</h2>
+    <table class="tabla">
+      <tr><th style="width:230px">Estado</th><th>Significado</th></tr>
+      <tr><td><span class="chip warning">Pendiente</span></td><td>Registrada por Oficina de Partes, aún sin derivar.</td></tr>
+      <tr><td><span class="chip secondary">Derivada a Alcaldía</span></td><td>Está en el despacho del Alcalde, esperando su revisión.</td></tr>
+      <tr><td><span class="chip info">Derivada a Funcionario</span></td><td>El Alcalde la derivó con providencia; espera recepción del destinatario.</td></tr>
+      <tr><td><span class="chip info">En Proceso</span></td><td>En gestión entre unidades.</td></tr>
+      <tr><td><span class="chip success">Completada</span></td><td>El destinatario la recibió; ciclo de derivación cumplido.</td></tr>
+      <tr><td><span class="chip success">Archivada</span></td><td>Cerrada y archivada.</td></tr>
+    </table>
+    <h3>En tu Bandeja de Entrada</h3>
+    <p>La bandeja muestra el estado de <strong>tu</strong> gestión: <span class="chip warning">Por recibir</span> (te llegó y debes marcarla como recibida) y <span class="chip success">Recibida</span>. Si un ítem aparece <span class="chip outline">Solo lectura</span>, puedes verlo pero la acción le corresponde a otra persona.</p>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 9 · SECCIÓN OFICINA DE PARTES -->
+<section class="slide azul">
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="centro">
+    <img class="logo" src="/logo_blanco.png" alt="">
+    <div class="badge-rol">ROL · OFICINA DE PARTES</div>
+    <h1>Recepción y registro</h1>
+    <div class="sub2">Quienes ingresan la correspondencia al municipio</div>
+  </div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+</section>
+
+<!-- 10 · OFICIAL DE PARTES -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Oficina de Partes</div><div class="sub">Ingreso y derivación a Alcaldía</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Tareas del Oficial de Partes</h2>
+    <h3>1 · Ingresar la correspondencia</h3>
+    <ul>
+      <li>Menú <strong>Ingresar</strong>: completar N° de documento, remitente, fechas, descripción y departamento (si aplica).</li>
+      <li><strong>Adjuntar el documento digitalizado</strong> (PDF) y sus anexos. El expediente digital es el respaldo oficial.</li>
+    </ul>
+    <h3>2 · Derivar a Alcaldía</h3>
+    <ul>
+      <li>Desde el detalle, botón <strong>Derivar</strong>: la correspondencia pasa al despacho del Alcalde (estado <span class="chip secondary">Derivada a Alcaldía</span>).</li>
+    </ul>
+    <h3>3 · Supervisar</h3>
+    <ul>
+      <li>Con el perfil <strong>Oficial de Partes</strong> ves todas las correspondencias del municipio para seguimiento (las gestiones de otros aparecen como <em>solo lectura</em>).</li>
+      <li>En <strong>Todas las correspondencias</strong> y <strong>Búsqueda avanzada</strong> puedes filtrar por estado, fechas, remitente o número.</li>
+    </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 11 · SECCIÓN ALCALDE -->
+<section class="slide azul">
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="centro">
+    <img class="logo" src="/logo_blanco.png" alt="">
+    <div class="badge-rol">ROL · ALCALDE Y SUBROGANTE</div>
+    <h1>Providencia y derivación</h1>
+    <div class="sub2">Revisión del despacho, firma electrónica y distribución</div>
+  </div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+</section>
+
+<!-- 12 · ALCALDE -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Alcalde</div><div class="sub">Derivar con providencia firmada</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Derivar desde el despacho</h2>
+    <p class="lead">Al derivar, la plataforma genera la <strong>providencia</strong> en PDF, con folio único y código QR verificable, y la firma electrónicamente.</p>
+    <h3>Tres modalidades de destino</h3>
+    <div class="grid c3">
+      <div class="card v1"><h4>Funcionario(s)</h4><p>Uno o varios, buscados <strong>por nombre</strong> — pueden ser de distintos departamentos. Cada uno la recibe en su bandeja.</p></div>
+      <div class="card v2"><h4>Departamento</h4><p>La correspondencia llega a la bandeja de <strong>todo el departamento</strong> seleccionado.</p></div>
+      <div class="card v3"><h4>Todos</h4><p>Se deriva a <strong>todos los funcionarios activos</strong> del municipio (por ejemplo, circulares).</p></div>
+    </div>
+    <h3>Firma con clave OTP</h3>
+    <ol>
+      <li>Seleccionar destino, instrucciones (<em>PARA: tramitar, informar, responder…</em>) y observaciones.</li>
+      <li>Revisar la <strong>vista previa</strong> de la providencia y elegir la posición del sello.</li>
+      <li>Ingresar el <strong>código OTP</strong> de la firma electrónica avanzada (FirmaGob) y confirmar.</li>
+    </ol>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 13 · SUBROGANCIA -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Subrogancia</div><div class="sub">Actuar en nombre del titular</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>¿Qué pasa cuando el Alcalde está ausente?</h2>
+    <ul>
+      <li>Cada usuario puede tener un <strong>subrogante</strong> definido. Cuando la subrogancia se activa (con o sin fecha de término), el subrogante puede <strong>"Actuar como"</strong> el titular desde el selector de perfil.</li>
+      <li>Mientras actúa como el titular, ve <strong>su bandeja</strong> y puede recibir y derivar en su nombre. Un <strong>banner naranjo</strong> permanente indica que estás en modo subrogancia.</li>
+      <li>La trazabilidad lo registra todo: la conversación muestra <em>"X (cargo), como subrogante de Y (cargo), derivó a…"</em> y la providencia firma con el sufijo <strong>(S)</strong>.</li>
+      <li>Las notificaciones dirigidas al titular ausente <strong>también llegan al subrogante</strong> ("Para X, a quien subrogas: …").</li>
+    </ul>
+    <div class="nota ok">La subrogancia la activa el propio usuario (antes de ausentarse) o un administrador desde Gestión de Usuarios.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 14 · SECCIÓN FUNCIONARIOS -->
+<section class="slide azul">
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="centro">
+    <img class="logo" src="/logo_blanco.png" alt="">
+    <div class="badge-rol">ROL · FUNCIONARIOS</div>
+    <h1>Recepción y gestión</h1>
+    <div class="sub2">Quienes reciben y tramitan la correspondencia derivada</div>
+  </div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+</section>
+
+<!-- 15 · FUNCIONARIO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Funcionarios</div><div class="sub">Bandeja de entrada y conversación</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Cuando te derivan una correspondencia</h2>
+    <h3>1 · Revisa tu Bandeja de Entrada</h3>
+    <ul>
+      <li>Te llegará una notificación (campana y correo). En la bandeja aparecerá <span class="chip warning">Por recibir</span>.</li>
+      <li>Pulsa el botón verde ✓ para <strong>marcarla como recibida</strong> — es el acuse de recibo formal.</li>
+    </ul>
+    <h3>2 · Revisa el detalle</h3>
+    <ul>
+      <li>En el detalle están los <strong>adjuntos</strong> originales, la <strong>providencia firmada</strong> del Alcalde (con sus instrucciones <em>PARA:</em>) y la <strong>Conversación</strong> completa.</li>
+    </ul>
+    <h3>3 · Gestiona y comunica</h3>
+    <ul>
+      <li>Usa la <strong>Conversación</strong> para informar avances, hacer consultas o adjuntar respuestas (PDF, Word, Excel…). Todos los participantes reciben aviso de cada mensaje.</li>
+    </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 16 · NOTIFICACIONES -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Notificaciones</div><div class="sub">Cómo te enteras de las novedades</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Dos canales, siempre</h2>
+    <div class="grid c2">
+      <div class="card v2"><h4>🔔 Campana en la plataforma</h4><p>Arriba a la derecha. El número rojo indica notificaciones sin leer; cada una lleva directo a la correspondencia correspondiente.</p></div>
+      <div class="card v1"><h4>📧 Correo institucional</h4><p>Cada notificación también llega a tu correo <strong>@imcabodehornos.cl</strong>, con un botón directo a la plataforma.</p></div>
+    </div>
+    <h3>¿Cuándo se notifica?</h3>
+    <ul>
+      <li>Cuando <strong>te derivan</strong> una correspondencia (a ti o a tu departamento).</li>
+      <li>Cuando alguien <strong>escribe un mensaje</strong> en una conversación donde participas.</li>
+      <li>Cuando una correspondencia que derivaste es <strong>recibida/completada</strong>.</li>
+      <li>Si subrogas a alguien con subrogancia activa, recibes <strong>además</strong> sus avisos.</li>
+    </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 17 · BUENAS PRÁCTICAS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Buenas prácticas</div><div class="sub">Seguridad y uso responsable</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Recomendaciones finales</h2>
+    <div class="grid c2">
+      <div class="card v1"><h4>✅ Haz</h4>
+        <ul>
+          <li>Marca como <strong>recibida</strong> la correspondencia apenas la revises.</li>
+          <li>Mantén tu <strong>correo y cargo actualizados</strong> en tu ficha.</li>
+          <li>Define tu <strong>subrogante</strong> antes de salir de vacaciones o ausentarte.</li>
+          <li><strong>Cierra sesión</strong> en equipos compartidos.</li>
+        </ul>
+      </div>
+      <div class="card v3"><h4>🚫 Evita</h4>
+        <ul>
+          <li><strong>Compartir tu contraseña</strong> o tu clave OTP — la firma electrónica es personal e intransferible.</li>
+          <li>Gestionar correspondencia con el <strong>perfil equivocado</strong>.</li>
+          <li>Dejar correspondencia <em>Por recibir</em> sin acusar recibo por días.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota">Toda acción queda registrada con tu nombre, cargo, fecha y hora — la trazabilidad es la garantía de todos.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 18 · CIERRE -->
+<section class="slide azul">
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="centro">
+    <img class="logo" src="/logo_blanco.png" alt="">
+    <h1>¡A usar la plataforma!</h1>
+    <div class="urlbox" style="background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.6);">
+      <div class="url" style="color:#fff">https://docmunicipal.local</div>
+      <div class="alt" style="color:rgba(255,255,255,.8)">Alternativa: http://192.168.0.106:3001 · Soporte: Informática Municipal</div>
+    </div>
+    <div class="sub2">Ilustre Municipalidad de Cabo de Hornos · Módulo de Correspondencia · 2026</div>
+  </div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+</section>
+
+<div class="progreso" id="progreso"></div>
+<div class="contador" id="contador"></div>
+<div class="nav">
+  <button id="prev" title="Anterior (←)">‹</button>
+  <button id="next" title="Siguiente (→)">›</button>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let idx = 0;
+  function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, j) => s.classList.toggle('active', j === idx));
+    document.getElementById('contador').textContent = (idx + 1) + ' / ' + slides.length;
+    document.getElementById('progreso').style.width = ((idx + 1) / slides.length * 100) + '%';
+    location.hash = idx + 1;
+  }
+  document.getElementById('next').onclick = () => show(idx + 1);
+  document.getElementById('prev').onclick = () => show(idx - 1);
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(idx + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(idx - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key.toLowerCase() === 'f') document.documentElement.requestFullscreen?.();
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) show(idx + 1); else if (dx > 50) show(idx - 1);
+    touchX = null;
+  });
+  show(parseInt(location.hash.slice(1)) - 1 || 0);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+## Reverse proxy TLS para el despliegue LAN (servidor 192.168.0.106 / CT 106)
+##
+## docmunicipal.local usa la CA interna de Caddy (tls internal). El certificado
+## raíz para instalar en los equipos municipales se exporta desde el contenedor:
+##   docker exec unificada_caddy cat /data/caddy/pki/authorities/local/root.crt
+## y se publica como frontend/public/certificado-municipal.crt para descarga.
+##
+## Levantar con:
+##   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d caddy
+
+docmunicipal.local {
+	tls internal
+
+	encode gzip
+
+	# El proxy interno de Vite ya resuelve /api y /storage hacia el backend
+	reverse_proxy frontend:5173
+}
+
+## Si algún día se usa el dominio público con certificado real (acme.sh),
+## descomentar y montar los certs en ./caddy/certs:
+# gestormunicipal.imcabodehornos.cl {
+# 	tls /certs/fullchain.pem /certs/key.pem
+# 	encode gzip
+# 	reverse_proxy frontend:5173
+# }

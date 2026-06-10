@@ -1,0 +1,27 @@
+## Override EXCLUSIVO para el servidor LAN 192.168.0.106.
+## NO usar en doc.australbyte.cl (ahí ya hay un nginx en 80/443).
+##
+## Uso en 192.168.0.106:
+##   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: unificada_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    networks:
+      - unificada_network
+
+volumes:
+  caddy_data:
+  caddy_config:
