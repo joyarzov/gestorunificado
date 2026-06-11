@@ -528,6 +528,16 @@ export interface FirmaSello {
   nombre_institucion: string
   texto_linea1: string
   texto_linea2: string
+  texto_linea3?: string | null
+  mostrar_cargo?: boolean
+  mostrar_rut?: boolean
+  mostrar_fecha?: boolean
+  formato_fecha?: 'fecha_hora' | 'fecha' | 'larga'
+  layout?: 'horizontal' | 'vertical' | 'solo_texto' | 'compacto'
+  borde_estilo?: 'solido' | 'doble' | 'sin_borde'
+  borde_redondeado?: boolean
+  tamano_fuente?: 'S' | 'M' | 'L'
+  rol_asignado?: string | null
   activo: boolean
   preview_path?: string
   creado_por?: number

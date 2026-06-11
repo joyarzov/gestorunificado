@@ -211,11 +211,12 @@ class FirmaGobService
 
     private function generateStampImage(?string $signerName, ?string $signerCargo, ?string $signerRun, array $config = []): string
     {
-        // Cargar sello activo si no se pasó config
+        // Sin config explícita: el sello asignado al ROL del firmante (por su
+        // RUT), o el sello general activo.
         if (empty($config)) {
-            $selloActivo = \App\Models\FirmaSello::obtenerActivo();
-            if ($selloActivo) {
-                $config = $selloActivo->toArray();
+            $sello = \App\Models\FirmaSello::obtenerParaRut($signerRun);
+            if ($sello) {
+                $config = $sello->toArray();
             }
         }
 
@@ -226,7 +227,23 @@ class FirmaGobService
         $logoPathCfg        = $config['logo_path']            ?? null;
         $textoLinea1        = trim((string)($config['texto_linea1']       ?? 'FIRMA ELECTRÓNICA AVANZADA'));
         $textoLinea2        = trim((string)($config['texto_linea2']       ?? 'GOBIERNO DE CHILE'));
+        $textoLinea3        = trim((string)($config['texto_linea3']       ?? ''));
         $nombreInstitucion  = trim((string)($config['nombre_institucion'] ?? ''));
+
+        // --- Sello v2: contenido y diseño configurables ---
+        $mostrarCargo  = (bool)($config['mostrar_cargo'] ?? true);
+        $mostrarRut    = (bool)($config['mostrar_rut'] ?? true);
+        $mostrarFecha  = (bool)($config['mostrar_fecha'] ?? true);
+        $formatoFecha  = (string)($config['formato_fecha'] ?? 'fecha_hora'); // fecha_hora | fecha | larga
+        $layout        = (string)($config['layout'] ?? 'horizontal');        // horizontal | vertical | solo_texto | compacto
+        $bordeEstilo   = (string)($config['borde_estilo'] ?? 'solido');      // solido | doble | sin_borde
+        $bordeRedondo  = (bool)($config['borde_redondeado'] ?? false);
+        $tamanoFuente  = (string)($config['tamano_fuente'] ?? 'M');          // S | M | L
+        $F = match ($tamanoFuente) { 'S' => 0.85, 'L' => 1.15, default => 1.0 };
+
+        if ($layout === 'solo_texto') {
+            $mostrarLogo = false;
+        }
 
         // Resolver el archivo de logo: el configurado en el sello, o el logo municipal
         // por defecto (el mismo que usan el membrete y las providencias: logo.png).
@@ -258,22 +275,35 @@ class FirmaGobService
         // NO más tamaño en la hoja.
         $S = 3;
 
-        $fecha = now()->timezone('America/Santiago')->format('d/m/Y H:i');
+        // Fecha según formato configurado
+        $ahora = now()->timezone('America/Santiago');
+        $fecha = match ($formatoFecha) {
+            'fecha' => $ahora->format('d/m/Y'),
+            'larga' => 'Puerto Williams, ' . $ahora->day . ' de '
+                . ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+                   'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][$ahora->month]
+                . ' de ' . $ahora->year,
+            default => $ahora->format('d/m/Y H:i'),
+        };
+
+        // Escalador de tamaño de letra (S/M/L) preservando proporciones
+        $fz = fn (int $pt) => max(8, (int) round($pt * $F));
 
         // Líneas a dibujar (tamaño de fuente en pt LÓGICOS; se escalan por $S).
         // 'c' = color (p=primario, s=secundario, g=gris); 'adv' = avance vertical
         // (baseline-a-baseline) lógico antes de dibujar esta línea.
         $headerLines = array_values(array_filter([
-            ['t' => $textoLinea1,       'pt' => 15, 'f' => $fontPath,       'c' => 'p', 'adv' => 20],
-            ['t' => $nombreInstitucion, 'pt' => 12, 'f' => $fontPathNormal, 'c' => 's', 'adv' => 18],
-            ['t' => $textoLinea2,       'pt' => 12, 'f' => $fontPathNormal, 'c' => 's', 'adv' => 18],
+            ['t' => $textoLinea1,       'pt' => $fz(15), 'f' => $fontPath,       'c' => 'p', 'adv' => $fz(20)],
+            ['t' => $nombreInstitucion, 'pt' => $fz(12), 'f' => $fontPathNormal, 'c' => 's', 'adv' => $fz(18)],
+            ['t' => $textoLinea2,       'pt' => $fz(12), 'f' => $fontPathNormal, 'c' => 's', 'adv' => $fz(18)],
+            ['t' => $textoLinea3,       'pt' => $fz(12), 'f' => $fontPathNormal, 'c' => 's', 'adv' => $fz(18)],
         ], fn ($l) => $l['t'] !== ''));
 
         $signerLines = array_values(array_filter([
-            ['t' => trim((string)($signerName  ?? '')),       'pt' => 20, 'f' => $fontPath,       'c' => 'g', 'adv' => 30],
-            ['t' => trim((string)($signerCargo ?? '')),       'pt' => 15, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 23],
-            ['t' => ($signerRun ? 'RUT: ' . $signerRun : ''), 'pt' => 14, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 21],
-            ['t' => $fecha,                                    'pt' => 14, 'f' => $fontPathNormal, 'c' => 'g', 'adv' => 21],
+            ['t' => trim((string)($signerName  ?? '')),                          'pt' => $fz(20), 'f' => $fontPath,       'c' => 'g', 'adv' => $fz(30)],
+            ['t' => $mostrarCargo ? trim((string)($signerCargo ?? '')) : '',     'pt' => $fz(15), 'f' => $fontPathNormal, 'c' => 'g', 'adv' => $fz(23)],
+            ['t' => ($mostrarRut && $signerRun) ? 'RUT: ' . $signerRun : '',     'pt' => $fz(14), 'f' => $fontPathNormal, 'c' => 'g', 'adv' => $fz(21)],
+            ['t' => $mostrarFecha ? $fecha : '',                                  'pt' => $fz(14), 'f' => $fontPathNormal, 'c' => 'g', 'adv' => $fz(21)],
         ], fn ($l) => $l['t'] !== ''));
 
         // Mide el ancho de un texto en PÍXELES FINALES (ya escalado por $S).
@@ -286,8 +316,20 @@ class FirmaGobService
             return (int) (strlen($text) * $pt * $S * 0.6);
         };
 
-        // --- Layout vertical (cursor en px lógicos) + ancho máximo (px finales) ---
-        $padTop = 16; $padBottom = 16; $groupGap = 12;
+        // ===== Layout VERTICAL: logo arriba centrado, textos centrados debajo =====
+        if ($layout === 'vertical') {
+            return $this->renderStampVertical(
+                $headerLines, $signerLines, $measureW, $S, $hasTtf,
+                $hasLogo ? $logoFile : null,
+                [$rP, $gP, $bP], [$rS, $gS, $bS], [$rF, $gF, $bF],
+                (int)($config['fondo_opacidad'] ?? 100),
+                $bordeEstilo, $bordeRedondo
+            );
+        }
+
+        // --- Layout horizontal/compacto (cursor en px lógicos) + ancho máximo (px finales) ---
+        $compacto = ($layout === 'compacto');
+        $padTop = $compacto ? 9 : 16; $padBottom = $compacto ? 9 : 16; $groupGap = $compacto ? 6 : 12;
         $cursor = $padTop;
         $maxTextW = 0;          // px finales
         $items = [];
@@ -307,8 +349,11 @@ class FirmaGobService
         // --- Altura del sello ---
         $textPadL  = 16;
         $textPadR  = 22;
-        $hLogical  = max($contentHLogical, 150);
+        $hLogical  = max($contentHLogical, $compacto ? 105 : 150);
         $h = (int) ($hLogical * $S);
+
+        // En "solo_texto" no hay zona izquierda (ni logo ni emblema FEA)
+        $sinZonaIzq = ($layout === 'solo_texto');
 
         // --- Zona izquierda: logo municipal (ajustado a la altura, con tope de ancho)
         //     o, si no hay logo, el emblema "FEA". El ancho de la zona es dinámico. ---
@@ -332,10 +377,10 @@ class FirmaGobService
                 $hasLogo = false;
             }
         }
-        $logoZoneW = $hasLogo ? (int) ceil($logoDrawWlog + 24) : 116;
+        $logoZoneW = $sinZonaIzq ? 0 : ($hasLogo ? (int) ceil($logoDrawWlog + 24) : 116);
 
         $textXFinal = (int) (($logoZoneW + $textPadL) * $S);
-        $w = max($textXFinal + $maxTextW + (int) ($textPadR * $S), (int) (300 * $S));
+        $w = max($textXFinal + $maxTextW + (int) ($textPadR * $S), (int) (($sinZonaIzq ? 240 : 300) * $S));
 
         $img = imagecreatetruecolor($w, $h);
         imagesavealpha($img, true);
@@ -354,20 +399,20 @@ class FirmaGobService
         $cGray     = imagecolorallocate($img, 70, 70, 70);
         $palette   = ['p' => $cPrimario, 's' => $cSecund, 'g' => $cGray];
 
-        // Borde
-        imagesetthickness($img, $S);
-        imagerectangle($img, (int) ($S / 2), (int) ($S / 2), $w - 1 - (int) ($S / 2), $h - 1 - (int) ($S / 2), $cPrimario);
-        imagesetthickness($img, 1);
+        // Borde (estilo configurable)
+        $this->drawStampBorder($img, $w, $h, $S, $cPrimario, $bordeEstilo, $bordeRedondo);
 
-        // Divisor vertical entre logo y texto
+        // Divisor vertical entre logo y texto (solo si hay zona izquierda)
         $divX = (int) ($logoZoneW * $S);
-        imagesetthickness($img, max(1, (int) round($S * 0.6)));
-        imageline($img, $divX, 6 * $S, $divX, $h - 6 * $S, $cPrimario);
-        imagesetthickness($img, 1);
+        if (!$sinZonaIzq) {
+            imagesetthickness($img, max(1, (int) round($S * 0.6)));
+            imageline($img, $divX, 6 * $S, $divX, $h - 6 * $S, $cPrimario);
+            imagesetthickness($img, 1);
+        }
 
         // --- Dibujar zona izquierda: logo municipal o emblema FEA ---
-        $logoMostrado = false;
-        if ($hasLogo && $logoImg) {
+        $logoMostrado = $sinZonaIzq; // sin zona: no dibujar nada
+        if (!$sinZonaIzq && $hasLogo && $logoImg) {
             $dw = (int) ($logoDrawWlog * $S);
             $dh = (int) ($logoDrawHlog * $S);
             $dx = (int) (($divX - $dw) / 2);
@@ -407,6 +452,137 @@ class FirmaGobService
             foreach ($items as $it) {
                 $l = $it['l'];
                 imagestring($img, 4, $textXFinal, (int) ($it['y'] * $S) - 12, $l['t'], $palette[$l['c']]);
+            }
+        }
+
+        ob_start();
+        imagepng($img);
+        $pngData = ob_get_clean();
+        imagedestroy($img);
+
+        return base64_encode($pngData);
+    }
+
+    /** Dibuja el borde del sello según estilo: solido | doble | sin_borde, con esquinas redondeadas opcionales. */
+    private function drawStampBorder(\GdImage $img, int $w, int $h, int $S, int $color, string $estilo, bool $redondeado): void
+    {
+        if ($estilo === 'sin_borde') {
+            return;
+        }
+
+        $trazo = function (int $inset) use ($img, $w, $h, $S, $color, $redondeado): void {
+            imagesetthickness($img, $S);
+            $x1 = $inset + (int) ($S / 2);
+            $y1 = $x1;
+            $x2 = $w - 1 - $x1;
+            $y2 = $h - 1 - $x1;
+            if ($redondeado) {
+                $r = 10 * $S;
+                imageline($img, $x1 + $r, $y1, $x2 - $r, $y1, $color);
+                imageline($img, $x1 + $r, $y2, $x2 - $r, $y2, $color);
+                imageline($img, $x1, $y1 + $r, $x1, $y2 - $r, $color);
+                imageline($img, $x2, $y1 + $r, $x2, $y2 - $r, $color);
+                imagearc($img, $x1 + $r, $y1 + $r, 2 * $r, 2 * $r, 180, 270, $color);
+                imagearc($img, $x2 - $r, $y1 + $r, 2 * $r, 2 * $r, 270, 360, $color);
+                imagearc($img, $x2 - $r, $y2 - $r, 2 * $r, 2 * $r, 0, 90, $color);
+                imagearc($img, $x1 + $r, $y2 - $r, 2 * $r, 2 * $r, 90, 180, $color);
+            } else {
+                imagerectangle($img, $x1, $y1, $x2, $y2, $color);
+            }
+            imagesetthickness($img, 1);
+        };
+
+        $trazo(0);
+        if ($estilo === 'doble') {
+            $trazo(4 * $S);
+        }
+    }
+
+    /** Layout vertical: logo centrado arriba y todas las líneas centradas debajo. */
+    private function renderStampVertical(
+        array $headerLines,
+        array $signerLines,
+        \Closure $measureW,
+        int $S,
+        bool $hasTtf,
+        ?string $logoFile,
+        array $rgbP,
+        array $rgbS,
+        array $rgbF,
+        int $fondoOpacidad,
+        string $bordeEstilo,
+        bool $bordeRedondo
+    ): string {
+        $padTop = 14; $padSide = 22; $padBottom = 14; $groupGap = 10;
+
+        // Logo (alto fijo lógico, ancho por aspecto con tope)
+        $logoImg = null; $logoWlog = 0.0; $logoHlog = 0.0;
+        if ($logoFile) {
+            $ext = strtolower(pathinfo($logoFile, PATHINFO_EXTENSION));
+            $logoImg = match ($ext) {
+                'png'         => @imagecreatefrompng($logoFile),
+                'jpg', 'jpeg' => @imagecreatefromjpeg($logoFile),
+                default       => null,
+            };
+            if ($logoImg) {
+                $lw = imagesx($logoImg); $lh = imagesy($logoImg);
+                $logoHlog = 58;
+                $logoWlog = $logoHlog * ($lw / max(1, $lh));
+                if ($logoWlog > 240) {
+                    $logoWlog = 240;
+                    $logoHlog = $logoWlog * ($lh / max(1, $lw));
+                }
+            }
+        }
+
+        // Layout vertical de líneas + ancho máximo
+        $maxTextW = 0; $items = [];
+        $cursor = $padTop + ($logoImg ? ($logoHlog + 12) : 0);
+        foreach ($headerLines as $l) {
+            $cursor += $l['adv'];
+            $maxTextW = max($maxTextW, $measureW($l['t'], $l['pt'], $l['f']));
+            $items[] = ['l' => $l, 'y' => $cursor];
+        }
+        $cursor += $groupGap;
+        foreach ($signerLines as $l) {
+            $cursor += $l['adv'];
+            $maxTextW = max($maxTextW, $measureW($l['t'], $l['pt'], $l['f']));
+            $items[] = ['l' => $l, 'y' => $cursor];
+        }
+
+        $h = (int) (($cursor + $padBottom) * $S);
+        $w = (int) max($maxTextW + 2 * $padSide * $S, ($logoWlog + 2 * $padSide) * $S, 240 * $S);
+
+        $img = imagecreatetruecolor($w, $h);
+        imagesavealpha($img, true);
+        $bgAlpha = (int) round(127 * (1 - max(0, min(100, $fondoOpacidad)) / 100));
+        imagealphablending($img, false);
+        $cFondo = imagecolorallocatealpha($img, $rgbF[0], $rgbF[1], $rgbF[2], $bgAlpha);
+        imagefilledrectangle($img, 0, 0, $w - 1, $h - 1, $cFondo);
+        imagealphablending($img, true);
+
+        $cP = imagecolorallocate($img, $rgbP[0], $rgbP[1], $rgbP[2]);
+        $cS = imagecolorallocate($img, $rgbS[0], $rgbS[1], $rgbS[2]);
+        $cG = imagecolorallocate($img, 70, 70, 70);
+        $palette = ['p' => $cP, 's' => $cS, 'g' => $cG];
+
+        $this->drawStampBorder($img, $w, $h, $S, $cP, $bordeEstilo, $bordeRedondo);
+
+        if ($logoImg) {
+            $dw = (int) ($logoWlog * $S);
+            $dh = (int) ($logoHlog * $S);
+            imagecopyresampled($img, $logoImg, (int) (($w - $dw) / 2), (int) ($padTop * $S), 0, 0, $dw, $dh, imagesx($logoImg), imagesy($logoImg));
+            imagedestroy($logoImg);
+        }
+
+        foreach ($items as $it) {
+            $l = $it['l'];
+            $lw = $measureW($l['t'], $l['pt'], $l['f']);
+            $x = (int) (($w - $lw) / 2);
+            if ($hasTtf) {
+                imagettftext($img, $l['pt'] * $S, 0, $x, (int) ($it['y'] * $S), $palette[$l['c']], $l['f'], $l['t']);
+            } else {
+                imagestring($img, 4, $x, (int) ($it['y'] * $S) - 12, $l['t'], $palette[$l['c']]);
             }
         }
 

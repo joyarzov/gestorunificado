@@ -9,6 +9,25 @@ use Illuminate\Support\Facades\Storage;
 
 class FirmaSelloController extends Controller
 {
+    /** Reglas compartidas de las opciones del sello v2. */
+    private const REGLAS_V2 = [
+        'texto_linea3'      => 'nullable|string|max:120',
+        'mostrar_cargo'     => 'nullable|boolean',
+        'mostrar_rut'       => 'nullable|boolean',
+        'mostrar_fecha'     => 'nullable|boolean',
+        'formato_fecha'     => 'nullable|in:fecha_hora,fecha,larga',
+        'layout'            => 'nullable|in:horizontal,vertical,solo_texto,compacto',
+        'borde_estilo'      => 'nullable|in:solido,doble,sin_borde',
+        'borde_redondeado'  => 'nullable|boolean',
+        'tamano_fuente'     => 'nullable|in:S,M,L',
+        'rol_asignado'      => 'nullable|in:alcalde,admin,oficial,oirs,fomento_productivo,usuario',
+    ];
+
+    private const CAMPOS_V2 = [
+        'texto_linea3', 'mostrar_cargo', 'mostrar_rut', 'mostrar_fecha', 'formato_fecha',
+        'layout', 'borde_estilo', 'borde_redondeado', 'tamano_fuente', 'rol_asignado',
+    ];
+
     public function index()
     {
         $sellos = FirmaSello::with('creador')
@@ -31,9 +50,11 @@ class FirmaSelloController extends Controller
             'nombre_institucion' => 'nullable|string|max:200',
             'texto_linea1'       => 'nullable|string|max:100',
             'texto_linea2'       => 'nullable|string|max:100',
+            ...self::REGLAS_V2,
         ]);
 
         $sello = FirmaSello::create([
+            ...$request->only(self::CAMPOS_V2),
             'nombre'             => $request->nombre,
             'color_primario'     => $request->color_primario     ?? '#0071BC',
             'color_secundario'   => $request->color_secundario   ?? '#00467E',
@@ -74,11 +95,13 @@ class FirmaSelloController extends Controller
             'nombre_institucion' => 'nullable|string|max:200',
             'texto_linea1'       => 'nullable|string|max:100',
             'texto_linea2'       => 'nullable|string|max:100',
+            ...self::REGLAS_V2,
         ]);
 
         $firmaSello->update($request->only([
             'nombre', 'color_primario', 'color_secundario', 'color_fondo', 'fondo_opacidad',
             'mostrar_logo', 'nombre_institucion', 'texto_linea1', 'texto_linea2',
+            ...self::CAMPOS_V2,
         ]));
 
         $this->generarYGuardarPreview($firmaSello);
@@ -162,6 +185,15 @@ class FirmaSelloController extends Controller
             'nombre_institucion' => $request->input('nombre_institucion', 'Ilustre Municipalidad de Cabo de Hornos'),
             'texto_linea1'       => $request->input('texto_linea1',       'FIRMA ELECTRÓNICA AVANZADA'),
             'texto_linea2'       => $request->input('texto_linea2',       'GOBIERNO DE CHILE'),
+            'texto_linea3'       => $request->input('texto_linea3', ''),
+            'mostrar_cargo'      => filter_var($request->input('mostrar_cargo', true), FILTER_VALIDATE_BOOLEAN),
+            'mostrar_rut'        => filter_var($request->input('mostrar_rut', true), FILTER_VALIDATE_BOOLEAN),
+            'mostrar_fecha'      => filter_var($request->input('mostrar_fecha', true), FILTER_VALIDATE_BOOLEAN),
+            'formato_fecha'      => $request->input('formato_fecha', 'fecha_hora'),
+            'layout'             => $request->input('layout', 'horizontal'),
+            'borde_estilo'       => $request->input('borde_estilo', 'solido'),
+            'borde_redondeado'   => filter_var($request->input('borde_redondeado', false), FILTER_VALIDATE_BOOLEAN),
+            'tamano_fuente'      => $request->input('tamano_fuente', 'M'),
             'logo_path'          => $request->input('logo_path'),
         ];
 
@@ -172,12 +204,16 @@ class FirmaSelloController extends Controller
             $config['logo_tmp']  = true; // marcar para borrar después
         }
 
+        // Vista previa con MIS datos reales (por defecto) o con datos de ejemplo
+        $user = Auth::user();
+        $misDatos = filter_var($request->input('mis_datos', true), FILTER_VALIDATE_BOOLEAN);
+
         $service = app(FirmaGobService::class);
         $pngBase64 = $service->generarStampPreview(
             $config,
-            'Juan Pérez González',
-            'Alcalde',
-            '12345678-0'
+            $misDatos ? $user->nombre : 'Juan Pérez González',
+            $misDatos ? ($user->cargoFirma() ?? ($user->cargo ?? '')) : 'Alcalde',
+            $misDatos ? $user->rut : '12345678-0'
         );
 
         // Limpiar archivo temporal

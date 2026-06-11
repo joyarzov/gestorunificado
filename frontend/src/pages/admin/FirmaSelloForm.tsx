@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box, Typography, Button, Card, CardContent, Grid, TextField,
   FormControlLabel, Switch, Alert, CircularProgress, Divider,
-  Chip, Slider,
+  Slider, MenuItem, ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -25,7 +25,43 @@ const defaults = {
   nombre_institucion: 'Ilustre Municipalidad de Cabo de Hornos',
   texto_linea1: 'FIRMA ELECTRÓNICA AVANZADA',
   texto_linea2: 'GOBIERNO DE CHILE',
+  texto_linea3: '',
+  mostrar_cargo: true,
+  mostrar_rut: true,
+  mostrar_fecha: true,
+  formato_fecha: 'fecha_hora',
+  layout: 'horizontal',
+  borde_estilo: 'solido',
+  borde_redondeado: false,
+  tamano_fuente: 'M',
+  rol_asignado: '',
 }
+
+const LAYOUTS = [
+  { value: 'horizontal', label: 'Logo a la izquierda' },
+  { value: 'vertical', label: 'Logo arriba (vertical)' },
+  { value: 'solo_texto', label: 'Solo texto' },
+  { value: 'compacto', label: 'Compacto' },
+]
+
+const BORDES = [
+  { value: 'solido', label: 'Sólido' },
+  { value: 'doble', label: 'Doble' },
+  { value: 'sin_borde', label: 'Sin borde' },
+]
+
+const FORMATOS_FECHA = [
+  { value: 'fecha_hora', label: '11/06/2026 09:45' },
+  { value: 'fecha', label: '11/06/2026' },
+  { value: 'larga', label: 'Puerto Williams, 11 de junio de 2026' },
+]
+
+const ROLES_SELLO = [
+  { value: '', label: 'General (todos los firmantes)' },
+  { value: 'alcalde', label: 'Alcalde' },
+  { value: 'oficial', label: 'Oficial de Partes' },
+  { value: 'admin', label: 'Administrador' },
+]
 
 const FirmaSelloForm = () => {
   const navigate = useNavigate()
@@ -42,6 +78,8 @@ const FirmaSelloForm = () => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [esActivo, setEsActivo] = useState(false)
+  const [misDatos, setMisDatos] = useState(true)
+  const [sobrePagina, setSobrePagina] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -61,6 +99,16 @@ const FirmaSelloForm = () => {
           nombre_institucion: s.nombre_institucion,
           texto_linea1: s.texto_linea1,
           texto_linea2: s.texto_linea2,
+          texto_linea3: s.texto_linea3 ?? '',
+          mostrar_cargo: s.mostrar_cargo ?? true,
+          mostrar_rut: s.mostrar_rut ?? true,
+          mostrar_fecha: s.mostrar_fecha ?? true,
+          formato_fecha: s.formato_fecha ?? 'fecha_hora',
+          layout: s.layout ?? 'horizontal',
+          borde_estilo: s.borde_estilo ?? 'solido',
+          borde_redondeado: s.borde_redondeado ?? false,
+          tamano_fuente: s.tamano_fuente ?? 'M',
+          rol_asignado: s.rol_asignado ?? '',
         })
         if (s.logo_path) setLogoActual(s.logo_path)
         setEsActivo(s.activo)
@@ -83,6 +131,16 @@ const FirmaSelloForm = () => {
           nombre_institucion: form.nombre_institucion,
           texto_linea1:       form.texto_linea1,
           texto_linea2:       form.texto_linea2,
+          texto_linea3:       form.texto_linea3,
+          mostrar_cargo:      form.mostrar_cargo,
+          mostrar_rut:        form.mostrar_rut,
+          mostrar_fecha:      form.mostrar_fecha,
+          formato_fecha:      form.formato_fecha,
+          layout:             form.layout,
+          borde_estilo:       form.borde_estilo,
+          borde_redondeado:   form.borde_redondeado,
+          tamano_fuente:      form.tamano_fuente,
+          mis_datos:          misDatos,
         }
         if (logoActual && !logoNuevo) params.logo_path = logoActual
         const blob = await firmaSelloAPI.preview(params, logoNuevo)
@@ -93,7 +151,7 @@ const FirmaSelloForm = () => {
         // preview no crítico
       }
     }, 600)
-  }, [form, logoActual, logoNuevo])
+  }, [form, logoActual, logoNuevo, misDatos])
 
   useEffect(() => { actualizarPreview() }, [actualizarPreview])
 
@@ -121,11 +179,12 @@ const FirmaSelloForm = () => {
     setError(null)
     try {
       let sello: FirmaSello
+      const payload = { ...form, rol_asignado: form.rol_asignado || null } as Partial<FirmaSello>
       if (esEdicion) {
-        const res = await firmaSelloAPI.actualizar(parseInt(id!), form)
+        const res = await firmaSelloAPI.actualizar(parseInt(id!), payload)
         sello = res.data
       } else {
-        const res = await firmaSelloAPI.crear(form)
+        const res = await firmaSelloAPI.crear(payload)
         sello = res.data
       }
       // Subir logo si hay uno nuevo
@@ -189,6 +248,109 @@ const FirmaSelloForm = () => {
                 onChange={e => handleChange('texto_linea2', e.target.value)}
                 fullWidth
               />
+              <TextField
+                label="Línea 3 (opcional)"
+                value={form.texto_linea3}
+                onChange={e => handleChange('texto_linea3', e.target.value)}
+                placeholder="Ej: Región de Magallanes y Antártica Chilena"
+                fullWidth
+              />
+
+              <Divider>Datos del firmante</Divider>
+
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={form.mostrar_cargo} onChange={e => handleChange('mostrar_cargo', e.target.checked)} />}
+                  label="Cargo"
+                />
+                <FormControlLabel
+                  control={<Switch size="small" checked={form.mostrar_rut} onChange={e => handleChange('mostrar_rut', e.target.checked)} />}
+                  label="RUT"
+                />
+                <FormControlLabel
+                  control={<Switch size="small" checked={form.mostrar_fecha} onChange={e => handleChange('mostrar_fecha', e.target.checked)} />}
+                  label="Fecha"
+                />
+              </Box>
+              {form.mostrar_fecha && (
+                <TextField
+                  select
+                  label="Formato de la fecha"
+                  value={form.formato_fecha}
+                  onChange={e => handleChange('formato_fecha', e.target.value)}
+                  fullWidth
+                  size="small"
+                >
+                  {FORMATOS_FECHA.map(f => (
+                    <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
+                  ))}
+                </TextField>
+              )}
+
+              <Divider>Diseño</Divider>
+
+              <TextField
+                select
+                label="Disposición (layout)"
+                value={form.layout}
+                onChange={e => handleChange('layout', e.target.value)}
+                fullWidth
+                size="small"
+              >
+                {LAYOUTS.map(l => (
+                  <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+                ))}
+              </TextField>
+
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                <TextField
+                  select
+                  label="Borde"
+                  value={form.borde_estilo}
+                  onChange={e => handleChange('borde_estilo', e.target.value)}
+                  size="small"
+                  sx={{ minWidth: 140 }}
+                >
+                  {BORDES.map(b => (
+                    <MenuItem key={b.value} value={b.value}>{b.label}</MenuItem>
+                  ))}
+                </TextField>
+                {form.borde_estilo !== 'sin_borde' && (
+                  <FormControlLabel
+                    control={<Switch size="small" checked={form.borde_redondeado} onChange={e => handleChange('borde_redondeado', e.target.checked)} />}
+                    label="Esquinas redondeadas"
+                  />
+                )}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">Tamaño de letra</Typography>
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    value={form.tamano_fuente}
+                    onChange={(_, v) => v && handleChange('tamano_fuente', v)}
+                  >
+                    <ToggleButton value="S" sx={{ px: 1.5 }}>S</ToggleButton>
+                    <ToggleButton value="M" sx={{ px: 1.5 }}>M</ToggleButton>
+                    <ToggleButton value="L" sx={{ px: 1.5 }}>L</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              </Box>
+
+              <Divider>Asignación</Divider>
+
+              <TextField
+                select
+                label="Usar este sello para"
+                value={form.rol_asignado}
+                onChange={e => handleChange('rol_asignado', e.target.value)}
+                fullWidth
+                size="small"
+                helperText="Con un rol asignado, los firmantes de ese rol usarán este sello (si está activo) en vez del general."
+              >
+                {ROLES_SELLO.map(r => (
+                  <MenuItem key={r.value} value={r.value}>{r.label}</MenuItem>
+                ))}
+              </TextField>
 
               <Divider>Colores</Divider>
 
@@ -340,25 +502,57 @@ const FirmaSelloForm = () => {
         <Grid item xs={12} md={6}>
           <Card sx={{ position: 'sticky', top: 88 }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Typography variant="h6">Vista previa</Typography>
-                <Chip label="Datos de ejemplo" size="small" variant="outlined" />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+                <Typography variant="h6" sx={{ flex: 1 }}>Vista previa</Typography>
+                <FormControlLabel
+                  control={<Switch size="small" checked={misDatos} onChange={e => setMisDatos(e.target.checked)} />}
+                  label={<Typography variant="caption">Mis datos</Typography>}
+                />
+                <FormControlLabel
+                  control={<Switch size="small" checked={sobrePagina} onChange={e => setSobrePagina(e.target.checked)} />}
+                  label={<Typography variant="caption">Sobre página</Typography>}
+                />
               </Box>
               {previewUrl ? (
-                <Box
-                  key={previewKey}
-                  component="img"
-                  src={previewUrl}
-                  alt="Preview sello"
-                  sx={{
-                    width: '100%',
-                    maxWidth: 520,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    display: 'block',
-                  }}
-                  onError={() => setPreviewUrl(null)}
-                />
+                sobrePagina ? (
+                  /* Montado sobre una página de muestra, a escala real
+                     (el sello ocupa ~160pt de los 612pt de ancho de la hoja) */
+                  <Box sx={{
+                    width: '100%', maxWidth: 460, aspectRatio: '8.5 / 11',
+                    bgcolor: '#fff', border: '1px solid #ddd', borderRadius: 1,
+                    position: 'relative', overflow: 'hidden', mx: 'auto',
+                  }}>
+                    <Box sx={{ p: '7% 9%', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {[78, 60, 72, 55, 68, 48, 74, 52, 66, 58, 70, 44, 62, 50].map((w, i) => (
+                        <Box key={i} sx={{ height: 3, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }} />
+                      ))}
+                    </Box>
+                    <Box
+                      key={previewKey}
+                      component="img"
+                      src={previewUrl}
+                      alt="Sello sobre página"
+                      sx={{ position: 'absolute', left: '11%', bottom: '8%', width: '27%', height: 'auto' }}
+                    />
+                  </Box>
+                ) : (
+                  <Box
+                    key={previewKey}
+                    component="img"
+                    src={previewUrl}
+                    alt="Preview sello"
+                    sx={{
+                      width: '100%',
+                      maxWidth: 520,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      display: 'block',
+                      backgroundImage: 'repeating-conic-gradient(#f0f0f0 0% 25%, #fff 0% 50%)',
+                      backgroundSize: '16px 16px',
+                    }}
+                    onError={() => setPreviewUrl(null)}
+                  />
+                )
               ) : (
                 <Box sx={{
                   width: '100%', height: 140, bgcolor: '#f5f5f5',
@@ -368,7 +562,8 @@ const FirmaSelloForm = () => {
                 </Box>
               )}
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                La preview se actualiza automáticamente al cambiar los campos (datos de ejemplo: Juan Pérez González / Alcalde).
+                Se actualiza al cambiar cualquier campo. "Mis datos" usa tu nombre/cargo/RUT reales;
+                "Sobre página" muestra el sello a escala sobre una hoja carta. El damero indica las zonas transparentes.
               </Typography>
             </CardContent>
           </Card>
