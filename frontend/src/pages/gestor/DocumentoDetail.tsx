@@ -1046,6 +1046,7 @@ const DocumentoDetail = () => {
                         newRow={Math.floor(newSlot / 3)}
                         newCol={firmaCol}
                         selloUrl={selloUrl}
+                        previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
                       />
 
                       {/* Controles a la derecha */}

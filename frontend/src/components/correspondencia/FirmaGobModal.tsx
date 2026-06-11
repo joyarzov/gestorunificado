@@ -114,6 +114,7 @@ const FirmaGobModal = ({
                 newRow={0}
                 newCol={firmaCol}
                 selloUrl={selloUrl}
+                previewPage={firmaPageMode === 'FIRST' ? 'first' : 'last'}
               />
               {pdfUrl && (
                 <Button

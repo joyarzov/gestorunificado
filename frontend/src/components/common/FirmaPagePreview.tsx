@@ -1,4 +1,12 @@
+import { useEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
+import * as pdfjsLib from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
+// El PDF se renderiza a un <canvas> con pdf.js: mismo resultado en todos los
+// navegadores, sin los controles flotantes del visor nativo y con la página
+// alineada 1:1 con las coordenadas del sello.
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 export interface FirmaPagePreviewProps {
   pdfUrl?: string | null
@@ -12,6 +20,8 @@ export interface FirmaPagePreviewProps {
   newCol: number
   /** Miniatura PNG del sello real del firmante (endpoint /firma-sellos/mi-sello). */
   selloUrl?: string | null
+  /** Página a previsualizar (la misma donde irá el sello). */
+  previewPage?: 'first' | 'last' | number
 }
 
 const PAGE_W_PT = 612
@@ -22,13 +32,6 @@ const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los co
 
 const scale = PREVIEW_W_PX / PAGE_W_PT
 const previewH = Math.round(PAGE_H_PT * scale)
-
-// Zoom fijo para que la página llene el ancho del contenedor aunque el
-// iframe sea más alto (Chrome interpreta 100% como 96dpi: 1pt = 96/72 px).
-const ZOOM_PCT = ((PREVIEW_W_PX / (PAGE_W_PT * (96 / 72))) * 100).toFixed(1)
-// La píldora de controles de Chrome se ancla al borde inferior del iframe:
-// lo hacemos más alto que el contenedor (overflow hidden) y queda recortada.
-const PILL_CLIP_PX = 120
 
 const colXPx = [71, 233, 395].map(x => Math.round(x * scale)) // aligned with 2.5cm left margin
 const stampW = Math.round(STAMP_W_PT * scale)
@@ -45,12 +48,52 @@ export default function FirmaPagePreview({
   newRow,
   newCol,
   selloUrl,
+  previewPage = 'last',
 }: FirmaPagePreviewProps) {
   // Calculate new stamp position
   const newFirmaY = Math.round(10 + (firmaYPos / 100) * 702)
   const newLly = newFirmaY + newRow * 80
   const newCssTop = llyToCssTop(newLly)
   const newCssLeft = colXPx[newCol]
+
+  // Render de la página elegida del PDF en el canvas
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [pdfListo, setPdfListo] = useState(false)
+
+  useEffect(() => {
+    let cancelado = false
+    setPdfListo(false)
+    if (!pdfUrl) return
+
+    ;(async () => {
+      try {
+        const doc = await pdfjsLib.getDocument(pdfUrl).promise
+        const pagina = previewPage === 'last'
+          ? doc.numPages
+          : previewPage === 'first'
+            ? 1
+            : Math.min(Math.max(1, previewPage), doc.numPages)
+        const page = await doc.getPage(pagina)
+
+        const dpr = window.devicePixelRatio || 1
+        const base = page.getViewport({ scale: 1 })
+        const viewport = page.getViewport({ scale: (PREVIEW_W_PX * dpr) / base.width })
+
+        const canvas = canvasRef.current
+        if (!canvas || cancelado) return
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise
+        if (!cancelado) setPdfListo(true)
+      } catch {
+        // queda el fondo simulado de respaldo
+      }
+    })()
+
+    return () => { cancelado = true }
+  }, [pdfUrl, previewPage])
 
   return (
     <Box sx={{ flexShrink: 0 }}>
@@ -66,34 +109,28 @@ export default function FirmaPagePreview({
           overflow: 'hidden',
         }}
       >
-        {/* Fondo: PDF real o página simulada */}
-        {pdfUrl ? (
-          <>
-            <Box
-              component="iframe"
-              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&zoom=${ZOOM_PCT}`}
-              tabIndex={-1}
-              sx={{
-                position: 'absolute',
-                top: 0, left: 0,
-                width: '100%',
-                height: `calc(100% + ${PILL_CLIP_PX}px)`,
-                border: 'none',
-                pointerEvents: 'none',
-              }}
-              title="Preview documento"
-            />
-            {/* Capa que absorbe el mouse: evita que el visor PDF de Chrome
-                muestre sus controles flotantes (zoom/descarga) al pasar
-                el cursor. El preview es solo ilustrativo. */}
-            <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, bgcolor: 'transparent' }} />
-          </>
-        ) : (
+        {/* Fondo simulado (visible mientras carga el PDF o si falla) */}
+        {!pdfListo && (
           <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
             {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
               <Box key={i} sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }} />
             ))}
           </Box>
+        )}
+
+        {/* Página real del documento */}
+        {pdfUrl && (
+          <Box
+            component="canvas"
+            ref={canvasRef}
+            sx={{
+              position: 'absolute',
+              top: 0, left: 0,
+              width: '100%',
+              height: '100%',
+              display: pdfListo ? 'block' : 'none',
+            }}
+          />
         )}
 
         {/* Existing firm stamps (grey semi-transparent) */}
@@ -139,9 +176,6 @@ export default function FirmaPagePreview({
             el recuadro azul de respaldo. Anclado por su borde inferior (lly),
             igual que lo posiciona FirmaGob en el PDF. */}
         {selloUrl ? (
-          /* El contorno va sobre la IMAGEN (su alto real), no sobre la caja
-             teórica de 70pt: el sello es más bajo y el marco completo se veía
-             más alto que la firma. */
           <Box
             sx={{
               position: 'absolute',
