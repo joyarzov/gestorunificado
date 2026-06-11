@@ -57,6 +57,7 @@ class ProvidenciaPdfService
             'fecha'                => now()->format('d \d\e ') . $this->mesEnEspanol(now()->month) . now()->format(' \d\e Y'),
             'remitente'            => $correspondencia->remitente,
             'numero_documento'     => $correspondencia->numero_documento,
+            'folio_ingreso'        => $correspondencia->folio,
             'fecha_recepcion'      => $correspondencia->fecha_recibo
                 ? $correspondencia->fecha_recibo->format('d/m/Y')
                 : 'No especificada',

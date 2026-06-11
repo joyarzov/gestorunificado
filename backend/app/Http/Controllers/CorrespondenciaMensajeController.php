@@ -149,7 +149,7 @@ class CorrespondenciaMensajeController extends Controller
                     'correspondencia',
                     'correspondencia_mensaje',
                     'Nuevo mensaje en una correspondencia',
-                    "{$user->nombre} escribió en la correspondencia de \"{$correspondencia->remitente}\".",
+                    "{$user->nombre} escribió en la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\".",
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }

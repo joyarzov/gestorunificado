@@ -249,7 +249,7 @@ class DerivacionController extends Controller
                 'correspondencia',
                 'correspondencia_recibida',
                 'Nueva correspondencia en tu bandeja',
-                "Se te ha derivado la correspondencia de \"{$correspondencia->remitente}\".",
+                "Se te ha derivado la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\".",
                 ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id]
             );
         } else {
@@ -260,7 +260,7 @@ class DerivacionController extends Controller
                 'correspondencia',
                 'correspondencia_recibida',
                 'Nueva correspondencia en tu bandeja',
-                "Se ha derivado la correspondencia de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
+                "Se ha derivado la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
                 ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id]
             );
         }
@@ -742,8 +742,8 @@ class DerivacionController extends Controller
                     $quedanPendientes ? 'correspondencia_recibida_parcial' : 'correspondencia_completada',
                     $quedanPendientes ? 'Acuse de recibo' : 'Correspondencia completada',
                     $quedanPendientes
-                        ? "{$user->nombre} recibió la correspondencia de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
-                        : "La correspondencia de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
+                        ? "{$user->nombre} recibió la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
+                        : "La correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }

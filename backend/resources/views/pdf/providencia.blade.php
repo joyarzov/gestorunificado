@@ -260,7 +260,7 @@
 
     {{-- Referencia + fecha derecha --}}
     <div class="ref-fecha">
-        <p><strong>Ref:</strong> {{ $numero_documento ?? 'Sin n&uacute;mero' }}{{ !empty($remitente) ? ' — ' . $remitente : '' }}</p>
+        <p><strong>Ref:</strong> {{ $numero_documento ?? 'Sin n&uacute;mero' }}{{ !empty($remitente) ? ' — ' . $remitente : '' }}@if(!empty($folio_ingreso)) (Ingreso {{ $folio_ingreso }})@endif</p>
         <p><strong>Puerto Williams,</strong> {{ $fecha }}</p>
     </div>
 
