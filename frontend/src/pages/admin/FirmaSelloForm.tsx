@@ -34,8 +34,16 @@ const defaults = {
   borde_estilo: 'solido',
   borde_redondeado: false,
   tamano_fuente: 'M',
+  fuente: 'dejavu',
   rol_asignado: '',
 }
+
+const FUENTES = [
+  { value: 'dejavu', label: 'Clásica (DejaVu)' },
+  { value: 'reddit_sans', label: 'Reddit Sans' },
+  { value: 'reddit_sans_light', label: 'Reddit Sans Light' },
+  { value: 'reddit_sans_medium', label: 'Reddit Sans Medium' },
+]
 
 const LAYOUTS = [
   { value: 'horizontal', label: 'Logo a la izquierda' },
@@ -108,6 +116,7 @@ const FirmaSelloForm = () => {
           borde_estilo: s.borde_estilo ?? 'solido',
           borde_redondeado: s.borde_redondeado ?? false,
           tamano_fuente: s.tamano_fuente ?? 'M',
+          fuente: s.fuente ?? 'dejavu',
           rol_asignado: s.rol_asignado ?? '',
         })
         if (s.logo_path) setLogoActual(s.logo_path)
@@ -140,6 +149,7 @@ const FirmaSelloForm = () => {
           borde_estilo:       form.borde_estilo,
           borde_redondeado:   form.borde_redondeado,
           tamano_fuente:      form.tamano_fuente,
+          fuente:             form.fuente,
           mis_datos:          misDatos,
         }
         if (logoActual && !logoNuevo) params.logo_path = logoActual
@@ -299,6 +309,19 @@ const FirmaSelloForm = () => {
               >
                 {LAYOUTS.map(l => (
                   <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Tipografía"
+                value={form.fuente}
+                onChange={e => handleChange('fuente', e.target.value)}
+                fullWidth
+                size="small"
+              >
+                {FUENTES.map(f => (
+                  <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
                 ))}
               </TextField>
 

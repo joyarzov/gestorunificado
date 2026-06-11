@@ -12,7 +12,7 @@ class FirmaSello extends Model
         'nombre', 'logo_path', 'color_primario', 'color_secundario', 'color_fondo',
         'fondo_opacidad', 'mostrar_logo', 'nombre_institucion', 'texto_linea1', 'texto_linea2',
         'texto_linea3', 'mostrar_cargo', 'mostrar_rut', 'mostrar_fecha', 'formato_fecha',
-        'layout', 'borde_estilo', 'borde_redondeado', 'tamano_fuente', 'rol_asignado',
+        'layout', 'borde_estilo', 'borde_redondeado', 'tamano_fuente', 'fuente', 'rol_asignado',
         'activo', 'preview_path', 'creado_por',
     ];
 

@@ -20,12 +20,13 @@ class FirmaSelloController extends Controller
         'borde_estilo'      => 'nullable|in:solido,doble,sin_borde',
         'borde_redondeado'  => 'nullable|boolean',
         'tamano_fuente'     => 'nullable|in:S,M,L',
+        'fuente'            => 'nullable|in:dejavu,reddit_sans,reddit_sans_light,reddit_sans_medium',
         'rol_asignado'      => 'nullable|in:alcalde,admin,oficial,oirs,fomento_productivo,usuario',
     ];
 
     private const CAMPOS_V2 = [
         'texto_linea3', 'mostrar_cargo', 'mostrar_rut', 'mostrar_fecha', 'formato_fecha',
-        'layout', 'borde_estilo', 'borde_redondeado', 'tamano_fuente', 'rol_asignado',
+        'layout', 'borde_estilo', 'borde_redondeado', 'tamano_fuente', 'fuente', 'rol_asignado',
     ];
 
     public function index()
@@ -194,6 +195,7 @@ class FirmaSelloController extends Controller
             'borde_estilo'       => $request->input('borde_estilo', 'solido'),
             'borde_redondeado'   => filter_var($request->input('borde_redondeado', false), FILTER_VALIDATE_BOOLEAN),
             'tamano_fuente'      => $request->input('tamano_fuente', 'M'),
+            'fuente'             => $request->input('fuente', 'dejavu'),
             'logo_path'          => $request->input('logo_path'),
         ];
 

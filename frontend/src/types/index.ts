@@ -537,6 +537,7 @@ export interface FirmaSello {
   borde_estilo?: 'solido' | 'doble' | 'sin_borde'
   borde_redondeado?: boolean
   tamano_fuente?: 'S' | 'M' | 'L'
+  fuente?: 'dejavu' | 'reddit_sans' | 'reddit_sans_light' | 'reddit_sans_medium'
   rol_asignado?: string | null
   activo: boolean
   preview_path?: string

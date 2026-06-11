@@ -265,8 +265,7 @@ class FirmaGobService
         [$rS, $gS, $bS] = $this->hexToRgb($colorSecundario);
         [$rF, $gF, $bF] = $this->hexToRgb($colorFondo);
 
-        $fontPath       = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-        $fontPathNormal = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+        [$fontPathNormal, $fontPath] = $this->resolverFuente((string)($config['fuente'] ?? 'dejavu'));
         $hasTtf = function_exists('imagettftext') && file_exists($fontPath) && file_exists($fontPathNormal);
 
         // Factor de supersampling: rasterizamos a ~3x el tamaño lógico para que el
@@ -592,6 +591,37 @@ class FirmaGobService
         imagedestroy($img);
 
         return base64_encode($pngData);
+    }
+
+    /**
+     * Tipografías disponibles para el sello: cada familia define el par
+     * [normal, destacada]. Las Reddit Sans viven en resources/fonts (versionadas);
+     * si falta algún archivo se cae a DejaVu (siempre presente en el contenedor).
+     */
+    public const FUENTES_SELLO = [
+        'dejavu'             => ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'],
+        'reddit_sans'        => ['RedditSans-Regular.ttf', 'RedditSans-Bold.ttf'],
+        'reddit_sans_light'  => ['RedditSans-Light.ttf', 'RedditSans-SemiBold.ttf'],
+        'reddit_sans_medium' => ['RedditSans-Medium.ttf', 'RedditSans-ExtraBold.ttf'],
+    ];
+
+    /** @return array{0: string, 1: string} rutas [normal, destacada] */
+    private function resolverFuente(string $fuente): array
+    {
+        $dejavu = [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        ];
+        if ($fuente === 'dejavu' || !isset(self::FUENTES_SELLO[$fuente])) {
+            return $dejavu;
+        }
+
+        [$normal, $bold] = self::FUENTES_SELLO[$fuente];
+        $dir = resource_path('fonts/reddit-sans/');
+        if (!file_exists($dir . $normal) || !file_exists($dir . $bold)) {
+            return $dejavu;
+        }
+        return [$dir . $normal, $dir . $bold];
     }
 
     private function hexToRgb(string $hex): array
