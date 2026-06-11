@@ -125,6 +125,9 @@ export default function FirmaPagePreview({
             el recuadro azul de respaldo. Anclado por su borde inferior (lly),
             igual que lo posiciona FirmaGob en el PDF. */}
         {selloUrl ? (
+          /* El contorno va sobre la IMAGEN (su alto real), no sobre la caja
+             teórica de 70pt: el sello es más bajo y el marco completo se veía
+             más alto que la firma. */
           <Box
             sx={{
               position: 'absolute',
@@ -133,9 +136,7 @@ export default function FirmaPagePreview({
               width: stampW,
               height: stampH,
               transition: 'all 0.15s ease',
-              outline: '1.5px dashed rgba(0, 113, 188, 0.75)',
-              outlineOffset: 1,
-              borderRadius: '2px',
+              pointerEvents: 'none',
             }}
           >
             <Box
@@ -149,7 +150,10 @@ export default function FirmaPagePreview({
                 width: '100%',
                 height: 'auto',
                 display: 'block',
-                filter: 'drop-shadow(0 0 1px rgba(0,0,0,.25))',
+                outline: '1.5px dashed rgba(0, 113, 188, 0.85)',
+                outlineOffset: 1,
+                borderRadius: '1px',
+                filter: 'drop-shadow(0 0 1px rgba(0,0,0,.2))',
               }}
             />
           </Box>
