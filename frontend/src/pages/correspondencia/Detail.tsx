@@ -363,8 +363,8 @@ const CorrespondenciaDetail = () => {
             />
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {correspondencia.estado !== 'pendiente' && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: { xs: 'wrap', md: 'nowrap' }, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
+          {(isAdmin() || isOficial()) && correspondencia.estado !== 'pendiente' && (
             <Button
               variant="outlined"
               startIcon={<ReplyIcon />}

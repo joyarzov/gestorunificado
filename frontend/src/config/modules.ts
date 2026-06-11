@@ -156,14 +156,13 @@ export const getSidebarItems = (
       if (ctx.canViewAllCorrespondence) {
         items.push({ text: 'Todas las correspondencias', path: '/correspondencia/listar', icon: MailIcon })
       }
-      // Ingreso de correspondencia: solo oficial de partes (y admin)
+      // Gestión documental de Partes: ingreso, salidas y libro son
+      // EXCLUSIVOS de oficina de partes (y admin).
       if (ctx.isOficial || ctx.isAdmin) {
         items.push({ text: 'Ingresar correspondencia', path: '/ingresar', icon: CreateIcon })
+        items.push({ text: 'Salidas', path: '/salidas', icon: SalidaIcon })
         items.push({ text: 'Libro de Correspondencia', path: '/libro-correspondencia', icon: LibroIcon })
       }
-      // Salidas: todos pueden reservar número y subir su documento;
-      // Partes ve la cola completa y despacha.
-      items.push({ text: 'Salidas', path: '/salidas', icon: SalidaIcon })
       items.push({ text: 'Búsqueda avanzada', path: '/buscar', icon: SearchIcon })
       return items
     }

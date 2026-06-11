@@ -23,21 +23,15 @@ class CorrespondenciaSalidaController extends Controller
 {
     private const MEDIOS_DESPACHO = ['email', 'carta_certificada', 'en_mano', 'libro', 'otro'];
 
-    /**
-     * Listado de salidas. Oficina de Partes/admin ven todas; el resto,
-     * solo las que creó (sus reservas y solicitudes).
-     */
+    /** Listado de salidas — módulo exclusivo de Oficina de Partes/admin. */
     public function index(Request $request)
     {
-        $user = Auth::user();
-        $ctx = $user->contexto();
+        if ($denied = $this->soloPartes()) {
+            return $denied;
+        }
 
         $query = Correspondencia::salidas()
             ->with(['usuario:id,nombre,cargo', 'respuestaA:id,folio,remitente', 'despachadaPor:id,nombre']);
-
-        if (!$user->isAdmin() && !$user->isOficial()) {
-            $query->where('usuario_id', $ctx->id);
-        }
 
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
@@ -46,12 +40,9 @@ class CorrespondenciaSalidaController extends Controller
         $salidas = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 30));
 
-        // Contadores por estado para las pestañas (mismo alcance de visibilidad)
-        $base = Correspondencia::salidas();
-        if (!$user->isAdmin() && !$user->isOficial()) {
-            $base->where('usuario_id', $ctx->id);
-        }
-        $counts = $base->selectRaw('estado, COUNT(*) as n')->groupBy('estado')->pluck('n', 'estado');
+        // Contadores por estado para las pestañas
+        $counts = Correspondencia::salidas()
+            ->selectRaw('estado, COUNT(*) as n')->groupBy('estado')->pluck('n', 'estado');
 
         return $this->successResponse([
             'items' => $salidas->items(),
@@ -74,6 +65,10 @@ class CorrespondenciaSalidaController extends Controller
      */
     public function reservar(Request $request)
     {
+        if ($denied = $this->soloPartes()) {
+            return $denied;
+        }
+
         $request->validate([
             'tipo_documento' => 'required|in:' . implode(',', array_keys(Correspondencia::TIPOS_SALIDA)),
             'materia' => 'required|string|max:1000',
@@ -112,7 +107,7 @@ class CorrespondenciaSalidaController extends Controller
      */
     public function subirDocumento(Request $request, Correspondencia $salida)
     {
-        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloCreadorOPartes: true)) {
+        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloPartes: true)) {
             return $denied;
         }
 
@@ -227,7 +222,7 @@ class CorrespondenciaSalidaController extends Controller
     /** Anula la reserva: el folio queda en acta con su motivo, nunca se reutiliza. */
     public function anular(Request $request, Correspondencia $salida)
     {
-        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloCreadorOPartes: true)) {
+        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloPartes: true)) {
             return $denied;
         }
 
@@ -246,11 +241,12 @@ class CorrespondenciaSalidaController extends Controller
     {
         $user = Auth::user();
         $esPartes = $user->isAdmin() || $user->isOficial();
-        $esCreador = $salida->usuario_id === $user->contexto()->id;
+        // Los participantes de la entrada vinculada pueden VER la respuesta
+        // despachada desde el detalle; la gestión sigue siendo de Partes.
         $participaEnEntrada = $salida->respuesta_a_id
             && $salida->respuestaA?->esVisiblePara($user);
 
-        if ($salida->direccion !== 'salida' || (!$esPartes && !$esCreador && !$participaEnEntrada)) {
+        if ($salida->direccion !== 'salida' || (!$esPartes && !$participaEnEntrada)) {
             return $this->errorResponse('No autorizado.', 403);
         }
         if (!$salida->documento_ruta || !Storage::disk('public')->exists($salida->documento_ruta)) {
@@ -262,6 +258,15 @@ class CorrespondenciaSalidaController extends Controller
 
     // =====================================================================
 
+    private function soloPartes()
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isOficial()) {
+            return $this->errorResponse('La correspondencia de salida es exclusiva de la Oficina de Partes.', 403);
+        }
+        return null;
+    }
+
     /**
      * Valida que sea una salida, en un estado permitido, y con el permiso
      * correspondiente. Devuelve la respuesta de error o null si todo bien.
@@ -269,21 +274,14 @@ class CorrespondenciaSalidaController extends Controller
     private function validarSalida(
         Correspondencia $salida,
         array $estados,
-        bool $soloPartes = false,
-        bool $soloCreadorOPartes = false
+        bool $soloPartes = false
     ) {
         if ($salida->direccion !== 'salida') {
             return $this->errorResponse('Esta correspondencia no es una salida.', 422);
         }
 
-        $user = Auth::user();
-        $esPartes = $user->isAdmin() || $user->isOficial();
-
-        if ($soloPartes && !$esPartes) {
-            return $this->errorResponse('Solo la Oficina de Partes o un administrador pueden hacer esto.', 403);
-        }
-        if ($soloCreadorOPartes && !$esPartes && $salida->usuario_id !== $user->contexto()->id) {
-            return $this->errorResponse('Solo quien reservó el número (o la Oficina de Partes) puede hacer esto.', 403);
+        if ($soloPartes && ($denied = $this->soloPartes())) {
+            return $denied;
         }
 
         if (!in_array($salida->estado, $estados, true)) {
