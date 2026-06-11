@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -102,6 +102,53 @@ const CorrespondenciaDetail = () => {
       setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo reservar el número' })
     } finally {
       setRespuestaLoading(false)
+    }
+  }
+
+  // Subir PDF firmado de una respuesta (reserva del alcalde → cola de Partes)
+  const [subirRespuesta, setSubirRespuesta] = useState<Correspondencia | null>(null)
+  const [subirRespForm, setSubirRespForm] = useState({ destinatario: '', firmante: '' })
+  const [subirRespArchivo, setSubirRespArchivo] = useState<File | null>(null)
+  const [subirRespLoading, setSubirRespLoading] = useState(false)
+  const subirRespFileRef = useRef<HTMLInputElement>(null)
+
+  const abrirSubirRespuesta = (r: Correspondencia) => {
+    setSubirRespuesta(r)
+    setSubirRespForm({
+      destinatario: r.remitente !== 'Por definir' ? r.remitente : (correspondencia?.remitente || ''),
+      firmante: r.firmante_nombre || (user ? `${user.nombre}${user.cargo ? ', ' + user.cargo : ''}` : ''),
+    })
+    setSubirRespArchivo(null)
+  }
+
+  const handleSubirRespuesta = async () => {
+    if (!subirRespuesta || !subirRespArchivo) return
+    setSubirRespLoading(true)
+    try {
+      const res = await correspondenciaAPI.salidaSubirDocumento(
+        subirRespuesta.id, subirRespArchivo, subirRespForm.destinatario, subirRespForm.firmante,
+      )
+      setSubirRespuesta(null)
+      setSnackbar({ open: true, message: res.message || 'Documento enviado a despacho' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo subir el documento' })
+    } finally {
+      setSubirRespLoading(false)
+    }
+  }
+
+  const handleDescargarRespuesta = async (r: Correspondencia) => {
+    try {
+      const blob = await correspondenciaAPI.salidaDescargarDocumento(r.id)
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${r.folio}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSnackbar({ open: true, message: 'No se pudo descargar el documento' })
     }
   }
 
@@ -364,7 +411,7 @@ const CorrespondenciaDetail = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: { xs: 'wrap', md: 'nowrap' }, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
-          {(isAdmin() || isOficial()) && correspondencia.estado !== 'pendiente' && (
+          {(isAdmin() || isOficial() || isAlcalde()) && correspondencia.estado !== 'pendiente' && (
             <Button
               variant="outlined"
               startIcon={<ReplyIcon />}
@@ -575,7 +622,22 @@ const CorrespondenciaDetail = () => {
                 </Typography>
                 <List dense>
                   {correspondencia.respuestas.map((r) => (
-                    <ListItem key={r.id} disablePadding sx={{ py: 0.5 }}>
+                    <ListItem
+                      key={r.id}
+                      disablePadding
+                      sx={{ py: 0.5 }}
+                      secondaryAction={
+                        (r.estado === 'reservada' || r.estado === 'devuelta') ? (
+                          <Button size="small" variant="outlined" onClick={() => abrirSubirRespuesta(r)}>
+                            Subir PDF
+                          </Button>
+                        ) : r.estado === 'despachada' || r.estado === 'por_despachar' ? (
+                          <IconButton size="small" title="Descargar documento" onClick={() => handleDescargarRespuesta(r)}>
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        ) : undefined
+                      }
+                    >
                       <ListItemText
                         primary={<strong>{r.folio}</strong>}
                         secondary={
@@ -591,7 +653,7 @@ const CorrespondenciaDetail = () => {
                   ))}
                 </List>
                 <Typography variant="caption" color="text.secondary">
-                  Gestión del despacho en el menú Salidas.
+                  El despacho al destinatario lo realiza Oficina de Partes.
                 </Typography>
               </CardContent>
             </Card>
@@ -637,6 +699,55 @@ const CorrespondenciaDetail = () => {
             disabled={respuestaLoading || !respuestaForm.materia.trim()}
           >
             {respuestaLoading ? <CircularProgress size={20} /> : 'Reservar número'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: subir PDF firmado de la respuesta → cola de despacho de Partes */}
+      <Dialog open={!!subirRespuesta} onClose={() => setSubirRespuesta(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Subir documento firmado · {subirRespuesta?.folio}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            {subirRespuesta?.estado === 'devuelta' && subirRespuesta?.motivo_devolucion && (
+              <Alert severity="warning">Devuelta por Oficina de Partes: {subirRespuesta.motivo_devolucion}</Alert>
+            )}
+            <Alert severity="info">
+              Al enviar, el documento queda en la cola de <strong>Oficina de Partes</strong> para su despacho al destinatario.
+            </Alert>
+            <input
+              ref={subirRespFileRef}
+              type="file"
+              accept=".pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => setSubirRespArchivo(e.target.files?.[0] ?? null)}
+            />
+            <Button variant="outlined" startIcon={<AttachIcon />} onClick={() => subirRespFileRef.current?.click()}>
+              {subirRespArchivo ? subirRespArchivo.name : 'Seleccionar PDF firmado'}
+            </Button>
+            <TextField
+              fullWidth
+              required
+              label="Destinatario externo"
+              value={subirRespForm.destinatario}
+              onChange={(e) => setSubirRespForm({ ...subirRespForm, destinatario: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              required
+              label="Firmante del documento"
+              value={subirRespForm.firmante}
+              onChange={(e) => setSubirRespForm({ ...subirRespForm, firmante: e.target.value })}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubirRespuesta(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSubirRespuesta}
+            disabled={subirRespLoading || !subirRespArchivo || !subirRespForm.destinatario.trim() || !subirRespForm.firmante.trim()}
+          >
+            {subirRespLoading ? <CircularProgress size={20} /> : 'Enviar a despacho'}
           </Button>
         </DialogActions>
       </Dialog>

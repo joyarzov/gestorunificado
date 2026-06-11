@@ -65,16 +65,23 @@ class CorrespondenciaSalidaController extends Controller
      */
     public function reservar(Request $request)
     {
-        if ($denied = $this->soloPartes()) {
-            return $denied;
-        }
-
         $request->validate([
             'tipo_documento' => 'required|in:' . implode(',', array_keys(Correspondencia::TIPOS_SALIDA)),
             'materia' => 'required|string|max:1000',
             'destinatario' => 'nullable|string|max:200',
             'respuesta_a_id' => 'nullable|exists:correspondencia,id',
         ]);
+
+        // Partes/admin reservan libremente; el Alcalde solo como RESPUESTA a
+        // una entrada (su solicitud llega a la cola de Partes para despacho).
+        $user = Auth::user();
+        $esPartes = $user->isAdmin() || $user->isOficial();
+        if (!$esPartes && !($user->isAlcalde() && $request->respuesta_a_id)) {
+            return $this->errorResponse(
+                'Solo la Oficina de Partes puede reservar números de salida (el Alcalde puede hacerlo como respuesta a una entrada).',
+                403
+            );
+        }
 
         // Si responde a una entrada, debe ser una ENTRADA visible para el usuario
         if ($request->respuesta_a_id) {
@@ -107,7 +114,7 @@ class CorrespondenciaSalidaController extends Controller
      */
     public function subirDocumento(Request $request, Correspondencia $salida)
     {
-        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloPartes: true)) {
+        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], creadorOPartes: true)) {
             return $denied;
         }
 
@@ -222,7 +229,7 @@ class CorrespondenciaSalidaController extends Controller
     /** Anula la reserva: el folio queda en acta con su motivo, nunca se reutiliza. */
     public function anular(Request $request, Correspondencia $salida)
     {
-        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], soloPartes: true)) {
+        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], creadorOPartes: true)) {
             return $denied;
         }
 
@@ -274,7 +281,8 @@ class CorrespondenciaSalidaController extends Controller
     private function validarSalida(
         Correspondencia $salida,
         array $estados,
-        bool $soloPartes = false
+        bool $soloPartes = false,
+        bool $creadorOPartes = false
     ) {
         if ($salida->direccion !== 'salida') {
             return $this->errorResponse('Esta correspondencia no es una salida.', 422);
@@ -282,6 +290,14 @@ class CorrespondenciaSalidaController extends Controller
 
         if ($soloPartes && ($denied = $this->soloPartes())) {
             return $denied;
+        }
+
+        if ($creadorOPartes) {
+            $user = Auth::user();
+            $esPartes = $user->isAdmin() || $user->isOficial();
+            if (!$esPartes && $salida->usuario_id !== $user->contexto()->id) {
+                return $this->errorResponse('Solo quien reservó el número (o la Oficina de Partes) puede hacer esto.', 403);
+            }
         }
 
         if (!in_array($salida->estado, $estados, true)) {
