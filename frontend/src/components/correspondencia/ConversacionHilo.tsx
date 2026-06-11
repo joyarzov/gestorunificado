@@ -176,6 +176,15 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     </Box>
   )
 
+  // Hitos de trazabilidad (acuse de recibo): línea centrada y discreta
+  const renderEvento = (it: HiloItem) => (
+    <Box key={`e-${it.id}`} sx={{ my: 1, textAlign: 'center', color: 'text.secondary' }}>
+      <Typography variant="caption">
+        ✓ <strong>{it.texto}</strong> · {fechaCorta(it.fecha)}
+      </Typography>
+    </Box>
+  )
+
   const renderMensaje = (it: HiloItem) => (
     <Box key={`m-${it.id}`} sx={{ display: 'flex', justifyContent: it.es_mio ? 'flex-end' : 'flex-start', my: 1 }}>
       <Box
@@ -244,7 +253,11 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
 
             <Box sx={{ maxHeight: 460, overflowY: 'auto', pr: 0.5 }}>
               {hilo && hilo.items.length > 0 ? (
-                hilo.items.map((it) => (it.tipo === 'derivacion' ? renderDerivacion(it) : renderMensaje(it)))
+                hilo.items.map((it) =>
+                  it.tipo === 'derivacion' ? renderDerivacion(it)
+                    : it.tipo === 'evento' ? renderEvento(it)
+                    : renderMensaje(it)
+                )
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                   Aún no hay derivaciones ni mensajes.

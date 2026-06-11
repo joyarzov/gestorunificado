@@ -60,6 +60,19 @@ class CorrespondenciaMensajeController extends Controller
                 'acciones_para' => $d->acciones_para,
                 'tiene_pdf'     => !empty($d->pdf_ruta),
             ];
+
+            // El acuse de recibo es parte de la trazabilidad: evento propio
+            // en el hilo, con la fecha/hora real de la recepción.
+            if ($d->fecha_recepcion) {
+                $items[] = [
+                    'tipo'  => 'evento',
+                    'id'    => $d->id,
+                    'fecha' => $d->fecha_recepcion,
+                    'texto' => ($d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre ?? 'El destinatario')
+                        . ($d->usuarioDestino?->cargo ? " ({$d->usuarioDestino->cargo})" : '')
+                        . ' acusó recibo',
+                ];
+            }
         }
 
         foreach ($correspondencia->mensajes as $m) {

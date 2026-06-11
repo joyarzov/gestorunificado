@@ -65,7 +65,9 @@ export interface HiloAdjunto {
 }
 
 export interface HiloItem {
-  tipo: 'derivacion' | 'mensaje'
+  tipo: 'derivacion' | 'mensaje' | 'evento'
+  // evento (hitos de trazabilidad: acuses de recibo)
+  texto?: string
   id: number
   fecha: string
   // derivacion

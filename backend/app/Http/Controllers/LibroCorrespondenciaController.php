@@ -32,7 +32,7 @@ class LibroCorrespondenciaController extends Controller
         'derivada_alcaldia' => 'Derivada a Alcaldía',
         'en_proceso' => 'En Proceso',
         'derivada_funcionario' => 'Derivada a Funcionario',
-        'completada' => 'Completada',
+        'completada' => 'Recibida por destinatarios',
         'archivado' => 'Archivada',
     ];
 
