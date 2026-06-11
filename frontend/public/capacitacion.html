@@ -179,10 +179,12 @@
   <div class="cuerpo">
     <h2>¿Qué veremos hoy?</h2>
     <div class="grid c2">
-      <div class="card v2"><h4>1 · Acceso a la plataforma</h4><p>URL de acceso, certificado de seguridad, inicio de sesión y contraseñas.</p></div>
-      <div class="card v1"><h4>2 · El flujo de la correspondencia</h4><p>Desde que un documento llega al municipio hasta que se completa, con sus estados.</p></div>
-      <div class="card v3"><h4>3 · Capacitación por rol</h4><p>Oficina de Partes, Alcalde y subrogante, y funcionarios destinatarios.</p></div>
-      <div class="card v4"><h4>4 · Notificaciones y buenas prácticas</h4><p>Avisos por campana y correo, seguridad de la cuenta y recomendaciones.</p></div>
+      <div class="card v1"><h4>1 · La plataforma</h4><p>Qué es, qué problema resuelve, cómo funciona por dentro y cómo se protege la información (cifrado y respaldos).</p></div>
+      <div class="card v2"><h4>2 · Acceso</h4><p>URL, certificado de seguridad, inicio de sesión, contraseñas y perfiles.</p></div>
+      <div class="card v3"><h4>3 · El flujo completo</h4><p>De la recepción al cierre: folios, estados, derivaciones, providencias firmadas, respuestas y archivo.</p></div>
+      <div class="card v4"><h4>4 · Por rol</h4><p>Oficina de Partes (ingreso, salidas y libro oficial), Alcalde y subrogante, y funcionarios.</p></div>
+      <div class="card v2"><h4>5 · Notificaciones y buenas prácticas</h4><p>Avisos por campana y correo, seguridad de la cuenta y recomendaciones.</p></div>
+      <div class="card v1"><h4>6 · Recursos para después</h4><p>Manuales por rol descargables, guía del certificado y soporte — para consultar con calma.</p></div>
     </div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
@@ -234,6 +236,23 @@
     </ul>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 3b2 · SEGURIDAD Y RESPALDO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">La plataforma</div><div class="sub">¿Y si algo falla? Seguridad y respaldo de los datos</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>La informaci&oacute;n municipal est&aacute; protegida en capas</h2>
+    <div class="grid c2">
+      <div class="card v2"><h4>🔒 Conexi&oacute;n cifrada</h4><p>Todo el tr&aacute;fico viaja por <strong>HTTPS con certificado SSL local</strong> (autoridad certificadora interna). La plataforma solo es accesible <strong>dentro de la red municipal</strong> — no est&aacute; expuesta a internet.</p></div>
+      <div class="card v1"><h4>💾 Respaldo en el NAS</h4><p>El sistema completo se <strong>respalda en el NAS institucional</strong>: base de datos, documentos digitalizados, providencias y libros firmados.</p></div>
+      <div class="card v4"><h4>🕒 30 d&iacute;as de historia</h4><p>Un <strong>contenedor adicional de respaldo</strong> conserva hasta <strong>30 d&iacute;as de trabajo</strong>: ante cualquier incidente se puede volver a un punto anterior, <strong>restaurable con un clic</strong>.</p></div>
+      <div class="card v3"><h4>📜 Trazabilidad inmutable</h4><p>Cada acto queda registrado con autor, fecha y hora. Los documentos firmados se conservan <strong>id&eacute;nticos a como se emitieron</strong> y son verificables por su c&oacute;digo QR.</p></div>
+    </div>
+    <div class="nota ok">En simple: lo que ingresas hoy no se pierde ma&ntilde;ana — ni por un corte de luz, ni por una falla de equipo, ni por un error humano.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
 </section>
 
 <!-- 3c · QUÉ HACE -->
@@ -374,6 +393,28 @@
     <p>Pestañas <strong>Activas · Recibidas · Archivadas</strong>. El chip de cada fila indica tu gestión: <span class="chip warning">Por recibir</span> (debes acusar recibo), <span class="chip success">Recibida</span> o <span class="chip info">Derivada a Funcionario</span> (en seguimiento). <span class="chip outline">Solo lectura</span> = puedes ver, pero la acción es de otra persona.</p>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 8b · MAPA DE FOLIOS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Mapa de folios</div><div class="sub">Qu&eacute; numera cada serie — la chuleta</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Cada documento tiene SU folio — las series nunca se mezclan</h2>
+    <table class="tabla">
+      <tr><th style="width:190px">Serie</th><th>Qu&eacute; numera</th><th style="width:230px">Qui&eacute;n / cu&aacute;ndo lo asigna</th></tr>
+      <tr><td><strong>ING-2026-00045</strong></td><td>Cada correspondencia que <strong>llega</strong> al municipio (la entrada).</td><td>El sistema, autom&aacute;tico, al registrarla.</td></tr>
+      <tr><td><strong>PROV-2026-00012</strong></td><td>Cada <strong>providencia firmada</strong> del Alcalde (instrucci&oacute;n o acuse).</td><td>El sistema, al firmar con OTP.</td></tr>
+      <tr><td><strong>OF- / ORD- / CIRC- / CARTA-</strong></td><td>Cada documento que el municipio <strong>env&iacute;a</strong> (la salida), por tipo.</td><td>El sistema, al <strong>reservar</strong> — antes de imprimir y firmar.</td></tr>
+      <tr><td><strong>LIBRO-E- / LIBRO-S-</strong></td><td>Cada <strong>libro oficial</strong> emitido (entradas / salidas del per&iacute;odo).</td><td>El sistema, al firmar el libro con OTP.</td></tr>
+      <tr><td>"N&deg; Documento" (ej. Ord. N&deg; 658)</td><td>El n&uacute;mero que trae el <strong>documento externo</strong> — lo puso quien lo envi&oacute;.</td><td>Manual: lo digita Oficina de Partes como referencia.</td></tr>
+    </table>
+    <ul>
+      <li>Todas las series municipales son <strong>correlativas por a&ntilde;o y sin huecos</strong>: un folio anulado queda en acta con su motivo, nunca se reutiliza.</li>
+      <li>Adem&aacute;s del folio, cada documento firmado lleva un <strong>c&oacute;digo de verificaci&oacute;n</strong> (el QR): el folio es el nombre p&uacute;blico; el c&oacute;digo, la prueba de autenticidad.</li>
+    </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
 </section>
 
 <!-- 9 · SECCIÓN OFICINA DE PARTES -->
@@ -629,6 +670,38 @@
     <div class="nota">Toda acción queda registrada con tu nombre, cargo, fecha y hora — la trazabilidad es la garantía de todos.</div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 17b · PRÓXIMAS ETAPAS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Pr&oacute;ximas etapas</div><div class="sub">La plataforma sigue creciendo</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>Lo que viene en el camino</h2>
+    <div class="grid c3">
+      <div class="card v3"><h4>⏰ Plazos y vencimientos</h4><p>Fecha l&iacute;mite por derivaci&oacute;n, sem&aacute;foros de atraso y recordatorios autom&aacute;ticos — para que "responder antes del viernes" se controle solo.</p></div>
+      <div class="card v1"><h4>📝 Cero Papel</h4><p>Redacci&oacute;n y firma de los documentos DENTRO del sistema, con plantillas institucionales: la respuesta al externo nacer&aacute; digital, sin imprimir ni escanear.</p></div>
+      <div class="card v2"><h4>🌐 Verificaci&oacute;n p&uacute;blica</h4><p>Los c&oacute;digos QR de providencias y libros verificables <strong>desde internet</strong>, para que cualquier servicio o vecino compruebe la autenticidad.</p></div>
+    </div>
+    <div class="nota ok">Sus comentarios de hoy alimentan este camino: lo que les haga ruido o les falte, h&aacute;ganlo llegar a Inform&aacute;tica.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
+</section>
+
+<!-- 17c · RECURSOS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Recursos</div><div class="sub">Para consultar despu&eacute;s, con calma</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>&iquest;Dudas despu&eacute;s de hoy? Aqu&iacute; est&aacute; todo</h2>
+    <div class="grid c3">
+      <div class="card v1"><h4>📖 Manuales por rol</h4><p style="font-size:15px"><strong>docmunicipal.local/manuales</strong></p><p>Tres manuales en PDF — Oficina de Partes, Alcalde y Funcionarios — con los flujos paso a paso y preguntas frecuentes. Se ven en l&iacute;nea o se descargan.</p></div>
+      <div class="card v2"><h4>🔒 Gu&iacute;a del certificado</h4><p style="font-size:15px"><strong>docmunicipal.local/certificados</strong></p><p>La descarga del certificado SSL y la instalaci&oacute;n en 5 pasos, con c&oacute;mo verificar que qued&oacute; bien.</p></div>
+      <div class="card v3"><h4>🛟 Soporte</h4><p style="font-size:15px"><strong>Inform&aacute;tica Municipal</strong></p><p>Cuentas nuevas, correos, permisos, problemas de acceso o del certificado. Tambi&eacute;n reciben sugerencias de mejora.</p></div>
+    </div>
+    <div class="nota">Sugerencia: guarden estas dos direcciones en los favoritos del navegador junto con la plataforma.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
 </section>
 
 <!-- 18 · CIERRE -->
