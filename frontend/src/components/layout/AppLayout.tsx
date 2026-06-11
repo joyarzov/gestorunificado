@@ -75,6 +75,12 @@ const AppLayout = () => {
       .catch(() => {})
   }, [user])
 
+  // Volver al tope al cambiar de página: sin esto, al entrar al detalle
+  // se hereda el scroll del listado y el título/botones quedan fuera de vista.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
+
   const moduloActual: ModuleDefinition | null = getModuleByPath(location.pathname)
 
   const badges: Record<string, number> = {

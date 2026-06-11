@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, TextField, Button,
   Chip, CircularProgress, Stack, Alert, Divider,
+  Dialog, DialogTitle, DialogContent, IconButton,
 } from '@mui/material'
 import {
   Forum as ForumIcon,
@@ -16,7 +17,16 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { correspondenciaAPI, HiloItem, HiloResponse, HiloAdjunto } from '../../api/correspondencia'
 
-const EXT_PERMITIDAS = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rar'
+const EXT_PERMITIDAS = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rar,.jpg,.jpeg,.png'
+
+/** PDF e imágenes se abren en el visor; el resto se descarga. */
+const esVisualizable = (adj: HiloAdjunto): 'pdf' | 'imagen' | null => {
+  const mime = (adj.tipo_mime || '').toLowerCase()
+  const nombre = adj.nombre.toLowerCase()
+  if (mime.includes('pdf') || nombre.endsWith('.pdf')) return 'pdf'
+  if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/.test(nombre)) return 'imagen'
+  return null
+}
 
 const formatTamanio = (bytes: number) =>
   bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -91,6 +101,30 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     } catch {
       setError('No se pudo descargar el adjunto')
     }
+  }
+
+  // Visor para PDF e imágenes (el resto siempre se descarga)
+  const [viewer, setViewer] = useState<{ url: string; nombre: string; tipo: 'pdf' | 'imagen' } | null>(null)
+
+  const abrirAdjunto = async (adj: HiloAdjunto) => {
+    const tipo = esVisualizable(adj)
+    if (!tipo) {
+      descargarAdjunto(adj)
+      return
+    }
+    try {
+      const blob = await correspondenciaAPI.descargarMensajeAdjunto(adj.id)
+      const mime = tipo === 'pdf' ? 'application/pdf' : (adj.tipo_mime || 'image/png')
+      const url = URL.createObjectURL(new Blob([blob as Blob], { type: mime }))
+      setViewer({ url, nombre: adj.nombre, tipo })
+    } catch {
+      setError('No se pudo abrir el adjunto')
+    }
+  }
+
+  const cerrarViewer = () => {
+    if (viewer) URL.revokeObjectURL(viewer.url)
+    setViewer(null)
   }
 
   // "Nombre (Cargo)" o el departamento como respaldo.
@@ -175,7 +209,7 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
                 key={adj.id}
                 icon={<FileIcon />}
                 label={`${adj.nombre} · ${formatTamanio(adj.tamanio_bytes)}`}
-                onClick={() => descargarAdjunto(adj)}
+                onClick={() => abrirAdjunto(adj)}
                 onDelete={() => descargarAdjunto(adj)}
                 deleteIcon={<DownloadIcon />}
                 size="small"
@@ -264,7 +298,7 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
                       Adjuntar
                     </Button>
                     <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                      PDF, Word, Excel, PowerPoint, RAR · máx. 20 MB c/u
+                      PDF, imágenes, Word, Excel, PowerPoint, RAR · máx. 20 MB c/u
                     </Typography>
                   </Box>
                   <Button
@@ -282,6 +316,32 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
           </>
         )}
       </CardContent>
+
+      {/* Visor de adjuntos (PDF e imágenes; el resto se descarga) */}
+      <Dialog open={!!viewer} onClose={cerrarViewer} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+          <Typography variant="subtitle1" noWrap sx={{ pr: 2 }}>{viewer?.nombre}</Typography>
+          <Box>
+            <IconButton size="small" title="Descargar" onClick={() => {
+              if (!viewer) return
+              const a = document.createElement('a')
+              a.href = viewer.url
+              a.download = viewer.nombre
+              a.click()
+            }}>
+              <DownloadIcon />
+            </IconButton>
+            <IconButton size="small" onClick={cerrarViewer}><CloseIcon /></IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, height: '78vh', display: 'flex', justifyContent: 'center', bgcolor: '#525659' }}>
+          {viewer?.tipo === 'pdf' ? (
+            <iframe src={viewer.url} title={viewer.nombre} style={{ width: '100%', height: '100%', border: 'none' }} />
+          ) : viewer ? (
+            <img src={viewer.url} alt={viewer.nombre} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', alignSelf: 'center' }} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

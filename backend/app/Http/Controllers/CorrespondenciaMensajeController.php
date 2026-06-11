@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 class CorrespondenciaMensajeController extends Controller
 {
     /** Extensiones permitidas en los adjuntos del hilo. */
-    private const EXTENSIONES = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'rar'];
+    private const EXTENSIONES = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'rar', 'jpg', 'jpeg', 'png'];
 
     /**
      * Hilo unificado de una correspondencia: derivaciones (formales, firmadas)
