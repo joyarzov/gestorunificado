@@ -86,8 +86,16 @@ class CorrespondenciaSalidaController extends Controller
         // Si responde a una entrada, debe ser una ENTRADA visible para el usuario
         if ($request->respuesta_a_id) {
             $entrada = Correspondencia::find($request->respuesta_a_id);
-            if ($entrada->direccion !== 'entrada' || !$entrada->esVisiblePara(Auth::user())) {
+            if ($entrada->direccion !== 'entrada' || !$entrada->esVisiblePara($user)) {
                 return $this->errorResponse('La correspondencia a responder no es válida.', 422);
+            }
+            // El Alcalde solo puede responder cuando ya existe la providencia
+            // (la generó al derivar a funcionario o al marcar como recibida).
+            if (!$esPartes && !$entrada->providencia_generada) {
+                return $this->errorResponse(
+                    'No se puede preparar una respuesta sin haber generado la providencia correspondiente.',
+                    422
+                );
             }
         }
 

@@ -411,7 +411,10 @@ const CorrespondenciaDetail = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: { xs: 'wrap', md: 'nowrap' }, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
-          {(isAdmin() || isOficial() || isAlcalde()) && correspondencia.estado !== 'pendiente' && (
+          {/* Preparar respuesta: Partes/admin siempre (post-ingreso); el Alcalde
+              solo cuando ya existe la providencia (derivó o marcó recibida). */}
+          {((isAdmin() || isOficial()) && correspondencia.estado !== 'pendiente'
+            || (isAlcalde() && !!correspondencia.providencia_generada)) && (
             <Button
               variant="outlined"
               startIcon={<ReplyIcon />}
