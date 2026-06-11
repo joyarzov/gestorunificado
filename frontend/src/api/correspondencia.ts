@@ -118,7 +118,7 @@ export interface BandejaResponse {
   page: number
   last_page: number
   per_page: number
-  counts: { pendientes: number; recibidas: number }
+  counts: { pendientes: number; recibidas: number; archivadas: number }
 }
 
 export interface HiloResponse {
@@ -290,7 +290,7 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  derivacionesPendientes: async (params?: { tab?: 'pendientes' | 'recibidas'; page?: number; per_page?: number }) => {
+  derivacionesPendientes: async (params?: { tab?: 'pendientes' | 'recibidas' | 'archivadas'; page?: number; per_page?: number }) => {
     const response = await api.get<ApiResponse<BandejaResponse>>('/derivaciones/pendientes', { params })
     return response.data
   },

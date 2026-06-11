@@ -587,25 +587,36 @@ class DerivacionController extends Controller
               });
         });
 
-        // Contadores de ambas pestañas (independientes de la página actual)
+        // Las correspondencias con proceso cerrado van a su propia pestaña
+        // "Archivadas"; las pestañas de trabajo no las mezclan.
+        $noArchivadas = fn ($q) => $q->whereHas('correspondencia', fn ($c) => $c->where('estado', '!=', 'archivado'));
+        $archivadas = fn ($q) => $q->whereHas('correspondencia', fn ($c) => $c->where('estado', 'archivado'));
+
+        // Contadores de las pestañas (independientes de la página actual)
         $counts = [
-            'pendientes' => (clone $base)->whereIn('estado', ['pendiente', 'derivado'])->count(),
-            'recibidas'  => (clone $base)->where('estado', 'recibido')->count(),
+            'pendientes' => $noArchivadas((clone $base)->whereIn('estado', ['pendiente', 'derivado']))->count(),
+            'recibidas'  => $noArchivadas((clone $base)->where('estado', 'recibido'))->count(),
+            'archivadas' => $archivadas(clone $base)->count(),
         ];
 
-        $estados = $request->input('tab') === 'recibidas'
-            ? ['recibido']
-            : ['pendiente', 'derivado'];
-
-        $derivaciones = (clone $base)->with([
+        $tab = $request->input('tab', 'pendientes');
+        $query = (clone $base)->with([
             'correspondencia',
             'departamentoOrigen',
             'usuarioOrigen',
             'usuarioDestino:id,nombre,cargo',
             'actuandoComo:id,nombre,cargo',
-        ])
-            ->whereIn('estado', $estados)
-            ->orderBy('created_at', 'desc')
+        ]);
+
+        if ($tab === 'archivadas') {
+            $archivadas($query);
+        } elseif ($tab === 'recibidas') {
+            $noArchivadas($query->where('estado', 'recibido'));
+        } else {
+            $noArchivadas($query->whereIn('estado', ['pendiente', 'derivado']));
+        }
+
+        $derivaciones = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 30));
 
         // Igual que CorrespondenciaController::bandeja(): marca por ítem si el

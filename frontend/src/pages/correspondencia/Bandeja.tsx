@@ -39,7 +39,7 @@ const BandejaEntrada = () => {
   const [tab, setTab] = useState(0)
   const [page, setPage] = useState(1)
   const [lastPage, setLastPage] = useState(1)
-  const [counts, setCounts] = useState({ pendientes: 0, recibidas: 0 })
+  const [counts, setCounts] = useState({ pendientes: 0, recibidas: 0, archivadas: 0 })
 
   useEffect(() => {
     loadBandeja()
@@ -51,7 +51,7 @@ const BandejaEntrada = () => {
     setError('')
     try {
       const response = await correspondenciaAPI.derivacionesPendientes({
-        tab: tab === 0 ? 'pendientes' : 'recibidas',
+        tab: tab === 0 ? 'pendientes' : tab === 1 ? 'recibidas' : 'archivadas',
         page,
         per_page: 30,
       })
@@ -111,9 +111,11 @@ const BandejaEntrada = () => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           {/* "Activas" agrupa lo por recibir Y lo derivado en seguimiento;
-              el estado puntual de cada ítem lo dice su chip. */}
+              el estado puntual de cada ítem lo dice su chip. Las archivadas
+              (proceso cerrado por el Alcalde) tienen su propia pestaña. */}
           <Tab label={`Activas (${counts.pendientes})`} />
           <Tab label={`Recibidas (${counts.recibidas})`} />
+          <Tab label={`Archivadas (${counts.archivadas})`} />
         </Tabs>
 
         <TableContainer>
@@ -172,11 +174,15 @@ const BandejaEntrada = () => {
                     </TableCell>
                     <TableCell>{der.departamento_origen?.nombre || '-'}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={der.estado === 'pendiente' ? 'Por recibir' : der.estado === 'recibido' ? 'Recibida' : der.estado === 'derivado' ? 'Derivada a Funcionario' : der.estado}
-                        color={der.estado === 'pendiente' ? 'warning' : der.estado === 'derivado' ? 'info' : 'success'}
-                        size="small"
-                      />
+                      {tab === 2 ? (
+                        <Chip label="Archivada" color="default" size="small" />
+                      ) : (
+                        <Chip
+                          label={der.estado === 'pendiente' ? 'Por recibir' : der.estado === 'recibido' ? 'Recibida' : der.estado === 'derivado' ? 'Derivada a Funcionario' : der.estado}
+                          color={der.estado === 'pendiente' ? 'warning' : der.estado === 'derivado' ? 'info' : 'success'}
+                          size="small"
+                        />
+                      )}
                     </TableCell>
                     <TableCell align="center">
                       <IconButton
@@ -186,7 +192,7 @@ const BandejaEntrada = () => {
                       >
                         <ViewIcon />
                       </IconButton>
-                      {der.estado === 'pendiente' && der.puede_actuar && (
+                      {tab !== 2 && der.estado === 'pendiente' && der.puede_actuar && (
                         <IconButton
                           size="small"
                           color="success"
@@ -196,7 +202,7 @@ const BandejaEntrada = () => {
                           <RecibirIcon />
                         </IconButton>
                       )}
-                      {der.estado === 'recibido' && der.puede_actuar && (
+                      {tab !== 2 && der.estado === 'recibido' && der.puede_actuar && (
                         <IconButton
                           size="small"
                           color="primary"
@@ -206,7 +212,7 @@ const BandejaEntrada = () => {
                           <ArchivarIcon />
                         </IconButton>
                       )}
-                      {!der.puede_actuar && (der.estado === 'pendiente' || der.estado === 'recibido') && (
+                      {tab !== 2 && !der.puede_actuar && (der.estado === 'pendiente' || der.estado === 'recibido') && (
                         <Chip label="Solo lectura" size="small" variant="outlined" sx={{ ml: 0.5, height: 20, fontSize: 10 }} />
                       )}
                     </TableCell>
