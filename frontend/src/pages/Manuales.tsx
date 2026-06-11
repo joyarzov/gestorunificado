@@ -104,9 +104,14 @@ const Manuales = () => {
         ))}
       </Grid>
 
-      <Button variant="text" size="small" sx={{ color: '#fff' }} onClick={() => navigate('/login')}>
-        Ir al inicio de sesión
-      </Button>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button variant="text" size="small" sx={{ color: '#fff' }} onClick={() => navigate('/certificados')}>
+          Certificado de seguridad
+        </Button>
+        <Button variant="text" size="small" sx={{ color: '#fff' }} onClick={() => navigate('/login')}>
+          Ir al inicio de sesión
+        </Button>
+      </Box>
 
       {/* Visor del manual en popup */}
       <Dialog open={!!viewer} onClose={() => setViewer(null)} maxWidth="lg" fullWidth>

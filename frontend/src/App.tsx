@@ -8,6 +8,7 @@ import Login from './pages/auth/Login'
 import RecuperarPassword from './pages/auth/RecuperarPassword'
 import RestablecerPassword from './pages/auth/RestablecerPassword'
 import Manuales from './pages/Manuales'
+import Certificados from './pages/Certificados'
 import PublicHome from './pages/PublicHome'
 import Portal from './pages/Portal'
 
@@ -79,6 +80,7 @@ function App() {
         <Route path="/restablecer-password" element={<RestablecerPassword />} />
         <Route path="/portal-ciudadano" element={<PublicHome />} />
         <Route path="/manuales" element={<Manuales />} />
+        <Route path="/certificados" element={<Certificados />} />
         <Route path="/oirs" element={<OirsPublicForm />} />
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />
         <Route path="/verificar" element={<VerificarDocumento />} />
