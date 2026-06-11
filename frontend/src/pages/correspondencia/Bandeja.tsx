@@ -118,7 +118,7 @@ const BandejaEntrada = () => {
           <Table sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
+                <TableCell>Folio</TableCell>
                 <TableCell>N° Documento</TableCell>
                 <TableCell>Remitente</TableCell>
                 <TableCell>Fecha Recibo</TableCell>
@@ -145,7 +145,7 @@ const BandejaEntrada = () => {
               ) : (
                 filteredDerivaciones.map((der) => (
                   <TableRow key={der.id} hover>
-                    <TableCell>{der.correspondencia_id}</TableCell>
+                    <TableCell><strong>{der.correspondencia?.folio || `#${der.correspondencia_id}`}</strong></TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {der.correspondencia?.numero_documento || '-'}
