@@ -61,19 +61,25 @@ export default function FirmaPagePreview({
       >
         {/* Fondo: PDF real o página simulada */}
         {pdfUrl ? (
-          <Box
-            component="iframe"
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            sx={{
-              position: 'absolute',
-              top: 0, left: 0,
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              pointerEvents: 'none',
-            }}
-            title="Preview documento"
-          />
+          <>
+            <Box
+              component="iframe"
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+              tabIndex={-1}
+              sx={{
+                position: 'absolute',
+                top: 0, left: 0,
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                pointerEvents: 'none',
+              }}
+              title="Preview documento"
+            />
+            {/* Capa que absorbe el mouse: evita que el visor PDF de Chrome
+                muestre sus controles flotantes (zoom/descarga) al pasar
+                el cursor. El preview es solo ilustrativo. */}
+            <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, bgcolor: 'transparent' }} />
         ) : (
           <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
             {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
