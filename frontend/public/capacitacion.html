@@ -221,7 +221,12 @@
       <li>Si tu cuenta tiene más de un perfil (por ejemplo, Oficial de Partes y Usuario), la plataforma te pedirá <strong>elegir con cuál perfil entrar</strong>. Lo que puedes ver y hacer depende del perfil elegido.</li>
       <li>Si eres <strong>subrogante</strong> de otra persona con subrogancia activa, también verás la opción <em>"Actuar como…"</em>.</li>
     </ul>
-    <div class="nota">La plataforma funciona <strong>solo dentro de la red municipal</strong>. No es accesible desde internet.</div>
+    <h3>Seguridad de la conexi&oacute;n</h3>
+    <ul>
+      <li>La plataforma funciona sobre <strong>HTTPS con un certificado SSL local</strong> (autoridad certificadora interna de la red municipal): todo el tr&aacute;fico viaja <strong>cifrado</strong> entre tu equipo y el servidor.</li>
+      <li>Por eso cada equipo instala el certificado una vez (siguiente l&aacute;mina): as&iacute; el navegador reconoce la conexi&oacute;n como segura y muestra el candado 🔒.</li>
+    </ul>
+    <div class="nota">La plataforma funciona <strong>solo dentro de la red municipal</strong>. No es accesible desde internet — y dentro de la red, viaja cifrada.</div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
@@ -232,7 +237,7 @@
   <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
   <div class="cuerpo">
     <h2>Para navegar con el candado 🔒 (HTTPS)</h2>
-    <p class="lead">La plataforma usa un certificado propio de la red municipal. Para que el navegador la reconozca como segura, hay que instalar el certificado <strong>una sola vez en cada equipo</strong>.</p>
+    <p class="lead">La plataforma se sirve con un <strong>certificado SSL local</strong>, emitido por la autoridad certificadora interna del municipio: la conexi&oacute;n viaja cifrada para mayor seguridad. Para que el navegador la reconozca como confiable, se instala el certificado <strong>una sola vez en cada equipo</strong>.</p>
     <h3>Pasos de instalación (Windows)</h3>
     <ol>
       <li><strong>Descargar el certificado</strong> desde: <code>http://192.168.0.106:3001/certificados</code> (página con la guía paso a paso y el botón de descarga)</li>
