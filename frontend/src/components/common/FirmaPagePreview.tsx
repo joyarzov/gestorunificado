@@ -23,6 +23,13 @@ const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los co
 const scale = PREVIEW_W_PX / PAGE_W_PT
 const previewH = Math.round(PAGE_H_PT * scale)
 
+// Zoom fijo para que la página llene el ancho del contenedor aunque el
+// iframe sea más alto (Chrome interpreta 100% como 96dpi: 1pt = 96/72 px).
+const ZOOM_PCT = ((PREVIEW_W_PX / (PAGE_W_PT * (96 / 72))) * 100).toFixed(1)
+// La píldora de controles de Chrome se ancla al borde inferior del iframe:
+// lo hacemos más alto que el contenedor (overflow hidden) y queda recortada.
+const PILL_CLIP_PX = 120
+
 const colXPx = [71, 233, 395].map(x => Math.round(x * scale)) // aligned with 2.5cm left margin
 const stampW = Math.round(STAMP_W_PT * scale)
 const stampH = Math.round(STAMP_H_PT * scale)
@@ -64,13 +71,13 @@ export default function FirmaPagePreview({
           <>
             <Box
               component="iframe"
-              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&zoom=${ZOOM_PCT}`}
               tabIndex={-1}
               sx={{
                 position: 'absolute',
                 top: 0, left: 0,
                 width: '100%',
-                height: '100%',
+                height: `calc(100% + ${PILL_CLIP_PX}px)`,
                 border: 'none',
                 pointerEvents: 'none',
               }}
