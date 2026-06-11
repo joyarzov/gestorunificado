@@ -148,6 +148,8 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
         Route::get('/exportar', [CorrespondenciaController::class, 'exportar']);
+        Route::post('/{correspondencia}/archivar', [CorrespondenciaController::class, 'archivar']);
+        Route::post('/{correspondencia}/desarchivar', [CorrespondenciaController::class, 'desarchivar']);
 
         // Correspondencia de SALIDA (reserva de número → cola de despacho)
         Route::get('/salidas', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'index']);

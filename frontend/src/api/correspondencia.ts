@@ -66,9 +66,9 @@ export interface HiloAdjunto {
 
 export interface HiloItem {
   tipo: 'derivacion' | 'mensaje' | 'evento'
-  // evento (hitos de trazabilidad: acuses de recibo)
+  // evento (hitos de trazabilidad: acuses de recibo, cierre del proceso)
   texto?: string
-  id: number
+  id: number | string
   fecha: string
   // derivacion
   estado?: string
@@ -161,6 +161,17 @@ export const correspondenciaAPI = {
 
   obtenerAlcaldeInfo: async () => {
     const response = await api.get<ApiResponse<AlcaldeInfo>>('/correspondencia/alcalde-info')
+    return response.data
+  },
+
+  // Cierre / reapertura del proceso (solo Alcalde)
+  archivarCorrespondencia: async (id: number) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/${id}/archivar`)
+    return response.data
+  },
+
+  desarchivarCorrespondencia: async (id: number) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/${id}/desarchivar`)
     return response.data
   },
 

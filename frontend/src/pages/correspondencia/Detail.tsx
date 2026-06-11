@@ -34,6 +34,8 @@ import {
   PictureAsPdf as PdfIcon,
   CheckCircle as CheckCircleIcon,
   Reply as ReplyIcon,
+  Archive as ArchivarIcon,
+  Unarchive as DesarchivarIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { Correspondencia, Adjunto } from '../../types'
@@ -78,6 +80,39 @@ const CorrespondenciaDetail = () => {
   const [acuseDialogOpen, setAcuseDialogOpen] = useState(false)
   const [acuseDerivacionId, setAcuseDerivacionId] = useState<number | null>(null)
   const [acuseLoading, setAcuseLoading] = useState(false)
+
+  // Cierre / reapertura del proceso (solo Alcalde)
+  const [archivoLoading, setArchivoLoading] = useState(false)
+
+  const handleArchivar = async () => {
+    if (!correspondencia || !window.confirm(
+      `¿Cerrar el proceso de ${correspondencia.folio || 'esta correspondencia'}? Quedará archivada y de solo lectura (solo el Alcalde puede desarchivarla).`
+    )) return
+    setArchivoLoading(true)
+    try {
+      const res = await correspondenciaAPI.archivarCorrespondencia(correspondencia.id)
+      setSnackbar({ open: true, message: res.message || 'Proceso cerrado' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo cerrar el proceso' })
+    } finally {
+      setArchivoLoading(false)
+    }
+  }
+
+  const handleDesarchivar = async () => {
+    if (!correspondencia) return
+    setArchivoLoading(true)
+    try {
+      const res = await correspondenciaAPI.desarchivarCorrespondencia(correspondencia.id)
+      setSnackbar({ open: true, message: res.message || 'Proceso reabierto' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo desarchivar' })
+    } finally {
+      setArchivoLoading(false)
+    }
+  }
 
   // Preparar respuesta (reserva de número de salida vinculada)
   const [respuestaOpen, setRespuestaOpen] = useState(false)
@@ -432,9 +467,35 @@ const CorrespondenciaDetail = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: { xs: 'wrap', md: 'nowrap' }, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
+          {/* Cierre del proceso: solo el Alcalde, cuando ya fue recibida por
+              los destinatarios. Desarchivar reabre el proceso. */}
+          {isAlcalde() && correspondencia.estado === 'completada' && (
+            <Button
+              variant="contained"
+              color="inherit"
+              sx={{ bgcolor: '#4D4D4D', color: '#fff', '&:hover': { bgcolor: '#333' } }}
+              startIcon={archivoLoading ? <CircularProgress size={18} color="inherit" /> : <ArchivarIcon />}
+              onClick={handleArchivar}
+              disabled={archivoLoading}
+            >
+              Cerrar proceso
+            </Button>
+          )}
+          {isAlcalde() && correspondencia.estado === 'archivado' && (
+            <Button
+              variant="outlined"
+              startIcon={archivoLoading ? <CircularProgress size={18} /> : <DesarchivarIcon />}
+              onClick={handleDesarchivar}
+              disabled={archivoLoading}
+            >
+              Desarchivar
+            </Button>
+          )}
           {/* Preparar respuesta: Partes/admin siempre (post-ingreso); el Alcalde
-              solo cuando ya existe la providencia (derivó o marcó recibida). */}
-          {((isAdmin() || isOficial()) && correspondencia.estado !== 'pendiente'
+              solo cuando ya existe la providencia (derivó o marcó recibida).
+              Nunca sobre un proceso cerrado. */}
+          {correspondencia.estado !== 'archivado'
+            && ((isAdmin() || isOficial()) && correspondencia.estado !== 'pendiente'
             || (isAlcalde() && !!correspondencia.providencia_generada)) && (
             <Button
               variant="outlined"
@@ -502,6 +563,14 @@ const CorrespondenciaDetail = () => {
       {isPendienteSinDerivaciones && (isAdmin() || isOficial()) && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Esta correspondencia aún no ha sido derivada. Debe derivarla al Alcalde para continuar el flujo.
+        </Alert>
+      )}
+
+      {correspondencia.estado === 'archivado' && (
+        <Alert severity="info" icon={<ArchivarIcon />} sx={{ mb: 2 }}>
+          <strong>Proceso cerrado.</strong> Esta correspondencia fue archivada
+          {correspondencia.archivada_at ? ` el ${format(new Date(correspondencia.archivada_at), 'dd/MM/yyyy HH:mm', { locale: es })}` : ''} y
+          es de solo lectura: no admite mensajes, derivaciones ni respuestas. Solo el Alcalde puede desarchivarla.
         </Alert>
       )}
 

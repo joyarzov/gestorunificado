@@ -169,6 +169,62 @@ class CorrespondenciaController extends Controller
         return $this->successResponse(null, 'Correspondencia eliminada');
     }
 
+    /**
+     * Cierre formal del proceso: SOLO el Alcalde archiva, y solo cuando la
+     * correspondencia ya fue recibida por sus destinatarios. Al archivar
+     * queda de solo lectura (sin mensajes, derivaciones ni respuestas).
+     */
+    public function archivar(Correspondencia $correspondencia)
+    {
+        $user = Auth::user();
+        if (!$user->isAlcalde()) {
+            return $this->errorResponse('Solo el Alcalde puede cerrar el proceso de una correspondencia.', 403);
+        }
+        if ($correspondencia->direccion !== 'entrada') {
+            return $this->errorResponse('Solo se archivan correspondencias de entrada.', 422);
+        }
+        if ($correspondencia->estado !== 'completada') {
+            return $this->errorResponse(
+                'Solo se puede cerrar el proceso cuando la correspondencia fue recibida por sus destinatarios.',
+                422
+            );
+        }
+
+        $correspondencia->update([
+            'estado' => 'archivado',
+            'archivada_por' => $user->id,
+            'archivada_at' => now(),
+        ]);
+
+        return $this->successResponse(
+            $correspondencia->fresh(),
+            "Proceso cerrado: {$correspondencia->folio} quedó archivada"
+        );
+    }
+
+    /** Reabre el proceso (solo el Alcalde): vuelve a "Recibida por destinatarios". */
+    public function desarchivar(Correspondencia $correspondencia)
+    {
+        $user = Auth::user();
+        if (!$user->isAlcalde()) {
+            return $this->errorResponse('Solo el Alcalde puede desarchivar una correspondencia.', 403);
+        }
+        if ($correspondencia->estado !== 'archivado') {
+            return $this->errorResponse('La correspondencia no está archivada.', 422);
+        }
+
+        $correspondencia->update([
+            'estado' => 'completada',
+            'archivada_por' => null,
+            'archivada_at' => null,
+        ]);
+
+        return $this->successResponse(
+            $correspondencia->fresh(),
+            "Proceso reabierto: {$correspondencia->folio} volvió a gestión"
+        );
+    }
+
     public function bandeja(Request $request)
     {
         $user = Auth::user();

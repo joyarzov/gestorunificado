@@ -89,6 +89,9 @@ class CorrespondenciaSalidaController extends Controller
             if ($entrada->direccion !== 'entrada' || !$entrada->esVisiblePara($user)) {
                 return $this->errorResponse('La correspondencia a responder no es válida.', 422);
             }
+            if ($entrada->estaArchivada()) {
+                return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde): desarchívala para responder.', 422);
+            }
             // El Alcalde solo puede responder cuando ya existe la providencia
             // (la generó al derivar a funcionario o al marcar como recibida).
             if (!$esPartes && !$entrada->providencia_generada) {

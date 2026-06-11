@@ -85,6 +85,8 @@ export interface Correspondencia {
   motivo_devolucion?: string | null
   // entrada
   respondida_at?: string | null
+  archivada_at?: string | null
+  archivada_por?: number | null
   created_at: string
   updated_at: string
 }

@@ -92,6 +92,19 @@ class CorrespondenciaMensajeController extends Controller
             ];
         }
 
+        // Cierre del proceso: hito final de la trazabilidad
+        if ($correspondencia->archivada_at) {
+            $correspondencia->loadMissing('archivadaPor:id,nombre,cargo');
+            $items[] = [
+                'tipo'  => 'evento',
+                'id'    => 'cierre-' . $correspondencia->id,
+                'fecha' => $correspondencia->archivada_at,
+                'texto' => ($correspondencia->archivadaPor?->nombre ?? 'El Alcalde')
+                    . ($correspondencia->archivadaPor?->cargo ? " ({$correspondencia->archivadaPor->cargo})" : '')
+                    . ' cerró el proceso (archivada)',
+            ];
+        }
+
         usort($items, fn ($a, $b) => $a['fecha']->getTimestamp() <=> $b['fecha']->getTimestamp());
 
         $participantes = User::whereIn('id', $this->participantesIds($correspondencia))->get(['id', 'nombre']);
@@ -99,7 +112,8 @@ class CorrespondenciaMensajeController extends Controller
         return $this->successResponse([
             'items'           => $items,
             'participantes'   => $participantes,
-            'puede_responder' => $this->esParticipante($correspondencia, Auth::user()),
+            'puede_responder' => !$correspondencia->estaArchivada()
+                && $this->esParticipante($correspondencia, Auth::user()),
         ]);
     }
 
@@ -109,6 +123,9 @@ class CorrespondenciaMensajeController extends Controller
         $user = Auth::user();
         if (!$this->esParticipante($correspondencia, $user)) {
             return $this->errorResponse('No participas en esta correspondencia.', 403);
+        }
+        if ($correspondencia->estaArchivada()) {
+            return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde): la conversación es de solo lectura.', 422);
         }
 
         $request->validate([

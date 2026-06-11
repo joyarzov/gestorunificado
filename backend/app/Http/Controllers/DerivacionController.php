@@ -89,6 +89,9 @@ class DerivacionController extends Controller
         if (!$correspondencia->esVisiblePara($user)) {
             return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
         }
+        if ($correspondencia->estaArchivada()) {
+            return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde): no admite nuevas derivaciones.', 422);
+        }
         $esOficinaPartes = ($user->isAdmin() || $user->isOficial()) && $correspondencia->estado === 'pendiente';
         $esDestinatarioActivo = $correspondencia->derivaciones()
             ->whereIn('estado', ['pendiente', 'recibido'])
@@ -631,6 +634,9 @@ class DerivacionController extends Controller
         // cuando no hay usuario). Admin/oficina de partes supervisan, no intervienen.
         if (!$derivacion->esDestinatario($user)) {
             return $this->errorResponse('No tienes permiso para recibir esta derivación', 403);
+        }
+        if ($derivacion->correspondencia?->estaArchivada()) {
+            return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde).', 422);
         }
 
         // Si es Alcalde, generar y firmar una Providencia (dirigida a Alcaldía por defecto) con FirmaGob

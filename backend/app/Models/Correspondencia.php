@@ -45,6 +45,8 @@ class Correspondencia extends Model
         'despachada_por',
         'motivo_devolucion',
         'respondida_at',
+        'archivada_por',
+        'archivada_at',
     ];
 
     protected $casts = [
@@ -55,7 +57,14 @@ class Correspondencia extends Model
         'fecha_despacho' => 'date',
         'providencia_generada' => 'boolean',
         'respondida_at' => 'datetime',
+        'archivada_at' => 'datetime',
     ];
+
+    /** ¿Proceso cerrado por el Alcalde? Solo lectura hasta desarchivar. */
+    public function estaArchivada(): bool
+    {
+        return $this->estado === 'archivado';
+    }
 
     /**
      * Folio correlativo por serie y año, calculado desde la propia tabla
@@ -122,6 +131,11 @@ class Correspondencia extends Model
     public function despachadaPor()
     {
         return $this->belongsTo(User::class, 'despachada_por');
+    }
+
+    public function archivadaPor()
+    {
+        return $this->belongsTo(User::class, 'archivada_por');
     }
 
     public function scopeEntradas($query)
