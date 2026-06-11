@@ -59,7 +59,7 @@ export const MODULES: ModuleDefinition[] = [
     color: '#28A9E3',
     icono: MailIcon,
     rootPath: '/correspondencia',
-    urlPrefixes: ['/correspondencia', '/bandeja', '/ingresar', '/buscar'],
+    urlPrefixes: ['/correspondencia', '/bandeja', '/ingresar', '/buscar', '/salidas', '/libro-correspondencia'],
   },
   {
     id: 'gestor_documental',
