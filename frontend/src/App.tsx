@@ -7,6 +7,7 @@ import AppLayout from './components/layout/AppLayout'
 import Login from './pages/auth/Login'
 import RecuperarPassword from './pages/auth/RecuperarPassword'
 import RestablecerPassword from './pages/auth/RestablecerPassword'
+import Manuales from './pages/Manuales'
 import PublicHome from './pages/PublicHome'
 import Portal from './pages/Portal'
 
@@ -77,6 +78,7 @@ function App() {
         <Route path="/recuperar-password" element={<RecuperarPassword />} />
         <Route path="/restablecer-password" element={<RestablecerPassword />} />
         <Route path="/portal-ciudadano" element={<PublicHome />} />
+        <Route path="/manuales" element={<Manuales />} />
         <Route path="/oirs" element={<OirsPublicForm />} />
         <Route path="/oirs/consultar" element={<OirsPublicConsult />} />
         <Route path="/verificar" element={<VerificarDocumento />} />

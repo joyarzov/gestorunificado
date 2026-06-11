@@ -282,19 +282,19 @@
   <div class="cuerpo">
     <h2>De la recepción a la completitud</h2>
     <div class="flujo">
-      <div class="paso"><div class="n">1</div><b>Oficina de Partes</b><span>Recibe el documento, lo registra con sus adjuntos y lo deriva a Alcaldía.</span></div>
+      <div class="paso"><div class="n">1</div><b>Oficina de Partes</b><span>Registra el documento con sus adjuntos — recibe folio autom&aacute;tico <strong>ING-2026-N</strong> — y lo deriva a Alcaldía.</span></div>
       <div class="flecha">→</div>
       <div class="paso"><div class="n">2</div><b>Alcalde</b><span>Revisa en su bandeja, genera la providencia, la firma con OTP y deriva.</span></div>
       <div class="flecha">→</div>
-      <div class="paso"><div class="n">3</div><b>Funcionario(s)</b><span>Reciben en su bandeja, marcan como recibida y gestionan lo instruido.</span></div>
+      <div class="paso"><div class="n">3</div><b>Funcionario(s)</b><span>Reciben en su bandeja, acusan recibo y gestionan lo instruido.</span></div>
       <div class="flecha">→</div>
-      <div class="paso"><div class="n">4</div><b>Completada</b><span>La correspondencia queda completada, con toda su trazabilidad y conversación.</span></div>
+      <div class="paso"><div class="n">4</div><b>Respuesta y cierre</b><span>Se despacha la respuesta al externo (salida con folio) y el Alcalde cierra el proceso (Archivada).</span></div>
     </div>
     <h3>Durante todo el flujo</h3>
     <ul>
-      <li>Cada paso queda registrado en la <strong>Conversación</strong> de la correspondencia (quién derivó a quién, con cargos y subrogancias).</li>
-      <li>Los participantes pueden intercambiar <strong>mensajes y archivos</strong> en el hilo, como un chat formal.</li>
-      <li>Los involucrados reciben <strong>notificaciones</strong> en cada novedad.</li>
+      <li>La <strong>Conversación</strong> es una línea de tiempo con todo: derivaciones (con cargos y subrogancias), acuses de recibo, cierres y mensajes con adjuntos.</li>
+      <li>Los PDF e imágenes del hilo se <strong>abren con un clic</strong>; el resto se descarga.</li>
+      <li>Los involucrados reciben <strong>notificaciones</strong> (campana + correo) en cada novedad, siempre con el folio.</li>
     </ul>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
@@ -312,11 +312,12 @@
       <tr><td><span class="chip secondary">Derivada a Alcaldía</span></td><td>Está en el despacho del Alcalde, esperando su revisión.</td></tr>
       <tr><td><span class="chip info">Derivada a Funcionario</span></td><td>El Alcalde la derivó con providencia; espera recepción del destinatario.</td></tr>
       <tr><td><span class="chip info">En Proceso</span></td><td>En gestión entre unidades.</td></tr>
-      <tr><td><span class="chip success">Completada</span></td><td>El destinatario la recibió; ciclo de derivación cumplido.</td></tr>
-      <tr><td><span class="chip success">Archivada</span></td><td>Cerrada y archivada.</td></tr>
+      <tr><td><span class="chip success">Recibida por destinatarios</span></td><td>Todos los destinatarios acusaron recibo (terminó el ciclo de recepción).</td></tr>
+      <tr><td><span class="chip success" style="background:#fff;color:#2e7d32;border:1.5px solid #2e7d32">Respondida</span></td><td>Chip adicional: se despachó la respuesta formal vinculada, con su folio de salida.</td></tr>
+      <tr><td><span class="chip outline">Archivada</span></td><td>El <strong>Alcalde cerró el proceso</strong>: solo lectura total hasta que él la desarchive.</td></tr>
     </table>
     <h3>En tu Bandeja de Entrada</h3>
-    <p>La bandeja muestra el estado de <strong>tu</strong> gestión: <span class="chip warning">Por recibir</span> (te llegó y debes marcarla como recibida) y <span class="chip success">Recibida</span>. Si un ítem aparece <span class="chip outline">Solo lectura</span>, puedes verlo pero la acción le corresponde a otra persona.</p>
+    <p>Pestañas <strong>Activas · Recibidas · Archivadas</strong>. El chip de cada fila indica tu gestión: <span class="chip warning">Por recibir</span> (debes acusar recibo), <span class="chip success">Recibida</span> o <span class="chip info">Derivada a Funcionario</span> (en seguimiento). <span class="chip outline">Solo lectura</span> = puedes ver, pero la acción es de otra persona.</p>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
@@ -341,7 +342,7 @@
     <h2>Tareas del Oficial de Partes</h2>
     <h3>1 · Ingresar la correspondencia</h3>
     <ul>
-      <li>Menú <strong>Ingresar</strong>: completar N° de documento, remitente, fechas, descripción y departamento (si aplica).</li>
+      <li>Menú <strong>Ingresar</strong>: completar N° de documento externo, remitente, fechas, descripción y departamento (si aplica). El sistema asigna automáticamente el <strong>folio de ingreso ING-2026-NNNNN</strong> (correlativo anual, sin huecos).</li>
       <li><strong>Adjuntar el documento digitalizado</strong> (PDF) y sus anexos. El expediente digital es el respaldo oficial.</li>
     </ul>
     <h3>2 · Derivar a Alcaldía</h3>
@@ -417,6 +418,28 @@
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
 </section>
 
+<!-- 10d · LIBRO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Libro de Correspondencia</div><div class="sub">Documento oficial firmado electr&oacute;nicamente</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo">
+    <h2>El libro oficial, con firma electr&oacute;nica avanzada</h2>
+    <p class="lead">Reemplaza el libro f&iacute;sico foliado: la Oficina de Partes emite el libro del per&iacute;odo como PDF corporativo, firmado con su clave OTP y verificable por QR.</p>
+    <div class="grid c2">
+      <div class="card v2"><h4>📗 Libro de Entradas</h4><p>Folio <strong>LIBRO-E-2026-NNN</strong>. Lista cada ingreso del per&iacute;odo por su folio ING-, con remitente, materia, estado, a qui&eacute;n se deriv&oacute; y el folio de su providencia.</p></div>
+      <div class="card v3"><h4>📕 Libro de Salidas</h4><p>Folio <strong>LIBRO-S-2026-NNN</strong>. Lista cada documento emitido: folio, tipo (Oficio/Ord./Circular/Carta), destinatario, despacho (medio y fecha), firmante y a qu&eacute; entrada responde.</p></div>
+    </div>
+    <h3>C&oacute;mo se emite</h3>
+    <ol>
+      <li>Men&uacute; <strong>Libro de Correspondencia</strong> → elegir <strong>tipo de libro</strong> (Entradas/Salidas) y el per&iacute;odo (desde/hasta).</li>
+      <li>Revisar la <strong>vista previa</strong> del PDF → posici&oacute;n del sello → <strong>clave OTP</strong> (igual que las providencias).</li>
+      <li>Cada libro emitido queda en el historial y <strong>se re-descarga id&eacute;ntico</strong> a como se firm&oacute; — nunca se regenera.</li>
+    </ol>
+    <div class="nota ok">Para trabajo interno r&aacute;pido existe adem&aacute;s el bot&oacute;n <strong>Exportar</strong> (CSV para Excel) en "Todas las correspondencias". El libro firmado es el canal oficial.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
+</section>
+
 <!-- 11 · SECCIÓN ALCALDE -->
 <section class="slide azul">
   <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
@@ -448,6 +471,7 @@
       <li>Revisar la <strong>vista previa</strong> de la providencia y elegir la posición del sello.</li>
       <li>Ingresar el <strong>código OTP</strong> de la firma electrónica avanzada (FirmaGob) y confirmar.</li>
     </ol>
+    <div class="nota ok">Después de la providencia, el Alcalde además puede <strong>Preparar respuesta</strong> al externo (reserva el folio del oficio) y, cuando todos acusaron recibo, <strong>Cerrar el proceso</strong>: la correspondencia queda Archivada y de solo lectura — solo él puede desarchivarla.</div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
@@ -562,6 +586,7 @@
     <div class="urlbox" style="background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.6);">
       <div class="url" style="color:#fff">https://docmunicipal.local</div>
       <div class="alt" style="color:rgba(255,255,255,.8)">Alternativa: http://192.168.0.106:3001 · Soporte: Informática Municipal</div>
+      <div class="alt" style="color:#fff; margin-top:8px; font-weight:600">📖 Manuales por rol: docmunicipal.local<strong>/manuales</strong></div>
     </div>
     <div class="sub2">Ilustre Municipalidad de Cabo de Hornos · Módulo de Correspondencia · 2026</div>
   </div>
