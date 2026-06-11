@@ -66,6 +66,7 @@ class CorrespondenciaMensajeController extends Controller
             if ($d->fecha_recepcion) {
                 $items[] = [
                     'tipo'  => 'evento',
+                    'evento_tipo' => 'acuse',
                     'id'    => $d->id,
                     'fecha' => $d->fecha_recepcion,
                     'texto' => ($d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre ?? 'El destinatario')
@@ -98,6 +99,7 @@ class CorrespondenciaMensajeController extends Controller
         foreach ($correspondencia->eventos as $e) {
             $items[] = [
                 'tipo'  => 'evento',
+                'evento_tipo' => $e->tipo,
                 'id'    => 'ev-' . $e->id,
                 'fecha' => $e->created_at,
                 'texto' => ($e->usuario?->nombre ?? 'Sistema')

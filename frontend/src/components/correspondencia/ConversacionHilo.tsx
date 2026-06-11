@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, TextField, Button,
-  Chip, CircularProgress, Stack, Alert, Divider,
+  Chip, CircularProgress, Stack, Alert,
   Dialog, DialogTitle, DialogContent, IconButton,
 } from '@mui/material'
 import {
@@ -12,6 +12,11 @@ import {
   InsertDriveFile as FileIcon,
   TrendingFlat as DerivIcon,
   Close as CloseIcon,
+  ChatBubbleOutline as ChatIcon,
+  Check as CheckIcon,
+  Archive as ArchiveIcon,
+  Unarchive as UnarchiveIcon,
+  ExpandLess as VerMasIcon,
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -139,14 +144,18 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     )
   )
 
-  const renderDerivacion = (it: HiloItem) => (
-    <Box key={`d-${it.id}`} sx={{ my: 1.5, color: 'text.secondary' }}>
-      {/* La frase va FUERA del Divider: dentro de él no se quiebra de línea y
-          con los cargos el texto largo se salía de la tarjeta. */}
-      <Divider>
-        <DerivIcon fontSize="small" sx={{ display: 'block', color: 'text.disabled' }} />
-      </Divider>
-      <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 0.5, px: 1 }}>
+  // ===== Línea de tiempo: ícono y color por tipo de hito =====
+  const iconoItem = (it: HiloItem): { icon: React.ReactNode; bg: string } => {
+    if (it.tipo === 'derivacion') return { icon: <DerivIcon sx={{ fontSize: 14 }} />, bg: '#0071BC' }
+    if (it.tipo === 'mensaje') return { icon: <ChatIcon sx={{ fontSize: 12 }} />, bg: '#28A9E3' }
+    if (it.evento_tipo === 'archivada') return { icon: <ArchiveIcon sx={{ fontSize: 13 }} />, bg: '#4D4D4D' }
+    if (it.evento_tipo === 'desarchivada') return { icon: <UnarchiveIcon sx={{ fontSize: 13 }} />, bg: '#ed6c02' }
+    return { icon: <CheckIcon sx={{ fontSize: 14 }} />, bg: '#2e7d32' } // acuse de recibo
+  }
+
+  const contenidoDerivacion = (it: HiloItem) => (
+    <>
+      <Typography variant="body2" sx={{ lineHeight: 1.45 }}>
         {conCargo(it.de)}
         {it.actuando_como && (
           <>
@@ -159,81 +168,124 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
         {' derivó a '}
         {conCargo(it.para)}
       </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.4 }}>
         <Chip
           label={it.estado}
           size="small"
           color={it.estado === 'recibido' ? 'success' : 'warning'}
           sx={{ height: 18, fontSize: 10 }}
         />
-        <Typography variant="caption">· {fechaCorta(it.fecha)}</Typography>
+        <Typography variant="caption" color="text.secondary">{fechaCorta(it.fecha)}</Typography>
       </Box>
       {it.observaciones && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5, fontStyle: 'italic' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4, fontStyle: 'italic' }}>
           "{it.observaciones}"
         </Typography>
       )}
-    </Box>
+    </>
   )
 
-  // Hitos de trazabilidad (acuse de recibo): línea centrada y discreta
-  const renderEvento = (it: HiloItem) => (
-    <Box key={`e-${it.id}`} sx={{ my: 1, textAlign: 'center', color: 'text.secondary' }}>
-      <Typography variant="caption">
-        ✓ <strong>{it.texto}</strong> · {fechaCorta(it.fecha)}
+  const contenidoEvento = (it: HiloItem) => (
+    <Typography variant="body2" sx={{ color: 'text.secondary', pt: 0.25 }}>
+      <strong>{it.texto}</strong>
+      <Typography component="span" variant="caption" sx={{ ml: 0.75 }}>{fechaCorta(it.fecha)}</Typography>
+    </Typography>
+  )
+
+  const contenidoMensaje = (it: HiloItem) => (
+    <Box
+      sx={{
+        maxWidth: 520,
+        bgcolor: it.es_mio ? '#E3F0FA' : '#F4F4F4',
+        border: '1px solid',
+        borderColor: it.es_mio ? '#bfdcf0' : '#e6e6e6',
+        borderRadius: 2,
+        px: 1.5,
+        py: 1,
+      }}
+    >
+      <Typography variant="caption" fontWeight="bold" color="primary">
+        {it.autor?.nombre}{it.es_mio ? ' (tú)' : ''}
+        {it.autor?.cargo && (
+          <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 400 }}>
+            {` · ${it.autor.cargo}`}
+          </Typography>
+        )}
+      </Typography>
+      {it.mensaje && (
+        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.25 }}>
+          {it.mensaje}
+        </Typography>
+      )}
+      {it.adjuntos && it.adjuntos.length > 0 && (
+        <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+          {it.adjuntos.map((adj) => (
+            <Chip
+              key={adj.id}
+              icon={<FileIcon />}
+              label={`${adj.nombre} · ${formatTamanio(adj.tamanio_bytes)}`}
+              onClick={() => abrirAdjunto(adj)}
+              onDelete={() => descargarAdjunto(adj)}
+              deleteIcon={<DownloadIcon />}
+              size="small"
+              variant="outlined"
+              sx={{ maxWidth: '100%', justifyContent: 'flex-start' }}
+            />
+          ))}
+        </Stack>
+      )}
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}>
+        {fechaCorta(it.fecha)}
       </Typography>
     </Box>
   )
 
-  const renderMensaje = (it: HiloItem) => (
-    <Box key={`m-${it.id}`} sx={{ display: 'flex', justifyContent: it.es_mio ? 'flex-end' : 'flex-start', my: 1 }}>
-      <Box
-        sx={{
-          maxWidth: '82%',
-          bgcolor: it.es_mio ? '#E3F0FA' : '#F4F4F4',
-          border: '1px solid',
-          borderColor: it.es_mio ? '#bfdcf0' : '#e6e6e6',
-          borderRadius: 2,
-          px: 1.5,
-          py: 1,
-        }}
-      >
-        <Typography variant="caption" fontWeight="bold" color="primary">
-          {it.autor?.nombre}
-          {it.autor?.cargo && (
-            <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 400 }}>
-              {` · ${it.autor.cargo}`}
-            </Typography>
-          )}
-        </Typography>
-        {it.mensaje && (
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.25 }}>
-            {it.mensaje}
-          </Typography>
-        )}
-        {it.adjuntos && it.adjuntos.length > 0 && (
-          <Stack spacing={0.5} sx={{ mt: 0.75 }}>
-            {it.adjuntos.map((adj) => (
-              <Chip
-                key={adj.id}
-                icon={<FileIcon />}
-                label={`${adj.nombre} · ${formatTamanio(adj.tamanio_bytes)}`}
-                onClick={() => abrirAdjunto(adj)}
-                onDelete={() => descargarAdjunto(adj)}
-                deleteIcon={<DownloadIcon />}
-                size="small"
-                variant="outlined"
-                sx={{ maxWidth: '100%', justifyContent: 'flex-start' }}
-              />
-            ))}
-          </Stack>
-        )}
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}>
-          {fechaCorta(it.fecha)}
-        </Typography>
+  // Fila de la línea de tiempo: punto con ícono + conector + contenido
+  const TimelineRow = ({ it, last }: { it: HiloItem; last: boolean }) => {
+    const { icon, bg } = iconoItem(it)
+    return (
+      <Box sx={{ display: 'flex', gap: 1.25 }}>
+        <Box sx={{ width: 26, display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 'none' }}>
+          <Box sx={{
+            width: 24, height: 24, borderRadius: '50%', bgcolor: bg, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', mt: 0.25,
+          }}>
+            {icon}
+          </Box>
+          {!last && <Box sx={{ width: 2, flex: 1, bgcolor: 'divider', my: 0.5, borderRadius: 1 }} />}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, pb: last ? 0.5 : 2 }}>
+          {it.tipo === 'derivacion' ? contenidoDerivacion(it)
+            : it.tipo === 'evento' ? contenidoEvento(it)
+            : contenidoMensaje(it)}
+        </Box>
       </Box>
-    </Box>
-  )
+    )
+  }
+
+  // "Volver atrás": se muestran los últimos N y un botón carga los anteriores
+  const [visibles, setVisibles] = useState(15)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef(true)
+
+  const itemsMostrados = hilo ? hilo.items.slice(Math.max(0, hilo.items.length - visibles)) : []
+  const ocultos = hilo ? hilo.items.length - itemsMostrados.length : 0
+
+  useEffect(() => {
+    if (autoScrollRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+    autoScrollRef.current = true
+  }, [hilo?.items.length, visibles])
+
+  const verAnteriores = () => {
+    autoScrollRef.current = false
+    setVisibles((v) => v + 15)
+  }
+
+  const diaDe = (iso: string) => {
+    try { return format(new Date(iso), "d 'de' MMMM yyyy", { locale: es }) } catch { return '' }
+  }
 
   return (
     <Card>
@@ -251,13 +303,31 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
           <>
             {error && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError(null)}>{error}</Alert>}
 
-            <Box sx={{ maxHeight: 460, overflowY: 'auto', pr: 0.5 }}>
+            <Box ref={scrollRef} sx={{ maxHeight: 460, overflowY: 'auto', pr: 0.5 }}>
               {hilo && hilo.items.length > 0 ? (
-                hilo.items.map((it) =>
-                  it.tipo === 'derivacion' ? renderDerivacion(it)
-                    : it.tipo === 'evento' ? renderEvento(it)
-                    : renderMensaje(it)
-                )
+                <>
+                  {ocultos > 0 && (
+                    <Box sx={{ textAlign: 'center', mb: 1.5 }}>
+                      <Button size="small" startIcon={<VerMasIcon />} onClick={verAnteriores}>
+                        Ver {Math.min(15, ocultos)} {ocultos === 1 ? 'registro anterior' : 'registros anteriores'} ({ocultos})
+                      </Button>
+                    </Box>
+                  )}
+                  {itemsMostrados.map((it, idx) => {
+                    const diaActual = diaDe(it.fecha)
+                    const diaPrevio = idx > 0 ? diaDe(itemsMostrados[idx - 1].fecha) : null
+                    return (
+                      <Box key={`${it.tipo}-${it.id}`}>
+                        {diaActual !== diaPrevio && (
+                          <Box sx={{ textAlign: 'center', my: 1.25 }}>
+                            <Chip label={diaActual} size="small" variant="outlined" sx={{ height: 20, fontSize: 11, color: 'text.secondary' }} />
+                          </Box>
+                        )}
+                        <TimelineRow it={it} last={idx === itemsMostrados.length - 1} />
+                      </Box>
+                    )
+                  })}
+                </>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                   Aún no hay derivaciones ni mensajes.
