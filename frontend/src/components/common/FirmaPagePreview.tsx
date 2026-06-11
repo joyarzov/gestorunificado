@@ -18,7 +18,7 @@ const PAGE_W_PT = 612
 const PAGE_H_PT = 792
 const STAMP_W_PT = 160 // (612 - 71left - 57right) / 3 ≈ 160pt per column
 const STAMP_H_PT = 70
-const PREVIEW_W_PX = 340
+const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los controles
 
 const scale = PREVIEW_W_PX / PAGE_W_PT
 const previewH = Math.round(PAGE_H_PT * scale)
