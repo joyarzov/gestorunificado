@@ -10,6 +10,8 @@ export interface FirmaPagePreviewProps {
   }>
   newRow: number
   newCol: number
+  /** Miniatura PNG del sello real del firmante (endpoint /firma-sellos/mi-sello). */
+  selloUrl?: string | null
 }
 
 const PAGE_W_PT = 612
@@ -35,6 +37,7 @@ export default function FirmaPagePreview({
   existingFirmas,
   newRow,
   newCol,
+  selloUrl,
 }: FirmaPagePreviewProps) {
   // Calculate new stamp position
   const newFirmaY = Math.round(10 + (firmaYPos / 100) * 702)
@@ -118,30 +121,63 @@ export default function FirmaPagePreview({
           </Box>
         ))}
 
-        {/* New stamp (blue semi-transparent) */}
-        <Box
-          sx={{
-            position: 'absolute',
-            left: newCssLeft,
-            top: newCssTop,
-            width: stampW,
-            height: stampH,
-            bgcolor: 'rgba(0, 113, 188, 0.55)',
-            border: '1px solid rgba(0, 90, 150, 0.7)',
-            borderRadius: '2px',
-            transition: 'all 0.15s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ fontSize: 7, color: 'white', textAlign: 'center', lineHeight: 1.1, px: '2px' }}
+        {/* Sello nuevo: miniatura REAL del sello si está disponible; si no,
+            el recuadro azul de respaldo. Anclado por su borde inferior (lly),
+            igual que lo posiciona FirmaGob en el PDF. */}
+        {selloUrl ? (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: newCssLeft,
+              top: newCssTop,
+              width: stampW,
+              height: stampH,
+              transition: 'all 0.15s ease',
+              outline: '1.5px dashed rgba(0, 113, 188, 0.75)',
+              outlineOffset: 1,
+              borderRadius: '2px',
+            }}
           >
-            Tu firma
-          </Typography>
-        </Box>
+            <Box
+              component="img"
+              src={selloUrl}
+              alt="Tu sello de firma"
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                filter: 'drop-shadow(0 0 1px rgba(0,0,0,.25))',
+              }}
+            />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: newCssLeft,
+              top: newCssTop,
+              width: stampW,
+              height: stampH,
+              bgcolor: 'rgba(0, 113, 188, 0.55)',
+              border: '1px solid rgba(0, 90, 150, 0.7)',
+              borderRadius: '2px',
+              transition: 'all 0.15s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontSize: 7, color: 'white', textAlign: 'center', lineHeight: 1.1, px: '2px' }}
+            >
+              Tu firma
+            </Typography>
+          </Box>
+        )}
       </Box>
       <Typography
         variant="caption"

@@ -46,6 +46,7 @@ import {
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
+import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmaPagePreview from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
@@ -186,6 +187,23 @@ const DocumentoDetail = () => {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
     }
   }, [pdfUrl])
+
+  // Miniatura real del sello del firmante para la vista previa
+  const [selloUrl, setSelloUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!firmarDialogOpen) return
+    let url: string | null = null
+    api.get('/firma-sellos/mi-sello', { responseType: 'blob' })
+      .then((res) => {
+        url = URL.createObjectURL(res.data as Blob)
+        setSelloUrl(url)
+      })
+      .catch(() => setSelloUrl(null))
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+      setSelloUrl(null)
+    }
+  }, [firmarDialogOpen])
 
   // Auto-select next available column when firma dialog opens
   useEffect(() => {
@@ -1027,6 +1045,7 @@ const DocumentoDetail = () => {
                         existingFirmas={existingFirmaPositions}
                         newRow={Math.floor(newSlot / 3)}
                         newCol={firmaCol}
+                        selloUrl={selloUrl}
                       />
 
                       {/* Controles a la derecha */}

@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon } from '@mui/icons-material'
 import { configuracionAPI } from '../../api/configuracion'
+import api from '../../api/axios'
 import FirmaPagePreview from '../common/FirmaPagePreview'
 
 export interface FirmaParams {
@@ -34,6 +35,7 @@ const FirmaGobModal = ({
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST'>('LAST')
   const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(0) // default izquierda (donde está el bloque de firma)
   const [simulate, setSimulate] = useState(false)
+  const [selloUrl, setSelloUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -44,6 +46,20 @@ const FirmaGobModal = ({
     configuracionAPI.firmagobEstado()
       .then(res => setSimulate(res.data.simulate))
       .catch(() => setSimulate(false))
+
+    // Miniatura REAL del sello del firmante (con su nombre/cargo/RUT),
+    // para que la vista previa muestre exactamente cómo quedará.
+    let url: string | null = null
+    api.get('/firma-sellos/mi-sello', { responseType: 'blob' })
+      .then((res) => {
+        url = URL.createObjectURL(res.data as Blob)
+        setSelloUrl(url)
+      })
+      .catch(() => setSelloUrl(null)) // respaldo: recuadro azul genérico
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+      setSelloUrl(null)
+    }
   }, [open])
 
   const handleSubmit = () => {
@@ -97,6 +113,7 @@ const FirmaGobModal = ({
                 existingFirmas={[]}
                 newRow={0}
                 newCol={firmaCol}
+                selloUrl={selloUrl}
               />
               {pdfUrl && (
                 <Button

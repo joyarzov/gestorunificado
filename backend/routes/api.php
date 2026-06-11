@@ -332,6 +332,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::post('/configuracion/probar-correo', [ConfiguracionController::class, 'probarCorreo']);
     });
 
+    // Sello del usuario autenticado (miniatura real para el modal de firma)
+    Route::get('/firma-sellos/mi-sello', [FirmaSelloController::class, 'miSello']);
+
     // MÓDULO SELLO DE FIRMA (admin)
     // =====================================================
     Route::middleware('role:admin')->group(function () {

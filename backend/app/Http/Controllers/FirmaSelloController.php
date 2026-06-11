@@ -129,6 +129,26 @@ class FirmaSelloController extends Controller
         return $this->successResponse($firmaSello, "Sello \"{$firmaSello->nombre}\" activado");
     }
 
+    /**
+     * Sello del usuario autenticado con SUS datos reales (nombre, cargo con
+     * sufijo (S) si subroga, RUT), usando el sello activo. Para que el modal
+     * de firma muestre una miniatura fiel de cómo quedará el sello.
+     */
+    public function miSello()
+    {
+        $user = Auth::user();
+        $png = app(FirmaGobService::class)->generarStampPreview(
+            [],
+            $user->nombre,
+            $user->cargoFirma() ?? ($user->cargo ?? ''),
+            $user->rut
+        );
+
+        return response(base64_decode($png), 200)
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'private, max-age=300');
+    }
+
     public function preview(Request $request)
     {
         // Preview en tiempo real con parámetros del request (sin guardar)
