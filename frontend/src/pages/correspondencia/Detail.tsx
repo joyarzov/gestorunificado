@@ -138,6 +138,27 @@ const CorrespondenciaDetail = () => {
     }
   }
 
+  // Anular una reserva propia (folio queda en acta con motivo, no se reutiliza)
+  const [anularTarget, setAnularTarget] = useState<Correspondencia | null>(null)
+  const [anularMotivo, setAnularMotivo] = useState('')
+  const [anularLoading, setAnularLoading] = useState(false)
+
+  const handleAnularRespuesta = async () => {
+    if (!anularTarget || !anularMotivo.trim()) return
+    setAnularLoading(true)
+    try {
+      const res = await correspondenciaAPI.salidaAnular(anularTarget.id, anularMotivo.trim())
+      setAnularTarget(null)
+      setAnularMotivo('')
+      setSnackbar({ open: true, message: res.message || 'Folio anulado' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo anular' })
+    } finally {
+      setAnularLoading(false)
+    }
+  }
+
   const handleDescargarRespuesta = async (r: Correspondencia) => {
     try {
       const blob = await correspondenciaAPI.salidaDescargarDocumento(r.id)
@@ -631,9 +652,14 @@ const CorrespondenciaDetail = () => {
                       sx={{ py: 0.5 }}
                       secondaryAction={
                         (r.estado === 'reservada' || r.estado === 'devuelta') ? (
-                          <Button size="small" variant="outlined" onClick={() => abrirSubirRespuesta(r)}>
-                            Subir PDF
-                          </Button>
+                          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                            <Button size="small" variant="outlined" onClick={() => abrirSubirRespuesta(r)}>
+                              Subir PDF
+                            </Button>
+                            <IconButton size="small" color="error" title="Anular folio" onClick={() => setAnularTarget(r)}>
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                         ) : r.estado === 'despachada' || r.estado === 'por_despachar' ? (
                           <IconButton size="small" title="Descargar documento" onClick={() => handleDescargarRespuesta(r)}>
                             <DownloadIcon fontSize="small" />
@@ -702,6 +728,32 @@ const CorrespondenciaDetail = () => {
             disabled={respuestaLoading || !respuestaForm.materia.trim()}
           >
             {respuestaLoading ? <CircularProgress size={20} /> : 'Reservar número'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: anular folio reservado */}
+      <Dialog open={!!anularTarget} onClose={() => setAnularTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Anular folio · {anularTarget?.folio}</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2, mt: 1 }}>
+            El folio quedará anulado con su motivo en acta y no se reutilizará. Si luego
+            necesitas responder, se reservará un número nuevo.
+          </Alert>
+          <TextField
+            fullWidth
+            required
+            multiline
+            minRows={2}
+            label="Motivo de la anulación"
+            value={anularMotivo}
+            onChange={(e) => setAnularMotivo(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAnularTarget(null)}>Cancelar</Button>
+          <Button variant="contained" color="error" onClick={handleAnularRespuesta} disabled={anularLoading || !anularMotivo.trim()}>
+            {anularLoading ? <CircularProgress size={20} /> : 'Anular folio'}
           </Button>
         </DialogActions>
       </Dialog>
