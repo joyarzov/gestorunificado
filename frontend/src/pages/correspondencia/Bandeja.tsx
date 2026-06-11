@@ -110,7 +110,9 @@ const BandejaEntrada = () => {
           onChange={(_, newValue) => { setTab(newValue); setPage(1) }}
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label={`Por recibir (${counts.pendientes})`} />
+          {/* "Activas" agrupa lo por recibir Y lo derivado en seguimiento;
+              el estado puntual de cada ítem lo dice su chip. */}
+          <Tab label={`Activas (${counts.pendientes})`} />
           <Tab label={`Recibidas (${counts.recibidas})`} />
         </Tabs>
 
