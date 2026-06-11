@@ -102,12 +102,46 @@
     </table>
     <div class="regla-azul"></div>
 
-    <div class="doc-titulo">LIBRO DE CORRESPONDENCIA</div>
+    <div class="doc-titulo">LIBRO DE CORRESPONDENCIA — {{ ($tipo ?? 'entradas') === 'salidas' ? 'SALIDAS' : 'ENTRADAS' }}</div>
     <div class="doc-sub">
         Per&iacute;odo: <strong>{{ $fecha_desde }}</strong> al <strong>{{ $fecha_hasta }}</strong>
         &middot; {{ $total }} {{ $total === 1 ? 'registro' : 'registros' }}
     </div>
 
+    @if(($tipo ?? 'entradas') === 'salidas')
+    <table class="registros">
+        <thead>
+            <tr>
+                <th style="width:88px;">Folio</th>
+                <th style="width:62px;">Tipo</th>
+                <th>Destinatario</th>
+                <th>Materia</th>
+                <th style="width:66px;">F. Doc.</th>
+                <th style="width:80px;">Estado</th>
+                <th style="width:135px;">Despacho</th>
+                <th style="width:120px;">Firmante</th>
+                <th style="width:88px;">Responde a</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($registros as $r)
+            <tr>
+                <td>{{ $r['folio'] }}</td>
+                <td>{{ $r['tipo_doc'] ?: '—' }}</td>
+                <td>{{ $r['destinatario'] }}</td>
+                <td>{{ $r['materia'] ?: '—' }}</td>
+                <td>{{ $r['fecha_documento'] ?: '—' }}</td>
+                <td>{{ $r['estado'] }}</td>
+                <td>{{ $r['despacho'] ?: '—' }}</td>
+                <td>{{ $r['firmante'] ?: '—' }}</td>
+                <td>{{ $r['responde_a'] ?: '—' }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="9" style="text-align:center; color:#888; padding:14px;">Sin registros en el per&iacute;odo seleccionado</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+    @else
     <table class="registros">
         <thead>
             <tr>
@@ -140,6 +174,7 @@
             @endforelse
         </tbody>
     </table>
+    @endif
 
     <div class="resumen">
         <strong>Resumen del per&iacute;odo:</strong>

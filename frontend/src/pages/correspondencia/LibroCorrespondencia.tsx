@@ -18,6 +18,7 @@ import {
   IconButton,
   Tooltip,
   Pagination,
+  MenuItem,
 } from '@mui/material'
 import {
   MenuBook as LibroIcon,
@@ -38,6 +39,7 @@ const inicioMes = () => {
 const LibroCorrespondencia = () => {
   const [fechaDesde, setFechaDesde] = useState(inicioMes())
   const [fechaHasta, setFechaHasta] = useState(hoy())
+  const [tipoLibro, setTipoLibro] = useState<'entradas' | 'salidas'>('entradas')
 
   const [libros, setLibros] = useState<Libro[]>([])
   const [page, setPage] = useState(1)
@@ -79,7 +81,7 @@ const LibroCorrespondencia = () => {
     setFirmaError(null)
     setPreviewLoading(true)
     try {
-      const { blob, token } = await correspondenciaAPI.libroPreview(fechaDesde, fechaHasta)
+      const { blob, token } = await correspondenciaAPI.libroPreview(fechaDesde, fechaHasta, tipoLibro)
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
       setPreviewPdfUrl(url)
       setPreviewToken(token)
@@ -158,6 +160,17 @@ const LibroCorrespondencia = () => {
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
             <TextField
+              select
+              label="Tipo de libro"
+              size="small"
+              value={tipoLibro}
+              onChange={(e) => setTipoLibro(e.target.value as 'entradas' | 'salidas')}
+              sx={{ minWidth: 170 }}
+            >
+              <MenuItem value="entradas">Entradas</MenuItem>
+              <MenuItem value="salidas">Salidas</MenuItem>
+            </TextField>
+            <TextField
               label="Desde"
               type="date"
               size="small"
@@ -198,6 +211,7 @@ const LibroCorrespondencia = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Folio</TableCell>
+                <TableCell>Tipo</TableCell>
                 <TableCell>Período</TableCell>
                 <TableCell>Registros</TableCell>
                 <TableCell>Emitido</TableCell>
@@ -208,10 +222,10 @@ const LibroCorrespondencia = () => {
             </TableHead>
             <TableBody>
               {loadingLibros ? (
-                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
               ) : libros.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">Aún no se han emitido libros</Typography>
                   </TableCell>
                 </TableRow>
@@ -219,6 +233,7 @@ const LibroCorrespondencia = () => {
                 libros.map((l) => (
                   <TableRow key={l.id} hover>
                     <TableCell><strong>{l.folio}</strong></TableCell>
+                    <TableCell>{l.tipo === 'salidas' ? 'Salidas' : 'Entradas'}</TableCell>
                     <TableCell>
                       {format(new Date(l.fecha_desde), 'dd/MM/yyyy', { locale: es })}
                       {' — '}

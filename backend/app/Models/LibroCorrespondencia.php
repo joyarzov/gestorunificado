@@ -10,6 +10,7 @@ class LibroCorrespondencia extends Model
 
     protected $fillable = [
         'folio',
+        'tipo',
         'fecha_desde',
         'fecha_hasta',
         'total_registros',

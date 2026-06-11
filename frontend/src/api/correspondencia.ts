@@ -88,6 +88,7 @@ export interface HiloItem {
 export interface LibroCorrespondencia {
   id: number
   folio: string
+  tipo?: 'entradas' | 'salidas'
   fecha_desde: string
   fecha_hasta: string
   total_registros: number
@@ -237,10 +238,11 @@ export const correspondenciaAPI = {
     return response.data
   },
 
-  libroPreview: async (fechaDesde: string, fechaHasta: string): Promise<PreviewResult> => {
+  libroPreview: async (fechaDesde: string, fechaHasta: string, tipo: 'entradas' | 'salidas' = 'entradas'): Promise<PreviewResult> => {
     const response = await api.post('/correspondencia/libros/preview', {
       fecha_desde: fechaDesde,
       fecha_hasta: fechaHasta,
+      tipo,
     }, { responseType: 'blob' })
     const token = (response.headers['x-preview-token'] || response.headers['X-Preview-Token']) as string
     return { blob: response.data as Blob, token }

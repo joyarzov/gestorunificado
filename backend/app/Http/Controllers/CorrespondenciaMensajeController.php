@@ -92,16 +92,17 @@ class CorrespondenciaMensajeController extends Controller
             ];
         }
 
-        // Cierre del proceso: hito final de la trazabilidad
-        if ($correspondencia->archivada_at) {
-            $correspondencia->loadMissing('archivadaPor:id,nombre,cargo');
+        // Hitos de trazabilidad persistentes (cierres y reaperturas del
+        // proceso): se conservan aunque el estado vuelva atrás.
+        $correspondencia->loadMissing('eventos.usuario:id,nombre,cargo');
+        foreach ($correspondencia->eventos as $e) {
             $items[] = [
                 'tipo'  => 'evento',
-                'id'    => 'cierre-' . $correspondencia->id,
-                'fecha' => $correspondencia->archivada_at,
-                'texto' => ($correspondencia->archivadaPor?->nombre ?? 'El Alcalde')
-                    . ($correspondencia->archivadaPor?->cargo ? " ({$correspondencia->archivadaPor->cargo})" : '')
-                    . ' cerró el proceso (archivada)',
+                'id'    => 'ev-' . $e->id,
+                'fecha' => $e->created_at,
+                'texto' => ($e->usuario?->nombre ?? 'Sistema')
+                    . ($e->usuario?->cargo ? " ({$e->usuario->cargo})" : '')
+                    . ' ' . $e->texto,
             ];
         }
 

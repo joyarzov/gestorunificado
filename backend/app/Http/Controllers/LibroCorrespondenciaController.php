@@ -34,6 +34,20 @@ class LibroCorrespondenciaController extends Controller
         'derivada_funcionario' => 'Derivada a Funcionario',
         'completada' => 'Recibida por destinatarios',
         'archivado' => 'Archivada',
+        // ciclo de salida
+        'reservada' => 'N° Reservado',
+        'por_despachar' => 'Por Despachar',
+        'despachada' => 'Despachada',
+        'devuelta' => 'Devuelta',
+        'anulada' => 'Anulada',
+    ];
+
+    private const MEDIOS = [
+        'email' => 'Correo electrónico',
+        'carta_certificada' => 'Carta certificada',
+        'en_mano' => 'Entrega en mano',
+        'libro' => 'Libro de despacho',
+        'otro' => 'Otro',
     ];
 
     /** Historial de libros generados. */
@@ -63,13 +77,16 @@ class LibroCorrespondenciaController extends Controller
         $request->validate([
             'fecha_desde' => 'required|date',
             'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
+            'tipo' => 'nullable|in:entradas,salidas',
         ]);
 
-        $resultado = $this->generarPdf($request->fecha_desde, $request->fecha_hasta, Auth::user());
+        $tipo = $request->input('tipo', 'entradas');
+        $resultado = $this->generarPdf($request->fecha_desde, $request->fecha_hasta, Auth::user(), $tipo);
 
         $token = (string) Str::uuid();
         Cache::put(self::PREVIEW_CACHE_PREFIX . $token, [
             'user_id' => Auth::id(),
+            'tipo' => $tipo,
             'fecha_desde' => $request->fecha_desde,
             'fecha_hasta' => $request->fecha_hasta,
             'pdf_content' => base64_encode($resultado['pdf_content']),
@@ -137,6 +154,7 @@ class LibroCorrespondenciaController extends Controller
 
         $libro = LibroCorrespondencia::create([
             'folio' => $folio,
+            'tipo' => $cached['tipo'] ?? 'entradas',
             'fecha_desde' => $cached['fecha_desde'],
             'fecha_hasta' => $cached['fecha_hasta'],
             'total_registros' => $cached['total_registros'],
@@ -181,40 +199,66 @@ class LibroCorrespondenciaController extends Controller
     /**
      * @return array{pdf_content: string, folio: string, codigo_verificacion: string, total_registros: int}
      */
-    private function generarPdf(string $desde, string $hasta, $user): array
+    private function generarPdf(string $desde, string $hasta, $user, string $tipo = 'entradas'): array
     {
-        $correspondencias = Correspondencia::with([
-            'departamento:id,nombre',
-            'derivaciones.usuarioDestino:id,nombre',
-            'derivaciones.departamentoDestino:id,nombre',
-        ])
-            ->entradas()
-            ->whereDate('fecha_recibo', '>=', $desde)
-            ->whereDate('fecha_recibo', '<=', $hasta)
-            ->orderBy('fecha_recibo')
-            ->orderBy('id')
-            ->get();
+        if ($tipo === 'salidas') {
+            // Libro de salida: por fecha del acto (reserva del folio)
+            $correspondencias = Correspondencia::with(['usuario:id,nombre', 'respuestaA:id,folio'])
+                ->salidas()
+                ->whereDate('created_at', '>=', $desde)
+                ->whereDate('created_at', '<=', $hasta)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get();
 
-        $registros = $correspondencias->map(fn ($c) => [
-            'folio' => $c->folio,
-            'numero_documento' => $c->numero_documento,
-            'fecha_recibo' => $c->fecha_recibo?->format('d-m-Y'),
-            'remitente' => $c->remitente,
-            'materia' => Str::limit($c->descripcion, 90),
-            'departamento' => $c->departamento?->nombre,
-            'estado' => self::ESTADO_LABELS[$c->estado] ?? $c->estado,
-            'derivada_a' => $c->derivaciones
-                ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
-                ->filter()->unique()->implode(', '),
-            'folios' => $c->derivaciones->pluck('folio')->filter()->implode(', '),
-        ])->values()->all();
+            $tiposDoc = ['oficio' => 'Oficio', 'ordinario' => 'Ordinario', 'circular' => 'Circular', 'carta' => 'Carta'];
+            $registros = $correspondencias->map(fn ($c) => [
+                'folio' => $c->folio,
+                'tipo_doc' => $tiposDoc[$c->tipo_documento_salida] ?? $c->tipo_documento_salida,
+                'destinatario' => $c->remitente,
+                'materia' => Str::limit($c->descripcion, 90),
+                'fecha_documento' => $c->fecha_documento?->format('d-m-Y'),
+                'estado' => self::ESTADO_LABELS[$c->estado] ?? $c->estado,
+                'despacho' => $c->estado === 'despachada'
+                    ? trim((self::MEDIOS[$c->medio_despacho] ?? $c->medio_despacho) . ' · ' . ($c->fecha_despacho?->format('d-m-Y') ?? ''))
+                    : ($c->motivo_devolucion ? Str::limit($c->motivo_devolucion, 50) : ''),
+                'firmante' => $c->firmante_nombre,
+                'responde_a' => $c->respuestaA?->folio,
+            ])->values()->all();
+        } else {
+            $correspondencias = Correspondencia::with([
+                'departamento:id,nombre',
+                'derivaciones.usuarioDestino:id,nombre',
+                'derivaciones.departamentoDestino:id,nombre',
+            ])
+                ->entradas()
+                ->whereDate('fecha_recibo', '>=', $desde)
+                ->whereDate('fecha_recibo', '<=', $hasta)
+                ->orderBy('fecha_recibo')
+                ->orderBy('id')
+                ->get();
+
+            $registros = $correspondencias->map(fn ($c) => [
+                'folio' => $c->folio,
+                'numero_documento' => $c->numero_documento,
+                'fecha_recibo' => $c->fecha_recibo?->format('d-m-Y'),
+                'remitente' => $c->remitente,
+                'materia' => Str::limit($c->descripcion, 90),
+                'departamento' => $c->departamento?->nombre,
+                'estado' => self::ESTADO_LABELS[$c->estado] ?? $c->estado,
+                'derivada_a' => $c->derivaciones
+                    ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
+                    ->filter()->unique()->implode(', '),
+                'folios' => $c->derivaciones->pluck('folio')->filter()->implode(', '),
+            ])->values()->all();
+        }
 
         $resumen = $correspondencias->groupBy('estado')
             ->map->count()
             ->mapWithKeys(fn ($n, $estado) => [self::ESTADO_LABELS[$estado] ?? $estado => $n])
             ->all();
 
-        $folio = $this->generarFolio();
+        $folio = $this->generarFolio($tipo);
         $codigoVerificacion = Documento::generarCodigoVerificacion();
 
         $logoPath = storage_path('app/public/logo.png');
@@ -233,6 +277,7 @@ class LibroCorrespondenciaController extends Controller
         }
 
         $pdf = Pdf::loadView('pdf.libro-correspondencia', [
+            'tipo' => $tipo,
             'folio' => $folio,
             'fecha_emision' => now()->format('d/m/Y H:i'),
             'fecha_desde' => \Carbon\Carbon::parse($desde)->format('d/m/Y'),
@@ -258,10 +303,12 @@ class LibroCorrespondenciaController extends Controller
         ];
     }
 
-    private function generarFolio(): string
+    /** Serie de folio independiente por tipo de libro: LIBRO-E- / LIBRO-S-. */
+    private function generarFolio(string $tipo = 'entradas'): string
     {
+        $prefijo = $tipo === 'salidas' ? 'LIBRO-S' : 'LIBRO-E';
         $anio = now()->year;
-        $ultimo = LibroCorrespondencia::where('folio', 'like', "LIBRO-{$anio}-%")
+        $ultimo = LibroCorrespondencia::where('folio', 'like', "{$prefijo}-{$anio}-%")
             ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
             ->first();
 
@@ -269,6 +316,6 @@ class LibroCorrespondenciaController extends Controller
             ? (int) substr($ultimo->folio, strrpos($ultimo->folio, '-') + 1) + 1
             : 1;
 
-        return sprintf('LIBRO-%d-%03d', $anio, $siguiente);
+        return sprintf('%s-%d-%03d', $prefijo, $anio, $siguiente);
     }
 }

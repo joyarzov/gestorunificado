@@ -111,6 +111,11 @@ class Correspondencia extends Model
         return $this->hasMany(CorrespondenciaMensaje::class);
     }
 
+    public function eventos()
+    {
+        return $this->hasMany(CorrespondenciaEvento::class);
+    }
+
     public function ultimaDerivacion()
     {
         return $this->hasOne(Derivacion::class)->latestOfMany();

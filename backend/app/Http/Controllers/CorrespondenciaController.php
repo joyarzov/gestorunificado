@@ -196,6 +196,13 @@ class CorrespondenciaController extends Controller
             'archivada_at' => now(),
         ]);
 
+        // Hito permanente en la trazabilidad del hilo
+        $correspondencia->eventos()->create([
+            'usuario_id' => $user->id,
+            'tipo' => 'archivada',
+            'texto' => 'cerró el proceso (archivada)',
+        ]);
+
         return $this->successResponse(
             $correspondencia->fresh(),
             "Proceso cerrado: {$correspondencia->folio} quedó archivada"
@@ -217,6 +224,13 @@ class CorrespondenciaController extends Controller
             'estado' => 'completada',
             'archivada_por' => null,
             'archivada_at' => null,
+        ]);
+
+        // Hito permanente en la trazabilidad del hilo
+        $correspondencia->eventos()->create([
+            'usuario_id' => $user->id,
+            'tipo' => 'desarchivada',
+            'texto' => 'reabrió el proceso (desarchivada)',
         ]);
 
         return $this->successResponse(
