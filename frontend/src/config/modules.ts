@@ -123,10 +123,9 @@ export const MODULES: ModuleDefinition[] = [
   },
 ]
 
-// Módulos temporalmente deshabilitados para la capacitación: siguen visibles
-// en el portal y el selector, pero no permiten entrar. Para rehabilitarlos,
-// basta con quitarlos de esta lista.
-export const MODULOS_DESHABILITADOS: ModuleId[] = ['gestor_documental', 'oirs']
+// Módulos temporalmente deshabilitados: siguen visibles en el portal y el
+// selector, pero no permiten entrar. Agregar aquí los ids a bloquear.
+export const MODULOS_DESHABILITADOS: ModuleId[] = []
 
 export const isModuloDeshabilitado = (id: ModuleId | string): boolean =>
   (MODULOS_DESHABILITADOS as string[]).includes(id)
