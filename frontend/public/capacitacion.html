@@ -151,6 +151,16 @@
     justify-content: space-between; font-size: 11.5px; color: #999; background: #fff;
   }
 
+  /* Láminas con pantallazos */
+  .cuerpo.con-shot { display: flex; flex-direction: column; }
+  .shot-wrap { flex: 1; display: flex; gap: 22px; align-items: stretch; justify-content: center; min-height: 0; margin-top: 12px; }
+  .shot-wrap figure { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; min-height: 0; margin: 0; }
+  .shot-wrap img {
+    flex: 1; min-height: 0; max-width: 100%; object-fit: contain;
+    border: 1px solid #dbe3ea; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.16);
+  }
+  .shot-wrap figcaption { flex: none; font-size: 13.5px; color: #667; font-weight: 600; text-align: center; }
+
   @media print {
     body { overflow: visible; background: #fff; }
     .slide { display: flex !important; position: relative; page-break-after: always; height: 100vh; }
@@ -295,6 +305,21 @@
       <li>Por eso cada equipo instala el certificado una vez (siguiente l&aacute;mina): as&iacute; el navegador reconoce la conexi&oacute;n como segura y muestra el candado 🔒.</li>
     </ul>
     <div class="nota">La plataforma funciona <strong>solo dentro de la red municipal</strong>. No es accesible desde internet — y dentro de la red, viaja cifrada.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 4b · PANTALLA: LOGIN -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Acceso a la plataforma</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: el inicio de sesión</h2>
+    <p class="lead">RUT con guión y sin puntos + contraseña. Si la cuenta tiene más de un perfil, la plataforma pide elegir con cuál entrar.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/01-login.png" alt="Pantalla de inicio de sesión"><figcaption>Inicio de sesión</figcaption></figure>
+      <figure><img src="/capacitacion-img/01b-perfil.png" alt="Selección de perfil"><figcaption>Selección de perfil (cuentas con más de un rol)</figcaption></figure>
+    </div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
@@ -453,6 +478,21 @@
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
 
+<!-- 10a-bis · PANTALLA: OFICINA DE PARTES -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Oficina de Partes</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: registro y seguimiento</h2>
+    <p class="lead">Cada ingreso recibe su folio <strong>ING-2026-NNNNN</strong> automático; el listado completo permite filtrar por estado, fechas, remitente o número.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/05-ingresar.png" alt="Formulario de ingreso"><figcaption>Ingresar correspondencia</figcaption></figure>
+      <figure><img src="/capacitacion-img/06-listado.png" alt="Listado de correspondencias"><figcaption>Todas las correspondencias, con folio y estado</figcaption></figure>
+    </div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
 <!-- 10b · SALIDAS -->
 <section class="slide">
   <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Correspondencia de Salida</div><div class="sub">Documentos que el municipio env&iacute;a a externos</div></div></div>
@@ -476,6 +516,20 @@
     </ul>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
+</section>
+
+<!-- 10b-bis · PANTALLA: SALIDAS -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Correspondencia de Salida</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: el menú Salidas</h2>
+    <p class="lead">Pestañas por etapa (Por despachar · N° reservados · Devueltas · Despachadas · Anuladas). Cada reserva muestra su folio de serie (OF-, ORD-, CIRC-, CARTA-) y a qué entrada responde.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/07-salidas.png" alt="Menú Salidas con números reservados"><figcaption>Números reservados, a la espera del PDF firmado</figcaption></figure>
+    </div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
 
 <!-- 10c · FOLIOS Y ANULACIONES -->
@@ -535,6 +589,20 @@
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>M&oacute;dulo de Correspondencia</span></div>
 </section>
 
+<!-- 10d-bis · PANTALLA: LIBRO -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Libro de Correspondencia</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: emisión del libro</h2>
+    <p class="lead">Tipo de libro (Entradas/Salidas) + período → vista previa → firma con OTP. El historial guarda cada libro emitido, re-descargable idéntico.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/08-libro.png" alt="Libro de Correspondencia"><figcaption>Menú Libro de Correspondencia (Oficina de Partes)</figcaption></figure>
+    </div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
 <!-- 11 · SECCIÓN ALCALDE -->
 <section class="slide azul">
   <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
@@ -567,6 +635,21 @@
       <li>Ingresar el <strong>código OTP</strong> de la firma electrónica avanzada (FirmaGob) y confirmar.</li>
     </ol>
     <div class="nota ok">Después de la providencia, el Alcalde además puede <strong>Preparar respuesta</strong> al externo (reserva el folio del oficio) y, cuando todos acusaron recibo, <strong>Cerrar el proceso</strong>: la correspondencia queda Archivada y de solo lectura — solo él puede desarchivarla.</div>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 12b · PANTALLA: BANDEJA Y DERIVACIÓN -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Alcalde</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: la bandeja y la derivación</h2>
+    <p class="lead">La bandeja ordena el trabajo en pestañas (Activas · Recibidas · Archivadas). Al derivar: funcionario(s) buscados por nombre, un departamento completo o todos, más las instrucciones <em>PARA:</em>.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/02-bandeja-alcalde.png" alt="Bandeja de entrada del Alcalde"><figcaption>Bandeja de Entrada, con folios y chips de gestión</figcaption></figure>
+      <figure><img src="/capacitacion-img/04-modal-derivar.png" alt="Diálogo Derivar a Funcionario"><figcaption>Derivar a Funcionario: destino + instrucciones</figcaption></figure>
+    </div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
@@ -619,6 +702,20 @@
     <ul>
       <li>Usa la <strong>Conversación</strong> para informar avances, hacer consultas o adjuntar respuestas (PDF, Word, Excel…). Todos los participantes reciben aviso de cada mensaje.</li>
     </ul>
+  </div>
+  <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
+</section>
+
+<!-- 15b · PANTALLA: DETALLE Y CONVERSACIÓN -->
+<section class="slide">
+  <div class="head"><img src="/logo_blanco.png" alt=""><div><div class="titulo">Funcionarios</div><div class="sub">Así se ve en pantalla</div></div></div>
+  <div class="colorbar"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="cuerpo con-shot">
+    <h2>Así se ve: el detalle y la Conversación</h2>
+    <p class="lead">Arriba, el folio, el estado y las acciones disponibles. Abajo, la <strong>Conversación</strong>: línea de tiempo con derivaciones (cargos y subrogancias), acuses, mensajes y cierres — y la sección <strong>Respuestas</strong> con el folio de salida reservado.</p>
+    <div class="shot-wrap">
+      <figure><img src="/capacitacion-img/03-detalle-conversacion.png" alt="Detalle de correspondencia con conversación"><figcaption>Detalle de una entrada: información, Respuestas y Conversación</figcaption></figure>
+    </div>
   </div>
   <div class="pie"><span>Ilustre Municipalidad de Cabo de Hornos</span><span>Módulo de Correspondencia</span></div>
 </section>
