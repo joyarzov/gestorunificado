@@ -13,7 +13,7 @@ import {
   Home as HomeIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
-import { MODULES, getModuleByPath } from '../../config/modules'
+import { MODULES, getModuleByPath, isModuloDeshabilitado } from '../../config/modules'
 
 const ModuleSwitcher = () => {
   const navigate = useNavigate()
@@ -104,10 +104,12 @@ const ModuleSwitcher = () => {
           {modulosVisibles.map((mod) => {
             const Icon = mod.icono
             const activo = moduloActual?.id === mod.id
+            const deshabilitado = isModuloDeshabilitado(mod.id)
             return (
               <Box
                 key={mod.id}
-                onClick={() => handleNavigate(mod.rootPath)}
+                title={deshabilitado ? 'Temporalmente deshabilitado' : undefined}
+                onClick={() => { if (!deshabilitado) handleNavigate(mod.rootPath) }}
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -115,13 +117,14 @@ const ModuleSwitcher = () => {
                   gap: 0.75,
                   p: 1.5,
                   borderRadius: 2,
-                  cursor: 'pointer',
+                  cursor: deshabilitado ? 'not-allowed' : 'pointer',
+                  opacity: deshabilitado ? 0.45 : 1,
                   border: '1px solid',
                   borderColor: activo ? mod.color : 'transparent',
                   bgcolor: activo ? `${mod.color}12` : 'transparent',
                   transition: 'background-color 0.15s, border-color 0.15s',
                   '&:hover': {
-                    bgcolor: `${mod.color}14`,
+                    bgcolor: deshabilitado ? 'transparent' : `${mod.color}14`,
                   },
                 }}
               >

@@ -8,7 +8,6 @@ import {
   TextField,
   Button,
   Grid,
-  MenuItem,
   Alert,
   CircularProgress,
   Chip,
@@ -20,8 +19,6 @@ import {
 } from '@mui/icons-material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { correspondenciaAPI } from '../../api/correspondencia'
-import { departamentosAPI } from '../../api/common'
-import { Departamento } from '../../types'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
@@ -32,7 +29,6 @@ const CorrespondenciaCreate = () => {
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
   const [error, setError] = useState('')
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [adjuntos, setAdjuntos] = useState<File[]>([])
   const [adjuntoError, setAdjuntoError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -43,25 +39,14 @@ const CorrespondenciaCreate = () => {
     fecha_documento: null as Date | null,
     fecha_recibo: new Date(),
     descripcion: '',
-    departamento_id: '',
   })
 
   useEffect(() => {
-    loadDepartamentos()
     if (isEditMode && id) {
       loadCorrespondencia(parseInt(id))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
-
-  const loadDepartamentos = async () => {
-    try {
-      const response = await departamentosAPI.listar()
-      setDepartamentos(response.data)
-    } catch (error) {
-      console.error('Error cargando departamentos:', error)
-    }
-  }
 
   const loadCorrespondencia = async (correspondenciaId: number) => {
     setLoadingData(true)
@@ -74,7 +59,6 @@ const CorrespondenciaCreate = () => {
         fecha_documento: data.fecha_documento ? new Date(data.fecha_documento) : null,
         fecha_recibo: data.fecha_recibo ? new Date(data.fecha_recibo) : new Date(),
         descripcion: data.descripcion || '',
-        departamento_id: data.departamento_id ? String(data.departamento_id) : '',
       })
     } catch (err) {
       setError('Error al cargar la correspondencia')
@@ -129,7 +113,6 @@ const CorrespondenciaCreate = () => {
         ...formData,
         fecha_documento: formData.fecha_documento?.toISOString().split('T')[0],
         fecha_recibo: formData.fecha_recibo?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-        departamento_id: formData.departamento_id ? Number(formData.departamento_id) : undefined,
       }
 
       if (isEditMode && id) {
@@ -231,23 +214,6 @@ const CorrespondenciaCreate = () => {
                   onChange={(date) => handleChange('fecha_recibo', date)}
                   slotProps={{ textField: { fullWidth: true, required: true } }}
                 />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Departamento Destino"
-                  value={formData.departamento_id}
-                  onChange={(e) => handleChange('departamento_id', e.target.value)}
-                >
-                  <MenuItem value="">Sin asignar</MenuItem>
-                  {departamentos.map((depto) => (
-                    <MenuItem key={depto.id} value={depto.id}>
-                      {depto.nombre}
-                    </MenuItem>
-                  ))}
-                </TextField>
               </Grid>
 
               {!isEditMode && (

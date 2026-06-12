@@ -10,6 +10,7 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Chip,
 } from '@mui/material'
 import {
   Mail as MailIcon,
@@ -23,6 +24,7 @@ import {
   SwapHoriz as SwapRoleIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
+import { isModuloDeshabilitado } from '../config/modules'
 import { useHoraOficial } from '../hooks/useHoraOficial'
 import NotificacionesBell from '../components/layout/NotificacionesBell'
 import { version as APP_VERSION } from '../../package.json'
@@ -236,18 +238,23 @@ const Portal = () => {
           Aplicaciones
         </Typography>
         <Grid container spacing={2.5} sx={{ mb: 4 }}>
-          {modulos.map((mod) => (
+          {modulos.map((mod) => {
+            const deshabilitado = isModuloDeshabilitado(mod.id)
+            return (
             <Grid item xs={12} sm={6} md={3} key={mod.id}>
               <Card
                 sx={{
                   height: '100%',
                   transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 },
+                  ...(deshabilitado
+                    ? { opacity: 0.55, filter: 'grayscale(0.5)' }
+                    : { '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 } }),
                   borderTop: `4px solid ${mod.color}`,
                 }}
                 elevation={2}
               >
                 <CardActionArea
+                  disabled={deshabilitado}
                   onClick={() => navigate(mod.ruta)}
                   sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', p: 3 }}
                 >
@@ -272,10 +279,14 @@ const Portal = () => {
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 0.5 }}>
                     {mod.descripcion}
                   </Typography>
+                  {deshabilitado && (
+                    <Chip label="Temporalmente deshabilitado" size="small" sx={{ mt: 1.5 }} />
+                  )}
                 </CardActionArea>
               </Card>
             </Grid>
-          ))}
+            )
+          })}
           {modulos.length === 0 && (
             <Grid item xs={12}>
               <Paper sx={{ p: 4, textAlign: 'center' }}>
