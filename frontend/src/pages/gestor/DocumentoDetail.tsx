@@ -91,6 +91,8 @@ const trazabilidadIconMap: Record<string, { icon: React.ReactElement; color: str
   recibido: { icon: <MarkEmailReadIcon />, color: '#4caf50' },
   firmante_agregado: { icon: <PersonAddIcon />, color: '#2196f3' },
   eliminado: { icon: <DeleteIcon />, color: '#f44336' },
+  incorporado: { icon: <FolderIcon />, color: '#4caf50' },
+  asociado: { icon: <FolderIcon />, color: '#2196f3' },
 }
 
 const accionLabels: Record<string, string> = {
@@ -103,6 +105,8 @@ const accionLabels: Record<string, string> = {
   recibido: 'Recibido',
   firmante_agregado: 'Firmante agregado',
   eliminado: 'Eliminado',
+  incorporado: 'Incorporado',
+  asociado: 'Asociado a expediente',
 }
 
 // Tramos de "Altura del sello": el slider salta SOLO a estas posiciones (no es fluido),

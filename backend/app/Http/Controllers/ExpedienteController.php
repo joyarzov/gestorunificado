@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Derivacion;
 use App\Models\Documento;
 use App\Models\DocumentoFirma;
+use App\Models\DocumentoTrazabilidad;
 use App\Models\Expediente;
 use App\Models\ExpedienteActividad;
 use App\Models\User;
@@ -358,6 +359,13 @@ class ExpedienteController extends Controller
             'metadata' => ['documento_id' => $documentoId],
         ]);
 
+        DocumentoTrazabilidad::registrar(
+            $documento->id,
+            'asociado',
+            "Asociado al expediente {$expediente->identificador}",
+            ['expediente_id' => $expediente->id, 'expediente' => $expediente->identificador]
+        );
+
         $expediente->load(['documentos', 'creador', 'departamento']);
 
         return $this->successResponse($expediente, 'Documento asociado exitosamente');
@@ -400,6 +408,13 @@ class ExpedienteController extends Controller
                 'descripcion' => "Documento PDF \"{$request->titulo}\" subido y asociado al expediente",
                 'metadata' => ['documento_id' => $documento->id, 'archivo' => $path],
             ]);
+
+            DocumentoTrazabilidad::registrar(
+                $documento->id,
+                'incorporado',
+                "Documento subido e incorporado al expediente {$expediente->identificador}",
+                ['expediente_id' => $expediente->id, 'expediente' => $expediente->identificador]
+            );
 
             DB::commit();
 
