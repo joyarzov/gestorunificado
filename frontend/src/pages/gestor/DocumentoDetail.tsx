@@ -14,7 +14,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  IconButton,
   Snackbar,
   Dialog,
   DialogTitle,
@@ -42,15 +41,13 @@ import {
   Delete as DeleteIcon,
   Verified as VerifiedIcon,
   Download as DownloadIcon,
-  AttachFile as AttachFileIcon,
-  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmaPagePreview from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
-import { Documento, DocumentoAdjunto, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, User } from '../../types'
+import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, User } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -125,8 +122,6 @@ const DocumentoDetail = () => {
   const [envios, setEnvios] = useState<DocumentoEnvio[]>([])
   const [trazabilidad, setTrazabilidad] = useState<DocumentoTrazabilidad[]>([])
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [adjuntoSubiendo, setAdjuntoSubiendo] = useState(false)
-  const [adjuntoError, setAdjuntoError] = useState('')
   const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
@@ -269,64 +264,6 @@ const DocumentoDetail = () => {
       URL.revokeObjectURL(url)
     } catch {
       setSnackbar({ open: true, message: 'Error al descargar el documento', severity: 'error' })
-    }
-  }
-
-  // --- Adjuntos PDF ---
-  const handleSubirAdjunto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    e.target.value = ''
-    if (files.length === 0 || !id) return
-
-    const esPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
-    const soloPdf = files.filter(esPdf)
-    const validos = soloPdf.filter(f => f.size <= 10 * 1024 * 1024)
-
-    if (soloPdf.length < files.length) {
-      setAdjuntoError('Solo se permiten archivos PDF')
-    } else if (validos.length < soloPdf.length) {
-      setAdjuntoError('Cada archivo debe pesar máximo 10 MB')
-    } else {
-      setAdjuntoError('')
-    }
-    if (validos.length === 0) return
-
-    setAdjuntoSubiendo(true)
-    try {
-      for (const file of validos) {
-        await documentosAPI.subirAdjunto(parseInt(id), file)
-      }
-      setSnackbar({ open: true, message: 'Adjunto(s) subido(s) correctamente', severity: 'success' })
-      loadDocumento(parseInt(id))
-    } catch {
-      setSnackbar({ open: true, message: 'Error al subir el adjunto', severity: 'error' })
-    } finally {
-      setAdjuntoSubiendo(false)
-    }
-  }
-
-  const handleEliminarAdjunto = async (adjuntoId: number) => {
-    if (!id) return
-    try {
-      await documentosAPI.eliminarAdjunto(adjuntoId)
-      setSnackbar({ open: true, message: 'Adjunto eliminado', severity: 'success' })
-      loadDocumento(parseInt(id))
-    } catch {
-      setSnackbar({ open: true, message: 'Error al eliminar el adjunto', severity: 'error' })
-    }
-  }
-
-  const handleDescargarAdjunto = async (adj: DocumentoAdjunto) => {
-    try {
-      const blob = await documentosAPI.descargarAdjunto(adj.id)
-      const url = URL.createObjectURL(blob as Blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = adj.nombre_archivo
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      setSnackbar({ open: true, message: 'Error al descargar el adjunto', severity: 'error' })
     }
   }
 
@@ -853,69 +790,6 @@ const DocumentoDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Adjuntos */}
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="h6">
-                  Adjuntos{documento.adjuntos && documento.adjuntos.length > 0 ? ` (${documento.adjuntos.length})` : ''}
-                </Typography>
-                <Button
-                  component="label"
-                  startIcon={<AttachFileIcon />}
-                  size="small"
-                  variant="outlined"
-                  disabled={adjuntoSubiendo}
-                >
-                  Agregar PDF
-                  <input type="file" hidden accept="application/pdf" multiple onChange={handleSubirAdjunto} />
-                </Button>
-              </Box>
-              {adjuntoError && (
-                <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setAdjuntoError('')}>
-                  {adjuntoError}
-                </Alert>
-              )}
-              {adjuntoSubiendo && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <CircularProgress size={16} />
-                  <Typography variant="body2" color="text.secondary">Subiendo…</Typography>
-                </Box>
-              )}
-              {documento.adjuntos && documento.adjuntos.length > 0 ? (
-                <List dense>
-                  {documento.adjuntos.map((adj) => (
-                    <ListItem
-                      key={adj.id}
-                      secondaryAction={
-                        <Box>
-                          <IconButton edge="end" size="small" onClick={() => handleDescargarAdjunto(adj)} title="Descargar">
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton edge="end" size="small" color="error" onClick={() => handleEliminarAdjunto(adj.id)} title="Eliminar">
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      }
-                    >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        <PdfIcon color="error" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={adj.nombre_archivo}
-                        primaryTypographyProps={{ noWrap: true, title: adj.nombre_archivo, variant: 'body2' }}
-                        secondary={adj.tamanio_bytes ? `${(adj.tamanio_bytes / 1024 / 1024).toFixed(2)} MB` : undefined}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Sin adjuntos
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Estado de Envío */}
           {(yaEnviado || puedeEnviar) && (
