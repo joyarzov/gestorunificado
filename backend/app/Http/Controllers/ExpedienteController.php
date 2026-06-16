@@ -293,12 +293,12 @@ class ExpedienteController extends Controller
         $user = Auth::user();
         $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
 
-        // Visibilidad: el creador, su departamento, el responsable actual, y cualquiera
-        // que haya tenido el expediente en su poder por una derivación (directa o a su depto).
+        // Visibilidad personal: el creador, el responsable actual, y quien haya tenido el
+        // expediente por una derivación (a sí mismo, o a su depto cuando fue sin usuario).
+        // NO se incluyen todos los expedientes del departamento por el solo hecho de pertenecer a él.
         $query = Expediente::with(['creador', 'departamento', 'responsableActual'])
             ->where(function ($q) use ($user, $ctx) {
                 $q->where('creado_por', $user->id)
-                    ->orWhere('departamento_id', $user->departamento_id)
                     ->orWhere('responsable_actual_usuario_id', $ctx->id)
                     ->orWhereHas('derivaciones', function ($d) use ($ctx) {
                         $d->where('usuario_destino_id', $ctx->id)
