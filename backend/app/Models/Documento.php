@@ -20,6 +20,7 @@ class Documento extends Model
     const ESTADO_FIRMADO = 'firmado';
     const ESTADO_RECHAZADO = 'rechazado';
     const ESTADO_ANULADO = 'anulado';
+    const ESTADO_INCORPORADO = 'incorporado'; // PDF subido (externo/escaneado), ya final
 
     // Constantes de nivel de acceso (NTDEE)
     const ACCESO_PUBLICO = 1;

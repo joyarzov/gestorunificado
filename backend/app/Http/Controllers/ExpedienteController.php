@@ -384,7 +384,7 @@ class ExpedienteController extends Controller
                 'formato' => 'PDF',
                 'mecanismo_incorporacion' => Documento::MECANISMO_FISICO,
                 'archivo_pdf' => $path,
-                'estado' => Documento::ESTADO_BORRADOR,
+                'estado' => Documento::ESTADO_INCORPORADO,
                 'nivel_acceso' => $expediente->nivel_acceso ?? 1,
                 'creado_por' => Auth::id(),
                 'departamento_id' => Auth::user()->departamento_id,

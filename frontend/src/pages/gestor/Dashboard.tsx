@@ -53,6 +53,7 @@ const estadoDocLabel: Record<string, { label: string; color: 'default' | 'primar
   firmado: { label: 'Firmado', color: 'success' },
   rechazado: { label: 'Rechazado', color: 'error' },
   anulado: { label: 'Anulado', color: 'default' },
+  incorporado: { label: 'Incorporado', color: 'info' },
 }
 
 const GestorDashboard = () => {

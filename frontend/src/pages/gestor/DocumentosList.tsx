@@ -37,12 +37,13 @@ import { Documento, TipoDocumental } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
+const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error' | 'info'> = {
   borrador: 'default',
   pendiente_firma: 'warning',
   firmado: 'success',
   rechazado: 'error',
   anulado: 'error',
+  incorporado: 'info',
 }
 
 const estadoLabels: Record<string, string> = {
@@ -51,6 +52,7 @@ const estadoLabels: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
+  incorporado: 'Incorporado',
 }
 
 const DocumentosList = () => {

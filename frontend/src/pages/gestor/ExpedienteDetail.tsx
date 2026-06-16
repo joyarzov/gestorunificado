@@ -89,12 +89,13 @@ const nivelAccesoLabels: Record<number, string> = {
 }
 
 // Estados de documento (distintos de los del expediente)
-const docEstadoColor: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
+const docEstadoColor: Record<string, 'default' | 'warning' | 'success' | 'error' | 'info'> = {
   borrador: 'default',
   pendiente_firma: 'warning',
   firmado: 'success',
   rechazado: 'error',
   anulado: 'error',
+  incorporado: 'info',
 }
 const docEstadoLabel: Record<string, string> = {
   borrador: 'Borrador',
@@ -102,6 +103,7 @@ const docEstadoLabel: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
+  incorporado: 'Incorporado',
 }
 
 interface SortableDocItemProps {
@@ -145,7 +147,7 @@ const SortableDocItem = ({ doc, onClick, onFirmar }: SortableDocItemProps) => {
       <ListItemText
         onClick={onClick}
         primary={doc.titulo}
-        secondary={format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: es })}
+        secondary={format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
       />
       {doc.mi_firma_pendiente && (
         <Button
@@ -160,9 +162,9 @@ const SortableDocItem = ({ doc, onClick, onFirmar }: SortableDocItemProps) => {
         </Button>
       )}
       <Chip
-        label={doc.mi_firma_pendiente ? 'Pendiente de tu firma' : (doc.estado || 'pendiente')}
+        label={doc.mi_firma_pendiente ? 'Pendiente de tu firma' : (docEstadoLabel[doc.estado] || doc.estado || 'Pendiente')}
         size="small"
-        color={doc.estado === 'firmado' ? 'success' : doc.mi_firma_pendiente ? 'warning' : 'default'}
+        color={doc.mi_firma_pendiente ? 'warning' : (docEstadoColor[doc.estado] || 'default')}
         variant={doc.mi_firma_pendiente ? 'outlined' : 'filled'}
       />
     </ListItem>

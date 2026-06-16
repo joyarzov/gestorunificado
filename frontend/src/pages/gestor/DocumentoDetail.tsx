@@ -61,6 +61,7 @@ const estadoColors: Record<string, 'default' | 'warning' | 'success' | 'error' |
   firmado: 'success',
   rechazado: 'error',
   anulado: 'error',
+  incorporado: 'info',
 }
 
 const estadoLabels: Record<string, string> = {
@@ -69,6 +70,7 @@ const estadoLabels: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
+  incorporado: 'Incorporado',
 }
 
 const envioEstadoLabels: Record<string, string> = {
