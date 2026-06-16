@@ -190,10 +190,11 @@ export const expedientesAPI = {
     return response.data
   },
 
-  subirDocumento: async (expedienteId: number, archivo: File, titulo: string) => {
+  subirDocumento: async (expedienteId: number, archivo: File, titulo: string, tipoDocumentalId: number) => {
     const formData = new FormData()
     formData.append('archivo', archivo)
     formData.append('titulo', titulo)
+    formData.append('tipo_documental_id', String(tipoDocumentalId))
     const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${expedienteId}/subir-documento`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

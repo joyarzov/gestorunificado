@@ -380,6 +380,7 @@ class ExpedienteController extends Controller
         $request->validate([
             'archivo' => 'required|file|mimes:pdf|max:20480',
             'titulo' => 'required|string|max:255',
+            'tipo_documental_id' => 'required|exists:tipos_documentales,id',
         ]);
 
         DB::beginTransaction();
@@ -389,6 +390,7 @@ class ExpedienteController extends Controller
 
             $documento = Documento::create([
                 'titulo' => $request->titulo,
+                'tipo_documental_id' => $request->tipo_documental_id,
                 'formato' => 'PDF',
                 'mecanismo_incorporacion' => Documento::MECANISMO_FISICO,
                 'archivo_pdf' => $path,

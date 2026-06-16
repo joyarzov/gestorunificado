@@ -58,9 +58,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { expedientesAPI, documentosAPI } from '../../api/gestor'
+import { expedientesAPI, documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import { usersAPI } from '../../api/common'
-import { Expediente, Documento, User } from '../../types'
+import { Expediente, Documento, User, TipoDocumental } from '../../types'
 
 const ACCIONES_DERIVACION = ['Tomar conocimiento', 'Informar', 'Tramitar', 'Revisar', 'Visar bueno', 'Archivar']
 import { format } from 'date-fns'
@@ -194,6 +194,8 @@ const ExpedienteDetail = () => {
   const [openSubir, setOpenSubir] = useState(false)
   const [pdfTitulo, setPdfTitulo] = useState('')
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pdfTipoId, setPdfTipoId] = useState<number | ''>('')
+  const [tiposDocumentales, setTiposDocumentales] = useState<TipoDocumental[]>([])
   const [subirLoading, setSubirLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -404,15 +406,24 @@ const ExpedienteDetail = () => {
     }
   }
 
+  // Cargar tipos documentales al abrir el diálogo de subir PDF
+  useEffect(() => {
+    if (!openSubir || tiposDocumentales.length > 0) return
+    tiposDocumentalesAPI.listar()
+      .then(res => setTiposDocumentales(res.data || []))
+      .catch(() => setSnackbar({ open: true, message: 'No se pudieron cargar los tipos de documento', severity: 'error' }))
+  }, [openSubir, tiposDocumentales.length])
+
   const handleSubir = async () => {
-    if (!id || !pdfFile || !pdfTitulo.trim()) return
+    if (!id || !pdfFile || !pdfTitulo.trim() || !pdfTipoId) return
     setSubirLoading(true)
     try {
-      await expedientesAPI.subirDocumento(parseInt(id), pdfFile, pdfTitulo.trim())
+      await expedientesAPI.subirDocumento(parseInt(id), pdfFile, pdfTitulo.trim(), Number(pdfTipoId))
       setSnackbar({ open: true, message: 'Documento subido exitosamente', severity: 'success' })
       setOpenSubir(false)
       setPdfFile(null)
       setPdfTitulo('')
+      setPdfTipoId('')
       loadExpediente(parseInt(id))
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al subir documento'
@@ -848,6 +859,20 @@ const ExpedienteDetail = () => {
             fullWidth
             sx={{ mb: 2 }}
           />
+          <TextField
+            select
+            required
+            label="Tipo de documento"
+            value={pdfTipoId}
+            onChange={(e) => setPdfTipoId(e.target.value === '' ? '' : Number(e.target.value))}
+            fullWidth
+            sx={{ mb: 2 }}
+            helperText="Selecciona el tipo documental"
+          >
+            {tiposDocumentales.map((t) => (
+              <MenuItem key={t.id} value={t.id}>{t.nombre}</MenuItem>
+            ))}
+          </TextField>
           <input
             ref={fileInputRef}
             type="file"
@@ -877,7 +902,7 @@ const ExpedienteDetail = () => {
           <Button
             variant="contained"
             onClick={handleSubir}
-            disabled={!pdfFile || !pdfTitulo.trim() || subirLoading}
+            disabled={!pdfFile || !pdfTitulo.trim() || !pdfTipoId || subirLoading}
           >
             {subirLoading ? <CircularProgress size={20} /> : 'Subir'}
           </Button>
