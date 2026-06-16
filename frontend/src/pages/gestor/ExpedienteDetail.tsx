@@ -88,6 +88,22 @@ const nivelAccesoLabels: Record<number, string> = {
   4: 'Secreto',
 }
 
+// Estados de documento (distintos de los del expediente)
+const docEstadoColor: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
+  borrador: 'default',
+  pendiente_firma: 'warning',
+  firmado: 'success',
+  rechazado: 'error',
+  anulado: 'error',
+}
+const docEstadoLabel: Record<string, string> = {
+  borrador: 'Borrador',
+  pendiente_firma: 'Pendiente de firma',
+  firmado: 'Firmado',
+  rechazado: 'Rechazado',
+  anulado: 'Anulado',
+}
+
 interface SortableDocItemProps {
   doc: any
   onClick: () => void
@@ -755,17 +771,43 @@ const ExpedienteDetail = () => {
             value={selectedDoc}
             onChange={(_e, value) => setSelectedDoc(value)}
             onInputChange={(_e, value) => setDocSearch(value)}
-            renderOption={(props, option) => (
-              <li {...props} key={option.id}>
-                <ListItemAvatar>
-                  <DocIcon color="action" />
-                </ListItemAvatar>
-                <ListItemText
-                  primary={option.titulo}
-                  secondary={`${option.identificador} - ${option.estado}`}
-                />
-              </li>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...liProps } = props as { key?: React.Key } & Record<string, unknown>
+              const doc = option as any
+              return (
+                <li key={option.id} {...liProps} style={{ alignItems: 'flex-start' }}>
+                  <ListItemAvatar sx={{ minWidth: 40, mt: 0.5 }}>
+                    <DocIcon color="action" />
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography variant="body2" fontWeight="medium" component="span">
+                          {doc.titulo}
+                        </Typography>
+                        <Chip
+                          label={docEstadoLabel[doc.estado] || doc.estado}
+                          size="small"
+                          color={docEstadoColor[doc.estado] || 'default'}
+                          variant="outlined"
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <>
+                        {doc.identificador}
+                        {doc.numero ? ` · Nº ${doc.numero}` : ''}
+                        {doc.tipo_documental?.nombre ? ` · ${doc.tipo_documental.nombre}` : ''}
+                        <br />
+                        {doc.creador?.nombre ? `Creado por ${doc.creador.nombre}` : 'Creado por —'}
+                        {doc.created_at ? ` · ${format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: es })}` : ''}
+                      </>
+                    }
+                    secondaryTypographyProps={{ component: 'span' }}
+                  />
+                </li>
+              )
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}
