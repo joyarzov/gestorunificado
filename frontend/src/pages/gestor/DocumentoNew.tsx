@@ -672,6 +672,11 @@ const DocumentoNew = () => {
       return
     }
 
+    if (expedientesSeleccionados.length === 0) {
+      setError('Debe asociar el documento a al menos un expediente')
+      return
+    }
+
     setError('')
     setLoading(true)
 
@@ -1215,8 +1220,11 @@ const DocumentoNew = () => {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Expedientes (opcional)"
+                  required
+                  label="Expedientes"
                   placeholder="Buscar expediente..."
+                  helperText="Todo documento debe asociarse a al menos un expediente"
+                  error={expedientesSeleccionados.length === 0}
                 />
               )}
               renderTags={(value, getTagProps) =>

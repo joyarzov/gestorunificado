@@ -21,6 +21,8 @@ class Expediente extends Model
         'cpat_codigo',
         'cpat_nombre',
         'departamento_id',
+        'responsable_actual_usuario_id',
+        'responsable_actual_departamento_id',
         'fecha_creacion',
         'fecha_cierre',
         'creado_por',
@@ -71,6 +73,29 @@ class Expediente extends Model
     public function actividades()
     {
         return $this->hasMany(ExpedienteActividad::class)->orderBy('created_at', 'desc');
+    }
+
+    /** Usuario en cuyo poder está ahora el expediente (cambia en cada derivación). */
+    public function responsableActual()
+    {
+        return $this->belongsTo(User::class, 'responsable_actual_usuario_id');
+    }
+
+    /** Departamento del responsable actual (dato derivado del responsable). */
+    public function responsableActualDepartamento()
+    {
+        return $this->belongsTo(Departamento::class, 'responsable_actual_departamento_id');
+    }
+
+    /** Derivaciones del expediente (relación polimórfica), reusa el motor de derivación. */
+    public function derivaciones()
+    {
+        return $this->morphMany(Derivacion::class, 'derivable')->orderBy('created_at', 'desc');
+    }
+
+    public function ultimaDerivacion()
+    {
+        return $this->morphOne(Derivacion::class, 'derivable')->latestOfMany();
     }
 
     // Generar identificador único

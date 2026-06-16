@@ -36,6 +36,10 @@ import {
   Link as LinkIcon,
   UploadFile as UploadIcon,
   DragIndicator as DragIcon,
+  Send as DerivarIcon,
+  MoveToInbox as RecibirIcon,
+  Person as PersonIcon,
+  Draw as FirmarIcon,
 } from '@mui/icons-material'
 import {
   DndContext,
@@ -55,7 +59,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { expedientesAPI, documentosAPI } from '../../api/gestor'
-import { Expediente, Documento } from '../../types'
+import { usersAPI } from '../../api/common'
+import { Expediente, Documento, User } from '../../types'
+
+const ACCIONES_DERIVACION = ['Tomar conocimiento', 'Informar', 'Tramitar', 'Revisar', 'Visar bueno', 'Archivar']
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -84,9 +91,10 @@ const nivelAccesoLabels: Record<number, string> = {
 interface SortableDocItemProps {
   doc: any
   onClick: () => void
+  onFirmar?: () => void
 }
 
-const SortableDocItem = ({ doc, onClick }: SortableDocItemProps) => {
+const SortableDocItem = ({ doc, onClick, onFirmar }: SortableDocItemProps) => {
   const {
     attributes,
     listeners,
@@ -123,10 +131,23 @@ const SortableDocItem = ({ doc, onClick }: SortableDocItemProps) => {
         primary={doc.titulo}
         secondary={format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: es })}
       />
+      {doc.mi_firma_pendiente && (
+        <Button
+          size="small"
+          variant="contained"
+          color="warning"
+          startIcon={<FirmarIcon />}
+          onClick={onFirmar}
+          sx={{ mr: 1 }}
+        >
+          Firmar
+        </Button>
+      )}
       <Chip
-        label={doc.estado || 'pendiente'}
+        label={doc.mi_firma_pendiente ? 'Pendiente de tu firma' : (doc.estado || 'pendiente')}
         size="small"
-        color={doc.estado === 'firmado' ? 'success' : 'default'}
+        color={doc.estado === 'firmado' ? 'success' : doc.mi_firma_pendiente ? 'warning' : 'default'}
+        variant={doc.mi_firma_pendiente ? 'outlined' : 'filled'}
       />
     </ListItem>
   )
@@ -158,8 +179,20 @@ const ExpedienteDetail = () => {
   const [subirLoading, setSubirLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Dialog: Derivar expediente
+  const [openDerivar, setOpenDerivar] = useState(false)
+  const [funcionarios, setFuncionarios] = useState<User[]>([])
+  const [destino, setDestino] = useState<User | null>(null)
+  const [derivObservaciones, setDerivObservaciones] = useState('')
+  const [derivAcciones, setDerivAcciones] = useState<string[]>([])
+  const [derivarLoading, setDerivarLoading] = useState(false)
+  const [recibirLoading, setRecibirLoading] = useState(false)
+
   // Documentos ordenados localmente
   const [orderedDocs, setOrderedDocs] = useState<any[]>([])
+
+  // Hoja de ruta consolidada (actividades + firmas)
+  const [hojaRuta, setHojaRuta] = useState<Array<{ fuente: string; tipo: string; descripcion: string; usuario: string; fecha: string }>>([])
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -215,6 +248,10 @@ const ExpedienteDetail = () => {
     try {
       const response = await expedientesAPI.obtener(expId)
       setExpediente(response.data)
+      try {
+        const hr = await expedientesAPI.hojaRuta(expId)
+        setHojaRuta(hr.data || [])
+      } catch { /* la hoja de ruta es secundaria; no bloquea la vista */ }
     } catch (err) {
       setError('Error al cargar el expediente')
       console.error(err)
@@ -240,6 +277,52 @@ const ExpedienteDetail = () => {
       loadExpediente(parseInt(id))
     } catch (err) {
       console.error('Error al reabrir:', err)
+    }
+  }
+
+  // --- Derivar expediente ---
+  useEffect(() => {
+    if (!openDerivar || funcionarios.length > 0) return
+    usersAPI.funcionarios()
+      .then((res) => setFuncionarios(res.data || []))
+      .catch(() => setSnackbar({ open: true, message: 'No se pudieron cargar los funcionarios', severity: 'error' }))
+  }, [openDerivar, funcionarios.length])
+
+  const handleDerivar = async () => {
+    if (!id || !destino) return
+    setDerivarLoading(true)
+    try {
+      await expedientesAPI.derivar(parseInt(id), {
+        usuario_destino_id: destino.id,
+        observaciones: derivObservaciones.trim() || undefined,
+        acciones_para: derivAcciones.length > 0 ? derivAcciones : undefined,
+      })
+      setSnackbar({ open: true, message: `Expediente derivado a ${destino.nombre}`, severity: 'success' })
+      setOpenDerivar(false)
+      setDestino(null)
+      setDerivObservaciones('')
+      setDerivAcciones([])
+      loadExpediente(parseInt(id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al derivar el expediente'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setDerivarLoading(false)
+    }
+  }
+
+  const handleRecibir = async () => {
+    if (!id) return
+    setRecibirLoading(true)
+    try {
+      await expedientesAPI.recibir(parseInt(id))
+      setSnackbar({ open: true, message: 'Expediente recibido', severity: 'success' })
+      loadExpediente(parseInt(id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al recibir el expediente'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setRecibirLoading(false)
     }
   }
 
@@ -326,6 +409,31 @@ const ExpedienteDetail = () => {
   const esAdmin = user?.roles?.includes('admin')
   const puedeEditar = esCreador || esAdmin
 
+  const responsableActualId = expediente?.responsable_actual_usuario_id ?? null
+  const tengoElExpediente = responsableActualId != null && responsableActualId === user?.id
+  const sinResponsable = responsableActualId == null
+  const puedeDerivar = !estaCerrado && (
+    esAdmin || tengoElExpediente ||
+    (sinResponsable && (esCreador || expediente?.departamento_id === user?.departamento_id))
+  )
+  const eventoIcono = (tipo: string) => {
+    switch (tipo) {
+      case 'documento_firmado': return <FirmarIcon fontSize="small" color="success" />
+      case 'documento_rechazado': return <FirmarIcon fontSize="small" color="error" />
+      case 'derivacion': return <DerivarIcon fontSize="small" color="info" />
+      case 'recepcion': return <RecibirIcon fontSize="small" color="primary" />
+      case 'cierre': return <CerrarIcon fontSize="small" color="warning" />
+      case 'reapertura': return <ReabrirIcon fontSize="small" color="action" />
+      default: return <DocIcon fontSize="small" color="action" />
+    }
+  }
+
+  const ultimaDeriv = expediente?.ultima_derivacion
+  const debeRecibir = !!ultimaDeriv && ultimaDeriv.estado === 'pendiente' && (
+    ultimaDeriv.usuario_destino_id === user?.id ||
+    (ultimaDeriv.usuario_destino_id == null && ultimaDeriv.departamento_destino_id === user?.departamento_id)
+  )
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -360,9 +468,29 @@ const ExpedienteDetail = () => {
             color={estadoColors[expediente.estado] || 'default'}
           />
         </Box>
-        {puedeEditar && (
+        {(puedeEditar || puedeDerivar || debeRecibir) && (
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {!estaCerrado ? (
+            {debeRecibir && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<RecibirIcon />}
+                onClick={handleRecibir}
+                disabled={recibirLoading}
+              >
+                Recibir
+              </Button>
+            )}
+            {puedeDerivar && (
+              <Button
+                variant="contained"
+                startIcon={<DerivarIcon />}
+                onClick={() => setOpenDerivar(true)}
+              >
+                Derivar
+              </Button>
+            )}
+            {puedeEditar && !estaCerrado && (
               <Button
                 variant="outlined"
                 startIcon={<CerrarIcon />}
@@ -370,7 +498,8 @@ const ExpedienteDetail = () => {
               >
                 Cerrar
               </Button>
-            ) : (
+            )}
+            {puedeEditar && estaCerrado && (
               <Button
                 variant="outlined"
                 startIcon={<ReabrirIcon />}
@@ -379,9 +508,9 @@ const ExpedienteDetail = () => {
                 Reabrir
               </Button>
             )}
-            {!estaCerrado && (
+            {puedeEditar && !estaCerrado && (
               <Button
-                variant="contained"
+                variant="outlined"
                 startIcon={<EditIcon />}
                 onClick={() => navigate(`/expedientes/${id}/editar`)}
               >
@@ -437,6 +566,27 @@ const ExpedienteDetail = () => {
                     Departamento
                   </Typography>
                   <Typography>{expediente.departamento?.nombre || 'Sin asignar'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Responsable actual
+                  </Typography>
+                  {expediente.responsable_actual ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <PersonIcon fontSize="small" color="action" />
+                      <Typography>
+                        {expediente.responsable_actual.nombre}
+                        {expediente.responsable_actual_departamento?.nombre
+                          ? ` · ${expediente.responsable_actual_departamento.nombre}`
+                          : ''}
+                      </Typography>
+                      {ultimaDeriv?.estado === 'pendiente' && (
+                        <Chip label="Por recibir" size="small" color="warning" variant="outlined" sx={{ ml: 0.5 }} />
+                      )}
+                    </Box>
+                  ) : (
+                    <Typography color="text.secondary">Sin derivar</Typography>
+                  )}
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">
@@ -524,6 +674,7 @@ const ExpedienteDetail = () => {
                           key={doc.id}
                           doc={doc}
                           onClick={() => navigate(`/documentos/${doc.id}`)}
+                          onFirmar={() => navigate(`/documentos/${doc.id}`)}
                         />
                       ))}
                     </List>
@@ -562,30 +713,31 @@ const ExpedienteDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Actividades */}
-          {expediente.actividades && expediente.actividades.length > 0 && (
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Historial de Actividades
+          {/* Hoja de ruta consolidada (actividades + firmas) */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Hoja de ruta
+              </Typography>
+              {hojaRuta.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Sin movimientos registrados.
                 </Typography>
+              ) : (
                 <List dense>
-                  {expediente.actividades.slice(0, 5).map((act: any) => (
-                    <ListItem key={act.id}>
+                  {hojaRuta.map((ev, i) => (
+                    <ListItem key={i} alignItems="flex-start">
+                      <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>{eventoIcono(ev.tipo)}</ListItemIcon>
                       <ListItemText
-                        primary={act.descripcion}
-                        secondary={`${act.usuario?.nombre || 'Sistema'} - ${format(
-                          new Date(act.created_at),
-                          'dd/MM/yyyy HH:mm',
-                          { locale: es }
-                        )}`}
+                        primary={ev.descripcion}
+                        secondary={`${ev.usuario} · ${format(new Date(ev.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}`}
                       />
                     </ListItem>
                   ))}
                 </List>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
@@ -684,6 +836,57 @@ const ExpedienteDetail = () => {
             disabled={!pdfFile || !pdfTitulo.trim() || subirLoading}
           >
             {subirLoading ? <CircularProgress size={20} /> : 'Subir'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Derivar expediente */}
+      <Dialog open={openDerivar} onClose={() => setOpenDerivar(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Derivar expediente</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            El expediente {expediente.identificador} viajará con todos sus documentos al funcionario que elijas.
+          </Typography>
+          <Autocomplete
+            options={funcionarios}
+            getOptionLabel={(o) => `${o.nombre}${o.departamento?.nombre ? ` · ${o.departamento.nombre}` : ''}`}
+            value={destino}
+            onChange={(_, v) => setDestino(v)}
+            isOptionEqualToValue={(o, v) => o.id === v.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Derivar a (funcionario responsable)" required autoFocus margin="dense" />
+            )}
+          />
+          <Autocomplete
+            multiple
+            options={ACCIONES_DERIVACION}
+            value={derivAcciones}
+            onChange={(_, v) => setDerivAcciones(v)}
+            renderInput={(params) => (
+              <TextField {...params} label="Acciones para el destinatario (opcional)" margin="dense" />
+            )}
+            sx={{ mt: 1 }}
+          />
+          <TextField
+            label="Observaciones / providencia (opcional)"
+            value={derivObservaciones}
+            onChange={(e) => setDerivObservaciones(e.target.value)}
+            fullWidth
+            multiline
+            minRows={3}
+            margin="dense"
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDerivar(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            startIcon={<DerivarIcon />}
+            onClick={handleDerivar}
+            disabled={!destino || derivarLoading}
+          >
+            {derivarLoading ? 'Derivando...' : 'Derivar'}
           </Button>
         </DialogActions>
       </Dialog>

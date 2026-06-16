@@ -209,6 +209,11 @@ export interface Expediente {
   departamento?: Departamento
   creado_por: number
   creador?: User
+  responsable_actual_usuario_id?: number | null
+  responsable_actual?: User
+  responsable_actual_departamento_id?: number | null
+  responsable_actual_departamento?: Departamento
+  ultima_derivacion?: Derivacion
   estado: 'abierto' | 'cerrado' | 'archivado' | 'borrador' | 'en_tramite'
   nivel_acceso?: number
   informacion_sensible?: boolean
@@ -349,6 +354,8 @@ export interface Documento {
   anio: number
   firmas?: DocumentoFirma[]
   adjuntos?: DocumentoAdjunto[]
+  // Solo presente al cargar un expediente: indica si el usuario actual tiene firma pendiente
+  mi_firma_pendiente?: boolean
   created_at: string
   updated_at: string
 }

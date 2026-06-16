@@ -245,10 +245,14 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
     Route::prefix('expedientes')->group(function () {
         Route::get('/estadisticas', [ExpedienteController::class, 'estadisticas']);
         Route::get('/mis-expedientes', [ExpedienteController::class, 'misExpedientes']);
+        Route::get('/bandeja', [ExpedienteController::class, 'bandeja']);
+        Route::post('/{expediente}/derivar', [ExpedienteController::class, 'derivar']);
+        Route::post('/{expediente}/recibir', [ExpedienteController::class, 'recibir']);
         Route::post('/{expediente}/cerrar', [ExpedienteController::class, 'cerrar']);
         Route::post('/{expediente}/reabrir', [ExpedienteController::class, 'reabrir']);
         Route::get('/{expediente}/indice-electronico', [ExpedienteController::class, 'indiceElectronico']);
         Route::get('/{expediente}/actividades', [ExpedienteController::class, 'actividades']);
+        Route::get('/{expediente}/hoja-ruta', [ExpedienteController::class, 'hojaRuta']);
         Route::post('/{expediente}/asociar-documento', [ExpedienteController::class, 'asociarDocumento']);
         Route::post('/{expediente}/subir-documento', [ExpedienteController::class, 'subirDocumento']);
         Route::put('/{expediente}/reordenar-documentos', [ExpedienteController::class, 'reordenarDocumentos']);

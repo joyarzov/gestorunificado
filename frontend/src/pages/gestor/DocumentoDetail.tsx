@@ -652,16 +652,6 @@ const DocumentoDetail = () => {
                   <Typography variant="caption" color="text.secondary">Número</Typography>
                   <Typography>{documento.numero || 'Pendiente'}</Typography>
                 </Grid>
-                {documento.expedientes && documento.expedientes.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">Expedientes</Typography>
-                    {documento.expedientes.map((exp) => (
-                      <Typography key={exp.id} sx={{ cursor: 'pointer', color: 'primary.main' }} onClick={() => navigate(`/expedientes/${exp.id}`)}>
-                        {exp.numero_expediente || exp.identificador} - {exp.titulo}
-                      </Typography>
-                    ))}
-                  </Grid>
-                )}
                 {documento.descripcion && (
                   <Grid item xs={12}>
                     <Typography variant="caption" color="text.secondary">Descripción</Typography>
@@ -671,6 +661,57 @@ const DocumentoDetail = () => {
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Contexto: expediente y sus documentos */}
+          {documento.expedientes && documento.expedientes.length > 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Expediente y sus documentos
+                </Typography>
+                {documento.expedientes.map((exp) => (
+                  <Box key={exp.id} sx={{ mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ cursor: 'pointer', color: 'primary.main', mb: 0.5 }}
+                      onClick={() => navigate(`/expedientes/${exp.id}`)}
+                    >
+                      {exp.identificador || exp.numero_expediente} — {exp.titulo}
+                    </Typography>
+                    <List dense disablePadding>
+                      {(exp.documentos || []).map((d) => {
+                        const esActual = d.id === documento.id
+                        return (
+                          <ListItem
+                            key={d.id}
+                            onClick={() => { if (!esActual) navigate(`/documentos/${d.id}`) }}
+                            sx={{
+                              cursor: esActual ? 'default' : 'pointer',
+                              bgcolor: esActual ? 'action.selected' : 'transparent',
+                              borderRadius: 1,
+                            }}
+                            secondaryAction={
+                              <Chip
+                                label={estadoLabels[d.estado] || d.estado}
+                                size="small"
+                                color={estadoColors[d.estado] || 'default'}
+                              />
+                            }
+                          >
+                            <ListItemText
+                              primary={d.titulo}
+                              secondary={esActual ? 'Estás viendo este documento' : undefined}
+                              primaryTypographyProps={{ fontWeight: esActual ? 'bold' : 'normal' }}
+                            />
+                          </ListItem>
+                        )
+                      })}
+                    </List>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Vista previa del contenido */}
           {(pdfUrl || documento.contenido_html) && (

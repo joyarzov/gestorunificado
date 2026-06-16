@@ -12,6 +12,8 @@ class Derivacion extends Model
     protected $table = 'derivaciones';
 
     protected $fillable = [
+        'derivable_type',
+        'derivable_id',
         'correspondencia_id',
         'departamento_origen_id',
         'departamento_destino_id',
@@ -32,9 +34,29 @@ class Derivacion extends Model
         'acciones_para' => 'array',
     ];
 
+    /**
+     * Entidad derivada: Correspondencia o Expediente (relación polimórfica).
+     */
+    public function derivable()
+    {
+        return $this->morphTo();
+    }
+
     public function correspondencia()
     {
         return $this->belongsTo(Correspondencia::class);
+    }
+
+    /** Solo derivaciones cuyo derivable es un Expediente. */
+    public function scopeDeExpedientes($query)
+    {
+        return $query->where('derivable_type', Expediente::class);
+    }
+
+    /** Solo derivaciones cuyo derivable es una Correspondencia. */
+    public function scopeDeCorrespondencia($query)
+    {
+        return $query->where('derivable_type', Correspondencia::class);
     }
 
     public function departamentoOrigen()

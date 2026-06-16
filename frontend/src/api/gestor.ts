@@ -199,6 +199,39 @@ export const expedientesAPI = {
     })
     return response.data
   },
+
+  // Derivar el expediente a un funcionario responsable (el expediente circula con sus documentos)
+  derivar: async (
+    id: number,
+    data: { usuario_destino_id: number; observaciones?: string; acciones_para?: string[] },
+  ) => {
+    const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${id}/derivar`, data)
+    return response.data
+  },
+
+  // Recibir la derivación pendiente de un expediente dirigido al usuario
+  recibir: async (id: number) => {
+    const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${id}/recibir`)
+    return response.data
+  },
+
+  // Bandeja de expedientes que le llegaron al usuario por derivación
+  bandeja: async (estado: 'pendiente' | 'recibido' = 'pendiente') => {
+    const response = await api.get<ApiResponse<Expediente[]>>('/expedientes/bandeja', { params: { estado } })
+    return response.data
+  },
+
+  // Hoja de ruta consolidada (actividades + firmas) del expediente
+  hojaRuta: async (id: number) => {
+    const response = await api.get<ApiResponse<Array<{
+      fuente: string
+      tipo: string
+      descripcion: string
+      usuario: string
+      fecha: string
+    }>>>(`/expedientes/${id}/hoja-ruta`)
+    return response.data
+  },
 }
 
 // API de Documentos

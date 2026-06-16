@@ -100,6 +100,15 @@ class DocumentoController extends Controller
             'firmas_requeridas' => 'nullable|integer|min:1'
         ]);
 
+        // Regla Cero Papel: todo documento debe estar asociado a al menos un expediente.
+        $expedientesValidacion = $request->expedientes_ids ?? [];
+        if ($request->expediente_id && !in_array($request->expediente_id, $expedientesValidacion)) {
+            $expedientesValidacion[] = $request->expediente_id;
+        }
+        if (empty($expedientesValidacion)) {
+            return $this->errorResponse('Debe asociar el documento a al menos un expediente.', 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -196,7 +205,11 @@ class DocumentoController extends Controller
     public function show(Documento $documento)
     {
         $documento->load([
-            'expedientes',
+            // Cargar también los documentos de cada expediente para mostrar el contexto
+            // (la "carpeta" completa) al revisar/firmar un documento.
+            'expedientes.documentos' => fn ($q) => $q->select(
+                'documentos.id', 'documentos.titulo', 'documentos.estado', 'documentos.created_at'
+            ),
             'tipoDocumental',
             'plantilla',
             'creador:id,nombre,rut',
@@ -272,9 +285,13 @@ class DocumentoController extends Controller
             $documento->update(['firmas_requeridas' => count($request->firmantes_asignados) ?: null]);
         }
 
-        // Sincronizar expedientes asociados si se enviaron
+        // Sincronizar expedientes asociados si se enviaron.
+        // Regla Cero Papel: no se puede dejar el documento sin ningún expediente.
         if ($request->has('expedientes_ids')) {
-            $documento->expedientes()->sync($request->expedientes_ids ?? []);
+            if (empty($request->expedientes_ids)) {
+                return $this->errorResponse('El documento debe permanecer asociado a al menos un expediente.', 422);
+            }
+            $documento->expedientes()->sync($request->expedientes_ids);
         }
 
         DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Documento editado', [

@@ -22,6 +22,7 @@ import {
   Person as PersonIcon,
   MenuBook as LibroIcon,
   Outbox as SalidaIcon,
+  MoveToInbox as BandejaExpIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -72,6 +73,7 @@ export const MODULES: ModuleDefinition[] = [
       '/gestor-documental',
       '/documentos',
       '/expedientes',
+      '/bandeja-expedientes',
       '/pendientes-firma',
       '/documentos-recibidos',
       '/repositorio-documental',
@@ -179,6 +181,11 @@ export const getSidebarItems = (
         { text: 'Dashboard', path: '/gestor-documental', icon: DashboardIcon },
         { text: 'Mis documentos', path: '/documentos', icon: GestorIcon },
         { text: 'Mis expedientes', path: '/expedientes', icon: FolderIcon },
+        {
+          text: 'Bandeja de expedientes',
+          path: '/bandeja-expedientes',
+          icon: BandejaExpIcon,
+        },
         {
           text: 'Pendientes de firma',
           path: '/pendientes-firma',
