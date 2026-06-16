@@ -284,15 +284,17 @@ const DocumentoNew = () => {
     loadDatos()
   }, [])
 
-  // Auto-asociar expediente cuando viene desde la URL
+  // Auto-asociar expediente cuando viene desde la URL (?expediente_id=).
+  // Se carga el expediente directo por id en vez de buscarlo en la lista de opciones,
+  // porque esa lista solo trae los 'abierto' y un expediente recién creado está en 'borrador'.
   useEffect(() => {
-    if (expedienteIdParam && expedientes.length > 0 && expedientesSeleccionados.length === 0) {
-      const exp = expedientes.find(e => e.id === Number(expedienteIdParam))
-      if (exp) {
-        setExpedientesSeleccionados([exp])
-      }
-    }
-  }, [expedientes, expedienteIdParam])
+    if (!expedienteIdParam || expedientesSeleccionados.length > 0) return
+    let cancelado = false
+    expedientesAPI.obtener(Number(expedienteIdParam))
+      .then(res => { if (!cancelado && res.data) setExpedientesSeleccionados([res.data]) })
+      .catch(() => { /* si falla, el usuario puede seleccionarlo manualmente */ })
+    return () => { cancelado = true }
+  }, [expedienteIdParam])
 
   const loadDatos = async () => {
     try {
@@ -1206,7 +1208,7 @@ const DocumentoNew = () => {
               fullWidth
               label="Expediente"
               value={expedientesSeleccionados.length > 0
-                ? `${expedientesSeleccionados[0].numero_expediente} - ${expedientesSeleccionados[0].titulo}`
+                ? `${expedientesSeleccionados[0].identificador || expedientesSeleccionados[0].numero_expediente || ''} - ${expedientesSeleccionados[0].titulo}`
                 : 'Cargando...'}
               disabled
             />
