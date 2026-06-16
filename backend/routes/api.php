@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::post('/{documento}/devolver-a-borrador', [DocumentoController::class, 'devolverABorrador']);
         Route::post('/{documento}/agregar-firmante', [DocumentoController::class, 'agregarFirmante']);
         Route::get('/{documento}/trazabilidad', [DocumentoController::class, 'trazabilidad']);
+        Route::put('/{documento}/metadatos', [DocumentoController::class, 'actualizarMetadatos']);
     });
     Route::apiResource('documentos', DocumentoController::class);
 

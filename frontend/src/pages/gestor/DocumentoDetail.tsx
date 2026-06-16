@@ -14,6 +14,7 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  MenuItem,
   Snackbar,
   Dialog,
   DialogTitle,
@@ -43,12 +44,19 @@ import {
   Download as DownloadIcon,
   Folder as FolderIcon,
 } from '@mui/icons-material'
-import { documentosAPI } from '../../api/gestor'
+import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmaPagePreview from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
-import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, User } from '../../types'
+import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, TipoDocumental, User } from '../../types'
+
+const NIVELES_ACCESO = [
+  { value: 1, label: 'Público' },
+  { value: 2, label: 'Restringido' },
+  { value: 3, label: 'Reservado' },
+  { value: 4, label: 'Secreto' },
+]
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -127,6 +135,13 @@ const DocumentoDetail = () => {
   const [envios, setEnvios] = useState<DocumentoEnvio[]>([])
   const [trazabilidad, setTrazabilidad] = useState<DocumentoTrazabilidad[]>([])
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  // Editar metadatos (documentos subidos/externos)
+  const [openEditMeta, setOpenEditMeta] = useState(false)
+  const [editTitulo, setEditTitulo] = useState('')
+  const [editTipoId, setEditTipoId] = useState<number | ''>('')
+  const [editNivel, setEditNivel] = useState(1)
+  const [editLoading, setEditLoading] = useState(false)
+  const [tiposDocumentales, setTiposDocumentales] = useState<TipoDocumental[]>([])
   const [enviarDialogOpen, setEnviarDialogOpen] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [selectedDestinatarios, setSelectedDestinatarios] = useState<User[]>([])
@@ -404,6 +419,43 @@ const DocumentoDetail = () => {
   const motivoRechazo = firmaRechazo?.observacion || firmaRechazo?.observaciones || ''
   const puedeCorregir = documento?.estado === 'rechazado' && esCreadorOAdmin
 
+  // Documento subido/externo: no tiene plantilla ni contenido editable; sus datos se editan
+  // por metadatos (título, tipo, nivel) en vez del editor de plantilla.
+  const esSubido = !!documento && !documento.plantilla
+  const puedeEditarMetadatos = esSubido && esCreadorOAdmin &&
+    documento?.estado !== 'firmado' && documento?.estado !== 'anulado'
+
+  const abrirEditarMetadatos = () => {
+    if (!documento) return
+    setEditTitulo(documento.titulo || '')
+    setEditTipoId(documento.tipo_documental?.id ?? '')
+    setEditNivel(documento.nivel_acceso || 1)
+    if (tiposDocumentales.length === 0) {
+      tiposDocumentalesAPI.listar().then(r => setTiposDocumentales(r.data || [])).catch(() => {})
+    }
+    setOpenEditMeta(true)
+  }
+
+  const handleGuardarMetadatos = async () => {
+    if (!id || !editTitulo.trim() || !editTipoId) return
+    setEditLoading(true)
+    try {
+      await documentosAPI.actualizarMetadatos(parseInt(id), {
+        titulo: editTitulo.trim(),
+        tipo_documental_id: Number(editTipoId),
+        nivel_acceso: editNivel,
+      })
+      setSnackbar({ open: true, message: 'Documento actualizado', severity: 'success' })
+      setOpenEditMeta(false)
+      loadDocumento(parseInt(id))
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Error al actualizar el documento'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   // El creador puede enviar el documento firmado
   // Para memos: tiene destinatario preestablecido → enviar directo (solo una vez)
   // Para decretos: sin destinatario preestablecido → abrir selector de usuarios (puede enviar a múltiples)
@@ -542,7 +594,16 @@ const DocumentoDetail = () => {
               </Button>
             </>
           )}
-          {documento.estado === 'borrador' && (
+          {/* Subido/externo: editar metadatos. Creado en borrador: editor de plantilla. */}
+          {puedeEditarMetadatos ? (
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={abrirEditarMetadatos}
+            >
+              Editar
+            </Button>
+          ) : (documento.estado === 'borrador' && !esSubido && (
             <Button
               variant="contained"
               startIcon={<EditIcon />}
@@ -550,7 +611,7 @@ const DocumentoDetail = () => {
             >
               Editar
             </Button>
-          )}
+          ))}
           {puedeCorregir && (
             <Button
               variant="contained"
@@ -1139,6 +1200,58 @@ const DocumentoDetail = () => {
             disabled={actionLoading || selectedDestinatarios.length === 0}
           >
             Enviar a {selectedDestinatarios.length > 0 ? `${selectedDestinatarios.length} destinatario${selectedDestinatarios.length > 1 ? 's' : ''}` : '...'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: Editar metadatos (documentos subidos/externos) */}
+      <Dialog open={openEditMeta} onClose={() => setOpenEditMeta(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar documento</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Este es un documento subido (PDF). Puedes editar su nombre, tipo y nivel de acceso.
+          </Typography>
+          <TextField
+            label="Nombre del documento"
+            value={editTitulo}
+            onChange={(e) => setEditTitulo(e.target.value)}
+            fullWidth
+            required
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            select
+            required
+            label="Tipo de documento"
+            value={editTipoId}
+            onChange={(e) => setEditTipoId(e.target.value === '' ? '' : Number(e.target.value))}
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            {tiposDocumentales.map((t) => (
+              <MenuItem key={t.id} value={t.id}>{t.nombre}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Nivel de acceso"
+            value={editNivel}
+            onChange={(e) => setEditNivel(Number(e.target.value))}
+            fullWidth
+          >
+            {NIVELES_ACCESO.map((n) => (
+              <MenuItem key={n.value} value={n.value}>{n.label}</MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenEditMeta(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleGuardarMetadatos}
+            disabled={!editTitulo.trim() || !editTipoId || editLoading}
+          >
+            {editLoading ? <CircularProgress size={20} /> : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>

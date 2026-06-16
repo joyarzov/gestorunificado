@@ -299,6 +299,35 @@ class DocumentoController extends Controller
         return $this->successResponse($documento, 'Documento actualizado');
     }
 
+    /**
+     * Actualizar solo los metadatos (título, tipo documental, nivel de acceso) sin pasar
+     * por el editor de plantilla. Pensado para documentos subidos/externos (PDF), que no
+     * tienen contenido editable dentro del sistema.
+     */
+    public function actualizarMetadatos(Request $request, Documento $documento)
+    {
+        if ($documento->estaFirmado() || $documento->estado === Documento::ESTADO_ANULADO) {
+            return $this->errorResponse('No se pueden editar los datos de un documento firmado o anulado', 400);
+        }
+
+        $request->validate([
+            'titulo' => 'sometimes|required|string|max:500',
+            'tipo_documental_id' => 'sometimes|nullable|exists:tipos_documentales,id',
+            'nivel_acceso' => 'sometimes|integer|in:1,2,3,4',
+        ]);
+
+        $documento->update(
+            $request->only(['titulo', 'tipo_documental_id', 'nivel_acceso']) + ['actualizado_por' => Auth::id()]
+        );
+
+        DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Datos del documento actualizados');
+
+        return $this->successResponse(
+            $documento->load(['tipoDocumental', 'expedientes:id,identificador,titulo,estado']),
+            'Documento actualizado'
+        );
+    }
+
     public function destroy(Documento $documento)
     {
         if ($documento->estaFirmado()) {

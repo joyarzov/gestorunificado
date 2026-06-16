@@ -372,6 +372,12 @@ export const documentosAPI = {
     return response.data
   },
 
+  // Actualizar solo metadatos (título, tipo, nivel) — para documentos subidos/externos
+  actualizarMetadatos: async (id: number, data: { titulo?: string; tipo_documental_id?: number | null; nivel_acceso?: number }) => {
+    const response = await api.put<ApiResponse<Documento>>(`/documentos/${id}/metadatos`, data)
+    return response.data
+  },
+
   // Analizar PDF subido (detección de firmas)
   analizarUpload: async (archivo: File) => {
     const formData = new FormData()
