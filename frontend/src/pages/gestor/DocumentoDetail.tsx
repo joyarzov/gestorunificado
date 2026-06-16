@@ -41,6 +41,7 @@ import {
   Delete as DeleteIcon,
   Verified as VerifiedIcon,
   Download as DownloadIcon,
+  Folder as FolderIcon,
 } from '@mui/icons-material'
 import { documentosAPI } from '../../api/gestor'
 import api from '../../api/axios'
@@ -601,53 +602,32 @@ const DocumentoDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Contexto: expediente y sus documentos */}
+          {/* Expedientes asociados (enlaces) */}
           {documento.expedientes && documento.expedientes.length > 0 && (
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Expediente y sus documentos
+                  {documento.expedientes.length > 1 ? 'Expedientes asociados' : 'Expediente'}
                 </Typography>
-                {documento.expedientes.map((exp) => (
-                  <Box key={exp.id} sx={{ mb: 1 }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ cursor: 'pointer', color: 'primary.main', mb: 0.5 }}
+                <List dense disablePadding>
+                  {documento.expedientes.map((exp) => (
+                    <ListItem
+                      key={exp.id}
+                      disableGutters
+                      sx={{ cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
                       onClick={() => navigate(`/expedientes/${exp.id}`)}
+                      secondaryAction={<ForwardIcon color="action" fontSize="small" />}
                     >
-                      {exp.identificador || exp.numero_expediente} — {exp.titulo}
-                    </Typography>
-                    <List dense disablePadding>
-                      {(exp.documentos || []).map((d) => {
-                        const esActual = d.id === documento.id
-                        return (
-                          <ListItem
-                            key={d.id}
-                            onClick={() => { if (!esActual) navigate(`/documentos/${d.id}`) }}
-                            sx={{
-                              cursor: esActual ? 'default' : 'pointer',
-                              bgcolor: esActual ? 'action.selected' : 'transparent',
-                              borderRadius: 1,
-                            }}
-                            secondaryAction={
-                              <Chip
-                                label={estadoLabels[d.estado] || d.estado}
-                                size="small"
-                                color={estadoColors[d.estado] || 'default'}
-                              />
-                            }
-                          >
-                            <ListItemText
-                              primary={d.titulo}
-                              secondary={esActual ? 'Estás viendo este documento' : undefined}
-                              primaryTypographyProps={{ fontWeight: esActual ? 'bold' : 'normal' }}
-                            />
-                          </ListItem>
-                        )
-                      })}
-                    </List>
-                  </Box>
-                ))}
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <FolderIcon color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`${exp.identificador || exp.numero_expediente} — ${exp.titulo}`}
+                        primaryTypographyProps={{ color: 'primary.main', variant: 'body2', fontWeight: 'medium' }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
               </CardContent>
             </Card>
           )}

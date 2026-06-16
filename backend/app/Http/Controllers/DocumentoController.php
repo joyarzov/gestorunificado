@@ -205,11 +205,7 @@ class DocumentoController extends Controller
     public function show(Documento $documento)
     {
         $documento->load([
-            // Cargar también los documentos de cada expediente para mostrar el contexto
-            // (la "carpeta" completa) al revisar/firmar un documento.
-            'expedientes.documentos' => fn ($q) => $q->select(
-                'documentos.id', 'documentos.titulo', 'documentos.estado', 'documentos.created_at'
-            ),
+            'expedientes:id,identificador,titulo,estado',
             'tipoDocumental',
             'plantilla',
             'creador:id,nombre,rut',
