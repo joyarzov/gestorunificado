@@ -215,6 +215,9 @@ class DocumentoController extends Controller
             'adjuntos.usuario:id,nombre',
         ]);
 
+        // Firma secuencial: a quién le toca firmar ahora (para que el frontend muestre el botón al firmante en turno).
+        $documento->firmante_en_turno_id = optional($documento->firmanteEnTurno())->id;
+
         return $this->successResponse($documento);
     }
 
@@ -509,7 +512,7 @@ class DocumentoController extends Controller
         // "Ya firmé" sigue siendo contra el actor real (Jose), no el subrogado.
         $ctx  = $user->contexto();
 
-        $documentos = Documento::where('estado', Documento::ESTADO_PENDIENTE_FIRMA)
+        $candidatos = Documento::where('estado', Documento::ESTADO_PENDIENTE_FIRMA)
             ->where(function ($query) use ($ctx) {
                 $query->where('firmante_asignado_id', $ctx->id)
                     ->orWhereHas('firmantesAsignados', function ($q) use ($ctx) {
@@ -520,9 +523,24 @@ class DocumentoController extends Controller
                 $q->where('usuario_id', $user->id)
                     ->where('estado', 'firmado');
             })
-            ->with(['expediente', 'creador', 'tipoDocumental'])
+            ->with(['expediente', 'creador', 'tipoDocumental', 'firmantesAsignados', 'firmas'])
             ->orderBy('created_at', 'desc')
-            ->paginate($request->input('per_page', 10));
+            ->get();
+
+        // Firma secuencial: solo aparecen los documentos en los que es el turno del usuario.
+        $enTurno = $candidatos->filter(function ($doc) use ($ctx) {
+            return optional($doc->firmanteEnTurno())->id === $ctx->id;
+        })->values();
+
+        $perPage = (int) $request->input('per_page', 10);
+        $page = (int) $request->input('page', 1);
+        $documentos = new \Illuminate\Pagination\LengthAwarePaginator(
+            $enTurno->forPage($page, $perPage)->values(),
+            $enTurno->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return $this->successResponse($documentos);
     }
@@ -549,19 +567,18 @@ class DocumentoController extends Controller
 
         DocumentoTrazabilidad::registrar($documento->id, 'enviado_a_firma', 'Documento enviado a firma');
 
-        // Notificar a cada firmante asignado
-        $firmantes = $documento->firmantesAsignados;
-        if ($firmantes->isEmpty() && $documento->firmante_asignado_id) {
-            $firmantes = collect([\App\Models\User::find($documento->firmante_asignado_id)]);
+        // Firma secuencial: notificar solo al firmante en turno (el primero de la cadena).
+        $enTurno = $documento->firmanteEnTurno();
+        if ($enTurno) {
+            NotificacionService::enviar(
+                $enTurno,
+                'cero_papel',
+                'documento_pendiente_firma',
+                'Documento pendiente de tu firma',
+                "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
+                ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+            );
         }
-        NotificacionService::enviar(
-            $firmantes,
-            'cero_papel',
-            'documento_pendiente_firma',
-            'Documento pendiente de tu firma',
-            "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
-            ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
-        );
 
         return $this->successResponse($documento->load('firmantesAsignados'), 'Documento enviado a firma');
     }
@@ -680,16 +697,30 @@ class DocumentoController extends Controller
                     "El documento \"{$documento->titulo}\" ({$documento->numero}) ha sido firmado por todos los firmantes. El PDF ha sido generado.",
                     ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
                 );
-            } elseif ($documento->creado_por && $documento->creado_por !== $user->id) {
-                // Aún faltan firmas: avisar al creador que se registró una firma
-                NotificacionService::enviar(
-                    $documento->creado_por,
-                    'cero_papel',
-                    'documento_firma_registrada',
-                    'Firma registrada en documento',
-                    "{$user->nombre} firmó el documento \"{$documento->titulo}\" ({$documento->numero}).",
-                    ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
-                );
+            } else {
+                // Aún faltan firmas: notificar al SIGUIENTE firmante de la cadena (su turno).
+                $siguiente = $documento->firmanteEnTurno();
+                if ($siguiente) {
+                    NotificacionService::enviar(
+                        $siguiente,
+                        'cero_papel',
+                        'documento_pendiente_firma',
+                        'Documento pendiente de tu firma',
+                        "El documento \"{$documento->titulo}\" ({$documento->numero}) requiere tu firma.",
+                        ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                    );
+                }
+                // Y avisar al creador que se registró una firma.
+                if ($documento->creado_por && $documento->creado_por !== $user->id) {
+                    NotificacionService::enviar(
+                        $documento->creado_por,
+                        'cero_papel',
+                        'documento_firma_registrada',
+                        'Firma registrada en documento',
+                        "{$user->nombre} firmó el documento \"{$documento->titulo}\" ({$documento->numero}).",
+                        ['documento_id' => $documento->id, 'url' => '/documentos/' . $documento->id]
+                    );
+                }
             }
 
             DB::commit();

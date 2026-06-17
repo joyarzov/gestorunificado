@@ -305,34 +305,79 @@ class Documento extends Model
     }
 
     // Verificaciones
+    /**
+     * Firmantes asignados ordenados por su orden de firma (cadena secuencial).
+     */
+    public function firmantesOrdenados()
+    {
+        return $this->firmantesAsignados()
+            ->orderBy('documento_firmantes_asignados.orden')
+            ->get();
+    }
+
+    /**
+     * ¿El firmante institucional ($firmanteId) ya estampó su firma? Considera
+     * subrogancia: la firma pudo ejecutarla el actor real (usuario_id) o quedar
+     * registrada a nombre del subrogado en actuando_como_user_id.
+     */
+    public function firmanteYaFirmo(int $firmanteId): bool
+    {
+        return $this->firmas()
+            ->where('estado', 'firmado')
+            ->where(function ($q) use ($firmanteId) {
+                $q->where('usuario_id', $firmanteId)
+                    ->orWhere('actuando_como_user_id', $firmanteId);
+            })
+            ->exists();
+    }
+
+    /**
+     * Firmante (User) a quien le toca firmar ahora: el de menor orden que aún no
+     * ha firmado. Devuelve null si ya firmaron todos. La firma es SECUENCIAL.
+     */
+    public function firmanteEnTurno(): ?User
+    {
+        $ordenados = $this->firmantesOrdenados();
+
+        if ($ordenados->isEmpty()) {
+            // Compatibilidad con el firmante único legacy.
+            if ($this->firmante_asignado_id && !$this->firmanteYaFirmo($this->firmante_asignado_id)) {
+                return User::find($this->firmante_asignado_id);
+            }
+            return null;
+        }
+
+        foreach ($ordenados as $firmante) {
+            if (!$this->firmanteYaFirmo($firmante->id)) {
+                return $firmante;
+            }
+        }
+        return null;
+    }
+
     public function puedeSerFirmadoPor(User $user): bool
     {
         // El "firmante institucional" es el subrogado si hay actuando-como activo;
         // si no, el propio usuario. La firma electrónica la ejecuta siempre $user.
         $ctx = $user->contexto();
 
-        $esAsignado = $this->firmantesAsignados()
-            ->where('user_id', $ctx->id)
-            ->exists();
-
-        if (!$esAsignado) {
-            // Firmante legacy
-            $esAsignado = $this->firmante_asignado_id === $ctx->id;
-        }
-
-        if (!$esAsignado) {
+        // Firma secuencial: solo puede firmar quien tiene el turno (el firmante de
+        // menor orden que aún no ha firmado). Respeta subrogancia.
+        $enTurno = $this->firmanteEnTurno();
+        if (!$enTurno) {
             return false;
         }
 
-        // "Ya firmó" considera al actor REAL: si Jose firma como subrogante del
-        // alcalde y luego entra como sí mismo, no debería ver el documento
-        // pendiente de nuevo (él ya estampó su firma con su rut).
-        $yaFirmo = $this->firmas()
+        // El actor real no debe haber firmado ya (evita doble firma al entrar como sí mismo).
+        $yaFirmoActorReal = $this->firmas()
             ->where('usuario_id', $user->id)
-            ->whereIn('estado', ['firmado'])
+            ->where('estado', 'firmado')
             ->exists();
+        if ($yaFirmoActorReal) {
+            return false;
+        }
 
-        return !$yaFirmo;
+        return (int) $enTurno->id === (int) $ctx->id;
     }
 
     public function registrarFirma(User $user, ?string $observacion = null, ?array $firmaGobData = null): DocumentoFirma

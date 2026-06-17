@@ -357,6 +357,8 @@ export interface Documento {
   adjuntos?: DocumentoAdjunto[]
   // Solo presente al cargar un expediente: indica si el usuario actual tiene firma pendiente
   mi_firma_pendiente?: boolean
+  // Firma secuencial: id del firmante a quien le toca firmar ahora (null si ya firmaron todos)
+  firmante_en_turno_id?: number | null
   created_at: string
   updated_at: string
 }

@@ -411,7 +411,11 @@ const DocumentoDetail = () => {
   const puedeEnviarAFirma = documento?.estado === 'borrador' &&
     ((documento?.firmantes_asignados && documento.firmantes_asignados.length > 0) || documento?.firmante_asignado_id)
 
-  const puedeFirmar = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo
+  // Firma secuencial: solo puede firmar quien tiene el turno.
+  const esMiTurno = documento?.firmante_en_turno_id != null && documento.firmante_en_turno_id === user?.id
+  const puedeFirmar = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo && esMiTurno
+  // Es firmante y no ha firmado, pero aún no es su turno (espera a los anteriores).
+  const esperaSuTurno = documento?.estado === 'pendiente_firma' && esAsignado && !yaFirmo && !esMiTurno
 
   // Recuperación de un documento rechazado: el creador (o admin) puede corregirlo
   const esCreadorOAdmin = documento?.creado_por === user?.id || !!user?.roles?.includes('admin')
@@ -593,6 +597,14 @@ const DocumentoDetail = () => {
                 Rechazar
               </Button>
             </>
+          )}
+          {esperaSuTurno && (
+            <Chip
+              icon={<PendienteIcon />}
+              color="warning"
+              variant="outlined"
+              label="Aún no es tu turno: faltan firmas anteriores"
+            />
           )}
           {/* Subido/externo: editar metadatos. Creado en borrador: editor de plantilla. */}
           {puedeEditarMetadatos ? (

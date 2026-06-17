@@ -1289,12 +1289,13 @@ const DocumentoNew = () => {
                 {...params}
                 label="Seleccionar firmantes"
                 placeholder="Buscar funcionario..."
+                helperText="Firmarán en el orden en que los agregas (firma secuencial: cada uno firma cuando el anterior ya firmó)."
               />
             )}
             renderTags={(value, getTagProps) =>
               value.map((option, index) => (
                 <Chip
-                  label={option.nombre}
+                  label={`${index + 1}. ${option.nombre}`}
                   {...getTagProps({ index })}
                   key={option.id}
                 />
