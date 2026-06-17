@@ -25,6 +25,7 @@ import {
   FormControlLabel,
   Checkbox,
   Tooltip,
+  InputAdornment,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -33,6 +34,7 @@ import {
   CheckCircle as ActivarIcon,
   EventBusy as SubroganciaActivaIcon,
   EventAvailable as SubroganciaInactivaIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material'
 import { usersAPI, departamentosAPI } from '../../api/common'
 import { organigramaAPI } from '../../api/organigrama'
@@ -52,6 +54,15 @@ const UsuariosManage = () => {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+
+  const q = search.trim().toLowerCase()
+  const filteredUsuarios = q
+    ? usuarios.filter((u) =>
+        [u.nombre, u.rut, u.cargo, u.email, ...(u.roles || [])]
+          .some((campo) => (campo || '').toLowerCase().includes(q)),
+      )
+    : usuarios
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -231,6 +242,22 @@ const UsuariosManage = () => {
         </Alert>
       )}
 
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Buscar por nombre, RUT, cargo, email o rol"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        sx={{ mb: 2, maxWidth: 480 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
       <Card>
         <TableContainer>
           <Table
@@ -270,16 +297,16 @@ const UsuariosManage = () => {
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
-              ) : usuarios.length === 0 ? (
+              ) : filteredUsuarios.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      No hay usuarios
+                      {search ? 'No se encontraron usuarios para la búsqueda' : 'No hay usuarios'}
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                usuarios.map((user) => (
+                filteredUsuarios.map((user) => (
                   <TableRow key={user.id} hover>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{user.rut}</TableCell>
                     <TableCell>{user.nombre}</TableCell>
