@@ -136,6 +136,12 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  // Registro general (solo lectura): todas las correspondencias del municipio, entradas y salidas
+  registro: async (params?: CorrespondenciaFilters & { direccion?: string }) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<Correspondencia>>>('/correspondencia/registro', { params })
+    return response.data
+  },
+
   obtener: async (id: number) => {
     const response = await api.get<ApiResponse<Correspondencia>>(`/correspondencia/${id}`)
     return response.data

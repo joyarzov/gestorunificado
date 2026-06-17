@@ -23,6 +23,7 @@ interface AuthContextType {
   hasAplicacion: (app: string) => boolean
   canViewAllCorrespondence: () => boolean
   canDerivarCorrespondence: () => boolean
+  canViewRegistroCorrespondence: () => boolean
   isAuthenticated: () => boolean
 }
 
@@ -230,6 +231,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return selectedRole === 'admin' || selectedRole === 'oficial' || selectedRole === 'alcalde'
   }
 
+  // Registro de correspondencia (solo lectura, todas): permiso explícito por usuario, o admin.
+  const canViewRegistroCorrespondence = () => {
+    return isAdmin() || !!user?.puede_ver_registro_correspondencia
+  }
+
   const isAuthenticated = () => {
     return user !== null && selectedRole !== null
   }
@@ -250,6 +256,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         salirDeActuandoComo,
         checkAuth,
         isAdmin,
+        canViewRegistroCorrespondence,
         isOficial,
         isAlcalde,
         hasRole,

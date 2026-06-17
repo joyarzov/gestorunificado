@@ -34,6 +34,7 @@ export interface User {
   subrogados_activos?: SubrogadoActivo[]
   visador: boolean
   activo: boolean
+  puede_ver_registro_correspondencia?: boolean
 }
 
 export interface AuthState {

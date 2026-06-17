@@ -181,6 +181,10 @@ class Correspondencia extends Model
 
     public function esVisiblePara(User $user): bool
     {
+        // Quien tiene el permiso de registro puede ver (solo lectura) cualquier correspondencia.
+        if ($user->puede_ver_registro_correspondencia) {
+            return true;
+        }
         return static::visiblesPara($user)->whereKey($this->id)->exists();
     }
 

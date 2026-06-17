@@ -57,6 +57,8 @@ class AuthController extends Controller
                 'departamento_id' => $user->departamento_id,
                 'departamento' => $user->departamento?->nombre,
                 'visador' => $user->visador,
+            'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+                'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
                 'subrogados_activos' => $this->subrogadosActivos($user),
             ],
         ], 'Login exitoso');
@@ -130,6 +132,7 @@ class AuthController extends Controller
             'subrogancia_hasta' => $user->subrogancia_hasta,
             'subrogados_activos' => $this->subrogadosActivos($user),
             'visador' => $user->visador,
+            'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
             'activo' => $user->activo,
         ]);
     }
@@ -158,6 +161,7 @@ class AuthController extends Controller
             'departamento_id' => $user->departamento_id,
             'departamento' => $user->departamento?->nombre,
             'visador' => $user->visador,
+            'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
         ], 'Perfil actualizado correctamente');
     }
 

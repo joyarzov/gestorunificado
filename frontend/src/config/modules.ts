@@ -146,6 +146,7 @@ interface SidebarContext {
   isOficial: boolean
   isAlcalde: boolean
   canViewAllCorrespondence: boolean
+  canViewRegistroCorrespondence: boolean
 }
 
 export const getSidebarItems = (
@@ -164,6 +165,10 @@ export const getSidebarItems = (
       // Listado general de correspondencia: solo quienes pueden ver todo
       if (ctx.canViewAllCorrespondence) {
         items.push({ text: 'Todas las correspondencias', path: '/correspondencia/listar', icon: MailIcon })
+      }
+      // Registro general (solo lectura, todas): usuarios con permiso explícito
+      if (ctx.canViewRegistroCorrespondence) {
+        items.push({ text: 'Registro de correspondencia', path: '/correspondencia/registro', icon: LibroIcon })
       }
       // Gestión documental de Partes: ingreso, salidas y libro son
       // EXCLUSIVOS de oficina de partes (y admin).

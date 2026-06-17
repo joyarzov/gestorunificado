@@ -20,6 +20,7 @@ import CorrespondenciaDetail from './pages/correspondencia/Detail'
 import BandejaEntrada from './pages/correspondencia/Bandeja'
 import CorrespondenciaSearch from './pages/correspondencia/Search'
 import LibroCorrespondencia from './pages/correspondencia/LibroCorrespondencia'
+import RegistroCorrespondencia from './pages/correspondencia/RegistroCorrespondencia'
 import Salidas from './pages/correspondencia/Salidas'
 
 // Verificación pública
@@ -102,6 +103,7 @@ function App() {
             {/* Correspondencia */}
             <Route path="/correspondencia" element={<CorrespondenciaDashboard />} />
             <Route path="/correspondencia/listar" element={<CorrespondenciaList />} />
+            <Route path="/correspondencia/registro" element={<RegistroCorrespondencia />} />
             <Route path="/bandeja" element={<BandejaEntrada />} />
             <Route path="/ingresar" element={<CorrespondenciaCreate />} />
             <Route path="/correspondencia/:id" element={<CorrespondenciaDetail />} />

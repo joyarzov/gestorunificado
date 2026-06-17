@@ -51,6 +51,52 @@ class CorrespondenciaController extends Controller
         return $this->successResponse($correspondencias);
     }
 
+    /**
+     * Registro general de correspondencia (solo lectura): TODAS las correspondencias del
+     * municipio —entradas y salidas, cualquier estado y nivel de acceso—, sin el filtro
+     * de visibilidad. Disponible solo para usuarios con el permiso explícito (o admin).
+     */
+    public function registro(Request $request)
+    {
+        $user = Auth::user();
+        if (!($user->puede_ver_registro_correspondencia || $user->isAdmin())) {
+            return $this->errorResponse('No tienes permiso para ver el registro de correspondencia', 403);
+        }
+
+        $query = Correspondencia::query()
+            ->with(['departamento', 'usuario', 'adjuntos']);
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+        if ($request->filled('direccion')) {
+            $query->where('direccion', $request->direccion);
+        }
+        if ($request->filled('departamento_id')) {
+            $query->where('departamento_id', $request->departamento_id);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_recibo', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_recibo', '<=', $request->fecha_hasta);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('remitente', 'like', "%{$search}%")
+                    ->orWhere('numero_documento', 'like', "%{$search}%")
+                    ->orWhere('folio', 'like', "%{$search}%")
+                    ->orWhere('descripcion', 'like', "%{$search}%");
+            });
+        }
+
+        $correspondencias = $query->orderBy('created_at', 'desc')
+            ->paginate($request->input('per_page', 15));
+
+        return $this->successResponse($correspondencias);
+    }
+
     public function store(Request $request)
     {
         $request->validate([

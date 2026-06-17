@@ -46,6 +46,7 @@ class UserController extends Controller
             'aplicaciones_permitidas' => 'nullable|array',
             'departamento_id' => 'nullable|exists:departamentos,id',
             'visador' => 'sometimes|boolean',
+            'puede_ver_registro_correspondencia' => 'sometimes|boolean',
         ]);
 
         $rut = User::formatRut($request->rut);
@@ -60,6 +61,7 @@ class UserController extends Controller
             'aplicaciones_permitidas' => $request->aplicaciones_permitidas,
             'departamento_id' => $request->departamento_id,
             'visador' => $request->boolean('visador'),
+            'puede_ver_registro_correspondencia' => $request->boolean('puede_ver_registro_correspondencia'),
             'activo' => true,
         ]);
 
@@ -86,6 +88,7 @@ class UserController extends Controller
             'aplicaciones_permitidas' => 'nullable|array',
             'departamento_id' => 'nullable|exists:departamentos,id',
             'visador' => 'sometimes|boolean',
+            'puede_ver_registro_correspondencia' => 'sometimes|boolean',
         ]);
 
         $data = $request->only([
@@ -96,6 +99,7 @@ class UserController extends Controller
             'aplicaciones_permitidas',
             'departamento_id',
             'visador',
+            'puede_ver_registro_correspondencia',
         ]);
 
         // Solo actualizar contraseña si viene con valor

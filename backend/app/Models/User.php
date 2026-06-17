@@ -26,6 +26,7 @@ class User extends Authenticatable
         'subrogancia_hasta',
         'activo',
         'visador',
+        'puede_ver_registro_correspondencia',
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class User extends Authenticatable
         'aplicaciones_permitidas' => 'array',
         'activo' => 'boolean',
         'visador' => 'boolean',
+        'puede_ver_registro_correspondencia' => 'boolean',
         'subrogancia_activa' => 'boolean',
         'subrogancia_desde' => 'datetime',
         'subrogancia_hasta' => 'datetime',

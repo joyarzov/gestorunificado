@@ -66,6 +66,7 @@ const UsuariosManage = () => {
     roles: [] as string[],
     departamento_id: '',
     visador: false,
+    puede_ver_registro_correspondencia: false,
   })
 
   useEffect(() => {
@@ -101,6 +102,7 @@ const UsuariosManage = () => {
         roles: user.roles || [],
         departamento_id: user.departamento_id?.toString() || '',
         visador: user.visador,
+        puede_ver_registro_correspondencia: user.puede_ver_registro_correspondencia ?? false,
       })
     } else {
       setEditingUser(null)
@@ -113,6 +115,7 @@ const UsuariosManage = () => {
         roles: ['usuario'],
         departamento_id: '',
         visador: false,
+        puede_ver_registro_correspondencia: false,
       })
     }
     setDialogOpen(true)
@@ -432,6 +435,17 @@ const UsuariosManage = () => {
                   />
                 }
                 label="Puede visar documentos"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.puede_ver_registro_correspondencia}
+                    onChange={(e) => handleChange('puede_ver_registro_correspondencia', e.target.checked)}
+                  />
+                }
+                label="Puede ver el registro de correspondencia (solo lectura, todas)"
               />
             </Grid>
           </Grid>

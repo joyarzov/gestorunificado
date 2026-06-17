@@ -63,6 +63,7 @@ const AppLayout = () => {
     isAlcalde,
     hasAplicacion,
     canViewAllCorrespondence,
+    canViewRegistroCorrespondence,
     setShowRoleSelector,
   } = useAuth()
   const [pendientesFirmaCount, setPendientesFirmaCount] = useState(0)
@@ -94,6 +95,7 @@ const AppLayout = () => {
         isOficial: isOficial(),
         isAlcalde: isAlcalde(),
         canViewAllCorrespondence: canViewAllCorrespondence(),
+        canViewRegistroCorrespondence: canViewRegistroCorrespondence(),
       })
     : []
 
