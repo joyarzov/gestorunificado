@@ -64,6 +64,12 @@ const UsuariosManage = () => {
       )
     : usuarios
 
+  // Ordenar alfabéticamente por nombre y separar activos de inactivos.
+  const ordenarPorNombre = (a: User, b: User) =>
+    (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' })
+  const usuariosActivos = filteredUsuarios.filter((u) => u.activo).sort(ordenarPorNombre)
+  const usuariosInactivos = filteredUsuarios.filter((u) => !u.activo).sort(ordenarPorNombre)
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [saving, setSaving] = useState(false)
@@ -199,6 +205,117 @@ const UsuariosManage = () => {
     setSubroganciaError('')
   }
 
+  const renderUsuarioRow = (user: User) => (
+    <TableRow key={user.id} hover>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{user.rut}</TableCell>
+      <TableCell>{user.nombre}</TableCell>
+      <TableCell>{user.cargo || '-'}</TableCell>
+      <TableCell sx={{ wordBreak: 'break-word' }}>{user.email || '-'}</TableCell>
+      <TableCell>{user.departamento?.nombre || '-'}</TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+          {user.roles?.map((role) => (
+            <Chip key={role} label={role} size="small" />
+          ))}
+        </Box>
+      </TableCell>
+      <TableCell>
+        <Chip
+          label={user.activo ? 'Activo' : 'Inactivo'}
+          color={user.activo ? 'success' : 'default'}
+          size="small"
+        />
+      </TableCell>
+      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+        <IconButton size="small" onClick={() => handleOpenDialog(user)}>
+          <EditIcon />
+        </IconButton>
+        <Tooltip
+          title={
+            !user.subrogante_id
+              ? 'El usuario no tiene subrogante asignado'
+              : user.subrogancia_activa
+                ? 'Desactivar subrogancia (el subrogado ha vuelto)'
+                : 'Activar subrogancia (marcar como ausente)'
+          }
+        >
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => openSubroganciaDialog(user)}
+              disabled={!user.subrogante_id}
+              color={user.subrogancia_activa ? 'warning' : 'default'}
+            >
+              {user.subrogancia_activa ? <SubroganciaActivaIcon /> : <SubroganciaInactivaIcon />}
+            </IconButton>
+          </span>
+        </Tooltip>
+        <IconButton
+          size="small"
+          onClick={() => handleToggleActive(user)}
+          color={user.activo ? 'error' : 'success'}
+        >
+          {user.activo ? <BlockIcon /> : <ActivarIcon />}
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  )
+
+  const renderTablaUsuarios = (titulo: string, lista: User[], emptyMsg: string) => (
+    <Card sx={{ mb: 3 }}>
+      <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="subtitle1" fontWeight="bold">
+          {titulo}
+        </Typography>
+        <Chip label={lista.length} size="small" />
+      </Box>
+      <TableContainer>
+        <Table
+          size="small"
+          sx={{
+            minWidth: 860,
+            tableLayout: 'fixed',
+            '& td, & th': { py: 1 },
+          }}
+        >
+          <colgroup>
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: 132 }} />
+          </colgroup>
+          <TableHead>
+            <TableRow>
+              <TableCell>RUT</TableCell>
+              <TableCell>Nombre</TableCell>
+              <TableCell>Cargo</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Departamento</TableCell>
+              <TableCell>Roles</TableCell>
+              <TableCell>Estado</TableCell>
+              <TableCell align="center">Acciones</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {lista.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">{emptyMsg}</Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              lista.map(renderUsuarioRow)
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Card>
+  )
+
   const handleConfirmSubrogancia = async () => {
     if (!subroganciaTarget) return
     setSubroganciaSaving(true)
@@ -258,114 +375,26 @@ const UsuariosManage = () => {
         }}
       />
 
-      <Card>
-        <TableContainer>
-          <Table
-            size="small"
-            sx={{
-              minWidth: 860,
-              tableLayout: 'fixed',
-              '& td, & th': { py: 1 },
-            }}
-          >
-            <colgroup>
-              <col style={{ width: '11%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '20%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '13%' }} />
-              <col style={{ width: '9%' }} />
-              <col style={{ width: 132 }} />
-            </colgroup>
-            <TableHead>
-              <TableRow>
-                <TableCell>RUT</TableCell>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Cargo</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Departamento</TableCell>
-                <TableCell>Roles</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell align="center">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                    <CircularProgress />
-                  </TableCell>
-                </TableRow>
-              ) : filteredUsuarios.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">
-                      {search ? 'No se encontraron usuarios para la búsqueda' : 'No hay usuarios'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredUsuarios.map((user) => (
-                  <TableRow key={user.id} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{user.rut}</TableCell>
-                    <TableCell>{user.nombre}</TableCell>
-                    <TableCell>{user.cargo || '-'}</TableCell>
-                    <TableCell sx={{ wordBreak: 'break-word' }}>{user.email || '-'}</TableCell>
-                    <TableCell>{user.departamento?.nombre || '-'}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {user.roles?.map((role) => (
-                          <Chip key={role} label={role} size="small" />
-                        ))}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.activo ? 'Activo' : 'Inactivo'}
-                        color={user.activo ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                      <IconButton size="small" onClick={() => handleOpenDialog(user)}>
-                        <EditIcon />
-                      </IconButton>
-                      <Tooltip
-                        title={
-                          !user.subrogante_id
-                            ? 'El usuario no tiene subrogante asignado'
-                            : user.subrogancia_activa
-                              ? 'Desactivar subrogancia (el subrogado ha vuelto)'
-                              : 'Activar subrogancia (marcar como ausente)'
-                        }
-                      >
-                        <span>
-                          <IconButton
-                            size="small"
-                            onClick={() => openSubroganciaDialog(user)}
-                            disabled={!user.subrogante_id}
-                            color={user.subrogancia_activa ? 'warning' : 'default'}
-                          >
-                            {user.subrogancia_activa ? <SubroganciaActivaIcon /> : <SubroganciaInactivaIcon />}
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleToggleActive(user)}
-                        color={user.activo ? 'error' : 'success'}
-                      >
-                        {user.activo ? <BlockIcon /> : <ActivarIcon />}
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Card>
+      {loading ? (
+        <Card>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress />
+          </Box>
+        </Card>
+      ) : (
+        <>
+          {renderTablaUsuarios(
+            'Usuarios activos',
+            usuariosActivos,
+            search ? 'No se encontraron usuarios activos para la búsqueda' : 'No hay usuarios activos',
+          )}
+          {renderTablaUsuarios(
+            'Usuarios inactivos',
+            usuariosInactivos,
+            search ? 'No se encontraron usuarios inactivos para la búsqueda' : 'No hay usuarios inactivos',
+          )}
+        </>
+      )}
 
       {/* Dialog de creación/edición */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>

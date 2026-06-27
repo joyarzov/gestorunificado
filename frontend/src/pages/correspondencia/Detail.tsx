@@ -55,6 +55,15 @@ const CorrespondenciaDetail = () => {
   const { user, actuandoComo, isAdmin, isOficial, isAlcalde } = useAuth()
   // Departamento "institucional": el del subrogado cuando hay actuando-como, el propio si no.
   const ctxDepartamentoId = actuandoComo?.departamento_id ?? user?.departamento_id
+  // Id del contexto institucional (subrogado si actúa como; el propio si no).
+  // Espeja al backend (User::contexto()->id), usado para validar el creador de una salida.
+  const ctxUserId = actuandoComo?.id ?? user?.id
+
+  // Quién puede subir/anular el PDF de una respuesta: Partes/admin o quien reservó
+  // el folio. Espeja validarSalida(creadorOPartes) del backend para no mostrar
+  // acciones que el servidor rechazaría con 403.
+  const puedeGestionarSalida = (r: Correspondencia) =>
+    isAdmin() || isOficial() || r.usuario_id === ctxUserId
   const [correspondencia, setCorrespondencia] = useState<Correspondencia | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -720,7 +729,7 @@ const CorrespondenciaDetail = () => {
                       disablePadding
                       sx={{ py: 0.5 }}
                       secondaryAction={
-                        (r.estado === 'reservada' || r.estado === 'devuelta') ? (
+                        ((r.estado === 'reservada' || r.estado === 'devuelta') && puedeGestionarSalida(r)) ? (
                           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                             <Button size="small" variant="outlined" onClick={() => abrirSubirRespuesta(r)}>
                               Subir PDF
