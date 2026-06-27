@@ -10,11 +10,11 @@ interface AuthContextType {
   loading: boolean
   showRoleSelector: boolean
   setShowRoleSelector: (show: boolean) => void
-  login: (rut: string, password: string) => Promise<void>
+  login: (rut: string, password: string, forzar?: boolean) => Promise<void>
   logout: () => Promise<void>
   selectRole: (role: string) => void
-  actuarComo: (subrogado: SubrogadoActivo, role: string) => void
-  salirDeActuandoComo: () => void
+  actuarComo: (subrogado: SubrogadoActivo, role: string) => Promise<void>
+  salirDeActuandoComo: () => Promise<void>
   checkAuth: () => Promise<void>
   isAdmin: () => boolean
   isOficial: () => boolean
@@ -109,8 +109,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
-  const login = async (rut: string, password: string) => {
-    const response = await authAPI.login(rut, password)
+  const login = async (rut: string, password: string, forzar = false) => {
+    const response = await authAPI.login(rut, password, forzar)
     const { token, user: userData } = response.data
 
     localStorage.setItem('token', token)
@@ -121,6 +121,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setActuandoComoState(null)
     sessionStorage.removeItem('actuandoComo')
     sessionStorage.removeItem('actuandoComoId')
+    sessionStorage.removeItem('subrogToken')
 
     const opcionesSubrogancia = userData.subrogados_activos?.length ?? 0
     const totalOpciones = (userData.roles?.length ?? 0) + opcionesSubrogancia
@@ -149,7 +150,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
    * funcionen, y se guarda el subrogado para que axios mande X-Actuando-Como
    * y el backend honre los permisos heredados.
    */
-  const actuarComo = (subrogado: SubrogadoActivo, role: string) => {
+  const actuarComo = async (subrogado: SubrogadoActivo, role: string) => {
+    // Emite un token de subrogancia independiente (sobrevive a un nuevo login
+    // propio en otro equipo). Si falla, se sigue operando con el token propio
+    // para no romper la subrogancia. Se fuerza el reemplazo de una sesión de
+    // subrogancia previa del mismo subrogado (es la misma persona reentrando).
+    try {
+      const res = await authAPI.subroganciaToken(subrogado.id, true)
+      sessionStorage.setItem('subrogToken', res.data.token)
+    } catch (error) {
+      console.error('No se pudo emitir el token de subrogancia, se usa el token propio:', error)
+      sessionStorage.removeItem('subrogToken')
+    }
     setActuandoComoState(subrogado)
     sessionStorage.setItem('actuandoComo', JSON.stringify(subrogado))
     sessionStorage.setItem('actuandoComoId', String(subrogado.id))
@@ -158,7 +170,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setShowRoleSelector(false)
   }
 
-  const salirDeActuandoComo = () => {
+  const salirDeActuandoComo = async () => {
+    // Cierra solo la sesión de subrogancia (best-effort) antes de volver a la propia.
+    if (sessionStorage.getItem('subrogToken')) {
+      try {
+        await authAPI.subroganciaLogout()
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión de subrogancia:', error)
+      }
+    }
+    sessionStorage.removeItem('subrogToken')
     setActuandoComoState(null)
     sessionStorage.removeItem('actuandoComo')
     sessionStorage.removeItem('actuandoComoId')
@@ -186,6 +207,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       sessionStorage.removeItem('selectedRole')
       sessionStorage.removeItem('actuandoComo')
       sessionStorage.removeItem('actuandoComoId')
+      sessionStorage.removeItem('subrogToken')
     }
   }
 

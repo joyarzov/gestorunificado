@@ -89,6 +89,8 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
     // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/subrogancia-token', [AuthController::class, 'subrogarToken']);
+        Route::post('/subrogancia-logout', [AuthController::class, 'subrogarLogout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);

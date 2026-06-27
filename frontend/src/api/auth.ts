@@ -1,22 +1,41 @@
 import api from './axios'
-import { ApiResponse, User } from '../types'
+import { ApiResponse, SubrogadoActivo, User } from '../types'
 
 export interface LoginResponse {
   token: string
   user: User
 }
 
+export interface SubroganciaTokenResponse {
+  token: string
+  subrogado: SubrogadoActivo
+}
+
 export const authAPI = {
-  login: async (rut: string, password: string) => {
+  login: async (rut: string, password: string, forzar = false) => {
     const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
       rut,
       password,
+      forzar,
     })
     return response.data
   },
 
   logout: async () => {
     const response = await api.post<ApiResponse<null>>('/auth/logout')
+    return response.data
+  },
+
+  subroganciaToken: async (subrogadoId: number, forzar = false) => {
+    const response = await api.post<ApiResponse<SubroganciaTokenResponse>>('/auth/subrogancia-token', {
+      subrogado_id: subrogadoId,
+      forzar,
+    })
+    return response.data
+  },
+
+  subroganciaLogout: async () => {
+    const response = await api.post<ApiResponse<null>>('/auth/subrogancia-logout')
     return response.data
   },
 

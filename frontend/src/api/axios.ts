@@ -16,11 +16,15 @@ const api = axios.create({
 // (un oficial en perfil "usuario" no debe ver como oficial).
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    // Si esta pestaña está "actuando como" (subrogancia) y tiene su propio
+    // token de subrogancia, se usa ese; si no, el token propio (localStorage,
+    // compartido entre pestañas). Así la sesión de subrogancia es independiente.
+    const actuandoComoId = sessionStorage.getItem('actuandoComoId')
+    const subrogToken = sessionStorage.getItem('subrogToken')
+    const token = actuandoComoId && subrogToken ? subrogToken : localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    const actuandoComoId = sessionStorage.getItem('actuandoComoId')
     if (actuandoComoId) {
       config.headers['X-Actuando-Como'] = actuandoComoId
     }
@@ -45,6 +49,7 @@ api.interceptors.response.use(
       sessionStorage.removeItem('selectedRole')
       sessionStorage.removeItem('actuandoComoId')
       sessionStorage.removeItem('actuandoComo')
+      sessionStorage.removeItem('subrogToken')
       window.location.href = '/login'
     }
     return Promise.reject(error)
