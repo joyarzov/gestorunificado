@@ -23,6 +23,7 @@ import {
 import { Visibility as VerIcon, Search as SearchIcon, MenuBook as LibroIcon } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Correspondencia } from '../../types'
+import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -172,7 +173,10 @@ const RegistroCorrespondencia = () => {
                     <TableCell>{c.departamento?.nombre || '-'}</TableCell>
                     <TableCell>{c.fecha_recibo ? format(new Date(c.fecha_recibo), 'dd/MM/yyyy', { locale: es }) : '-'}</TableCell>
                     <TableCell>
-                      <Chip label={estadoLabel[c.estado] || c.estado} size="small" color={estadoColor[c.estado] || 'default'} />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                        <Chip label={estadoLabel[c.estado] || c.estado} size="small" color={estadoColor[c.estado] || 'default'} />
+                        <ResumenGestion correspondencia={c} variant="lista" />
+                      </Box>
                     </TableCell>
                     <TableCell align="center">
                       <Button size="small" variant="outlined" startIcon={<VerIcon />}

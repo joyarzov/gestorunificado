@@ -54,6 +54,12 @@ export type CorrespondenciaEstado =
 
 export type TipoDocumentoSalida = 'oficio' | 'ordinario' | 'circular' | 'carta'
 
+export interface ResumenGestion {
+  destinatarios: number
+  con_acuse: number
+  respondieron: { id: number; nombre: string }[]
+}
+
 export interface Correspondencia {
   id: number
   folio?: string
@@ -73,6 +79,9 @@ export interface Correspondencia {
   providencia_generada?: boolean
   adjuntos?: Adjunto[]
   derivaciones?: Derivacion[]
+  // Resumen de gestión (complementa "derivada_funcionario"): acuses de recibo
+  // de los destinatarios activos y quiénes respondieron en la conversación.
+  resumen_gestion?: ResumenGestion
   // salida
   respuesta_a_id?: number | null
   respuesta_a?: { id: number; folio?: string; remitente: string } | null

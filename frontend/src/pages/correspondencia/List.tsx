@@ -40,6 +40,7 @@ import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 
 import { ESTADO_CORRESPONDENCIA, ESTADOS_ENTRADA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
+import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 
 const CorrespondenciaList = () => {
   const navigate = useNavigate()
@@ -304,11 +305,14 @@ const CorrespondenciaList = () => {
                     </TableCell>
                     <TableCell>{item.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={estadoCorrespondencia(item.estado).label}
-                        color={estadoCorrespondencia(item.estado).color}
-                        size="small"
-                      />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                        <Chip
+                          label={estadoCorrespondencia(item.estado).label}
+                          color={estadoCorrespondencia(item.estado).color}
+                          size="small"
+                        />
+                        <ResumenGestion correspondencia={item} variant="lista" />
+                      </Box>
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Ver correspondencia">

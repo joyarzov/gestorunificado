@@ -45,6 +45,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import DerivacionDialog from '../../components/correspondencia/DerivacionDialog'
 import ConversacionHilo from '../../components/correspondencia/ConversacionHilo'
 import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
+import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 import Snackbar from '@mui/material/Snackbar'
 
 import { estadoCorrespondencia, TIPOS_DOCUMENTO_SALIDA } from '../../utils/estadoCorrespondencia'
@@ -567,6 +568,10 @@ const CorrespondenciaDetail = () => {
             </Button>
           )}
         </Box>
+      </Box>
+
+      <Box sx={{ mb: 2 }}>
+        <ResumenGestion correspondencia={correspondencia} variant="detalle" />
       </Box>
 
       {isPendienteSinDerivaciones && (isAdmin() || isOficial()) && (

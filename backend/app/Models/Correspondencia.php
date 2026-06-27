@@ -133,6 +133,35 @@ class Correspondencia extends Model
         return $this->hasMany(self::class, 'respuesta_a_id');
     }
 
+    /**
+     * Resumen de gestión que complementa el estado "derivada_funcionario":
+     * de los destinatarios activos (derivaciones pendiente/recibido), cuántos
+     * ya dieron acuse de recibo y cuáles respondieron (escribieron en la
+     * conversación). NO agrega estados nuevos: todo se deriva de las
+     * derivaciones activas y los mensajes ya existentes.
+     *
+     * Requiere tener cargadas las relaciones 'derivaciones.usuarioDestino' y
+     * 'mensajes' (los controladores las eager-loadean para evitar N+1).
+     */
+    public function getResumenGestionAttribute(): array
+    {
+        $activas = $this->derivaciones->whereIn('estado', ['pendiente', 'recibido']);
+        $autoresIds = $this->mensajes->pluck('usuario_id')->unique();
+
+        $respondieron = $activas
+            ->filter(fn ($d) => $d->usuario_destino_id && $autoresIds->contains($d->usuario_destino_id))
+            ->map(fn ($d) => ['id' => (int) $d->usuario_destino_id, 'nombre' => $d->usuarioDestino?->nombre])
+            ->unique('id')
+            ->values()
+            ->all();
+
+        return [
+            'destinatarios' => $activas->count(),
+            'con_acuse'     => $activas->where('estado', 'recibido')->count(),
+            'respondieron'  => $respondieron,
+        ];
+    }
+
     public function despachadaPor()
     {
         return $this->belongsTo(User::class, 'despachada_por');

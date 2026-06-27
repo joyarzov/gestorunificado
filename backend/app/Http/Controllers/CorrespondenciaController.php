@@ -17,7 +17,12 @@ class CorrespondenciaController extends Controller
         // Este listado es de ENTRADAS; las salidas tienen su propio módulo.
         $query = Correspondencia::visiblesPara(Auth::user())
             ->entradas()
-            ->with(['departamento', 'usuario', 'adjuntos']);
+            ->with([
+                'departamento', 'usuario', 'adjuntos',
+                'derivaciones:id,correspondencia_id,usuario_destino_id,estado',
+                'derivaciones.usuarioDestino:id,nombre',
+                'mensajes:id,correspondencia_id,usuario_id',
+            ]);
 
         // Filtros
         if ($request->filled('estado')) {
@@ -47,6 +52,7 @@ class CorrespondenciaController extends Controller
 
         $correspondencias = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10));
+        $correspondencias->getCollection()->each(fn ($c) => $c->append('resumen_gestion'));
 
         return $this->successResponse($correspondencias);
     }
@@ -64,7 +70,12 @@ class CorrespondenciaController extends Controller
         }
 
         $query = Correspondencia::query()
-            ->with(['departamento', 'usuario', 'adjuntos']);
+            ->with([
+                'departamento', 'usuario', 'adjuntos',
+                'derivaciones:id,correspondencia_id,usuario_destino_id,estado',
+                'derivaciones.usuarioDestino:id,nombre',
+                'mensajes:id,correspondencia_id,usuario_id',
+            ]);
 
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
@@ -93,6 +104,7 @@ class CorrespondenciaController extends Controller
 
         $correspondencias = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
+        $correspondencias->getCollection()->each(fn ($c) => $c->append('resumen_gestion'));
 
         return $this->successResponse($correspondencias);
     }
@@ -144,9 +156,11 @@ class CorrespondenciaController extends Controller
             'derivaciones.usuarioOrigen',
             'derivaciones.usuarioDestino',
             'derivaciones.actuandoComo',
+            'mensajes:id,correspondencia_id,usuario_id',
             'respuestas:id,folio,tipo_documento_salida,estado,remitente,fecha_despacho,respuesta_a_id',
             'respuestaA:id,folio,remitente',
         ]);
+        $correspondencia->append('resumen_gestion');
 
         return $this->successResponse($correspondencia);
     }
