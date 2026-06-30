@@ -27,6 +27,8 @@ import {
   Tooltip,
   InputAdornment,
   Snackbar,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -57,6 +59,8 @@ const UsuariosManage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  // Selector de vista: usuarios activos o deshabilitados.
+  const [vista, setVista] = useState<'activos' | 'inactivos'>('activos')
 
   const q = search.trim().toLowerCase()
   const filteredUsuarios = q
@@ -411,25 +415,36 @@ const UsuariosManage = () => {
         }}
       />
 
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        color="primary"
+        value={vista}
+        onChange={(_, v) => { if (v) setVista(v) }}
+        sx={{ mb: 2 }}
+      >
+        <ToggleButton value="activos">Activos ({usuariosActivos.length})</ToggleButton>
+        <ToggleButton value="inactivos">Deshabilitados ({usuariosInactivos.length})</ToggleButton>
+      </ToggleButtonGroup>
+
       {loading ? (
         <Card>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress />
           </Box>
         </Card>
+      ) : vista === 'activos' ? (
+        renderTablaUsuarios(
+          'Usuarios activos',
+          usuariosActivos,
+          search ? 'No se encontraron usuarios activos para la búsqueda' : 'No hay usuarios activos',
+        )
       ) : (
-        <>
-          {renderTablaUsuarios(
-            'Usuarios activos',
-            usuariosActivos,
-            search ? 'No se encontraron usuarios activos para la búsqueda' : 'No hay usuarios activos',
-          )}
-          {renderTablaUsuarios(
-            'Usuarios inactivos',
-            usuariosInactivos,
-            search ? 'No se encontraron usuarios inactivos para la búsqueda' : 'No hay usuarios inactivos',
-          )}
-        </>
+        renderTablaUsuarios(
+          'Usuarios deshabilitados',
+          usuariosInactivos,
+          search ? 'No se encontraron usuarios deshabilitados para la búsqueda' : 'No hay usuarios deshabilitados',
+        )
       )}
 
       {/* Dialog de creación/edición */}
