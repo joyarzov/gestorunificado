@@ -62,16 +62,45 @@ const Salidas = () => {
 
   // ===== Diálogo: reservar número / registrar salida =====
   const [reservaOpen, setReservaOpen] = useState(false)
-  const [reservaForm, setReservaForm] = useState({ tipo_documento: 'oficio', materia: '', destinatario: '' })
+  const [reservaForm, setReservaForm] = useState({ tipo_documento: 'oficio', materia: '', destinatario: '', numero: '' })
+  const [reservaSerie, setReservaSerie] = useState<{ prefijo: string; anio: number } | null>(null)
   const [reservaLoading, setReservaLoading] = useState(false)
+
+  // Sugiere el siguiente correlativo de la serie y pre-llena el número (editable).
+  const cargarSiguienteNumero = async (tipo: string) => {
+    try {
+      const res = await correspondenciaAPI.salidaSiguienteNumero(tipo)
+      setReservaForm((f) => ({ ...f, numero: String(res.data.numero) }))
+      setReservaSerie({ prefijo: res.data.prefijo, anio: res.data.anio })
+    } catch {
+      setReservaSerie(null)
+    }
+  }
+
+  const abrirReserva = () => {
+    setReservaForm({ tipo_documento: 'oficio', materia: '', destinatario: '', numero: '' })
+    setReservaSerie(null)
+    setReservaOpen(true)
+    cargarSiguienteNumero('oficio')
+  }
+
+  // Folio previsualizado a partir del número manual (mismo formato que el backend).
+  const folioPreview = reservaSerie && reservaForm.numero
+    ? `${reservaSerie.prefijo}-${reservaSerie.anio}-${String(reservaForm.numero).padStart(5, '0')}`
+    : ''
 
   const handleReservar = async () => {
     setReservaLoading(true)
     try {
-      const res = await correspondenciaAPI.salidaReservar(reservaForm)
+      const res = await correspondenciaAPI.salidaReservar({
+        tipo_documento: reservaForm.tipo_documento,
+        materia: reservaForm.materia.trim(),
+        destinatario: reservaForm.destinatario || undefined,
+        numero: reservaForm.numero ? parseInt(reservaForm.numero, 10) : undefined,
+      })
       setMensaje({ tipo: 'success', texto: res.message || `Número reservado: ${res.data.folio}` })
       setReservaOpen(false)
-      setReservaForm({ tipo_documento: 'oficio', materia: '', destinatario: '' })
+      setReservaForm({ tipo_documento: 'oficio', materia: '', destinatario: '', numero: '' })
       setTab(1) // pestaña reservados
       setPage(1)
       cargar()
@@ -183,7 +212,7 @@ const Salidas = () => {
           <SalidaIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: 32 }} />
           Correspondencia de Salida
         </Typography>
-        <Button variant="contained" onClick={() => setReservaOpen(true)}>
+        <Button variant="contained" onClick={abrirReserva}>
           Reservar número
         </Button>
       </Box>
@@ -317,12 +346,27 @@ const Salidas = () => {
             <TextField
               select fullWidth label="Tipo de documento"
               value={reservaForm.tipo_documento}
-              onChange={(e) => setReservaForm({ ...reservaForm, tipo_documento: e.target.value })}
+              onChange={(e) => {
+                const tipo = e.target.value
+                setReservaForm({ ...reservaForm, tipo_documento: tipo })
+                cargarSiguienteNumero(tipo)
+              }}
             >
               {Object.entries(TIPOS_DOCUMENTO_SALIDA).map(([k, v]) => (
                 <MenuItem key={k} value={k}>{v}</MenuItem>
               ))}
             </TextField>
+            <TextField
+              fullWidth required type="number" label="Número"
+              value={reservaForm.numero}
+              onChange={(e) => setReservaForm({ ...reservaForm, numero: e.target.value })}
+              helperText={
+                folioPreview
+                  ? `Folio: ${folioPreview}. Cero Papel aún no está integrado, indica el número manualmente.`
+                  : 'Indica el número del documento (Cero Papel aún no está integrado).'
+              }
+              inputProps={{ min: 1 }}
+            />
             <TextField
               fullWidth required label="Materia"
               placeholder="Asunto del documento…"
@@ -339,7 +383,7 @@ const Salidas = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setReservaOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleReservar} disabled={reservaLoading || !reservaForm.materia.trim()}>
+          <Button variant="contained" onClick={handleReservar} disabled={reservaLoading || !reservaForm.materia.trim() || !reservaForm.numero}>
             {reservaLoading ? <CircularProgress size={20} /> : 'Reservar número'}
           </Button>
         </DialogActions>

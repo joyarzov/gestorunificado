@@ -74,16 +74,26 @@ class Correspondencia extends Model
      */
     public static function siguienteFolio(string $prefijo): string
     {
+        return static::formatearFolio($prefijo, static::siguienteNumero($prefijo));
+    }
+
+    /** Siguiente correlativo (int) de la serie del prefijo para el año en curso. */
+    public static function siguienteNumero(string $prefijo): int
+    {
         $anio = now()->year;
         $ultimo = static::where('folio', 'like', "{$prefijo}-{$anio}-%")
             ->orderByRaw('CAST(SUBSTRING_INDEX(folio, "-", -1) AS UNSIGNED) DESC')
             ->first();
 
-        $siguiente = $ultimo
+        return $ultimo
             ? (int) substr($ultimo->folio, strrpos($ultimo->folio, '-') + 1) + 1
             : 1;
+    }
 
-        return sprintf('%s-%d-%05d', $prefijo, $anio, $siguiente);
+    /** Arma el folio formateado a partir del prefijo y el número correlativo. */
+    public static function formatearFolio(string $prefijo, int $numero, ?int $anio = null): string
+    {
+        return sprintf('%s-%d-%05d', $prefijo, $anio ?? now()->year, $numero);
     }
 
     public function departamento()

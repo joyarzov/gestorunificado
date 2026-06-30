@@ -130,8 +130,32 @@ const CorrespondenciaDetail = () => {
 
   // Preparar respuesta (reserva de número de salida vinculada)
   const [respuestaOpen, setRespuestaOpen] = useState(false)
-  const [respuestaForm, setRespuestaForm] = useState({ tipo_documento: 'oficio', materia: '' })
+  const [respuestaForm, setRespuestaForm] = useState({ tipo_documento: 'oficio', materia: '', numero: '' })
+  const [respuestaSerie, setRespuestaSerie] = useState<{ prefijo: string; anio: number } | null>(null)
   const [respuestaLoading, setRespuestaLoading] = useState(false)
+
+  // Sugiere el siguiente correlativo de la serie y pre-llena el número (editable).
+  const cargarSiguienteNumeroResp = async (tipo: string) => {
+    try {
+      const res = await correspondenciaAPI.salidaSiguienteNumero(tipo)
+      setRespuestaForm((f) => ({ ...f, numero: String(res.data.numero) }))
+      setRespuestaSerie({ prefijo: res.data.prefijo, anio: res.data.anio })
+    } catch {
+      setRespuestaSerie(null)
+    }
+  }
+
+  const abrirRespuesta = () => {
+    setRespuestaForm({ tipo_documento: 'oficio', materia: '', numero: '' })
+    setRespuestaSerie(null)
+    setRespuestaOpen(true)
+    cargarSiguienteNumeroResp('oficio')
+  }
+
+  // Folio previsualizado a partir del número manual (mismo formato que el backend).
+  const respuestaFolioPreview = respuestaSerie && respuestaForm.numero
+    ? `${respuestaSerie.prefijo}-${respuestaSerie.anio}-${String(respuestaForm.numero).padStart(5, '0')}`
+    : ''
 
   const handlePrepararRespuesta = async () => {
     if (!correspondencia) return
@@ -142,9 +166,10 @@ const CorrespondenciaDetail = () => {
         materia: respuestaForm.materia.trim(),
         destinatario: correspondencia.remitente,
         respuesta_a_id: correspondencia.id,
+        numero: respuestaForm.numero ? parseInt(respuestaForm.numero, 10) : undefined,
       })
       setRespuestaOpen(false)
-      setRespuestaForm({ tipo_documento: 'oficio', materia: '' })
+      setRespuestaForm({ tipo_documento: 'oficio', materia: '', numero: '' })
       setSnackbar({ open: true, message: res.message || `Número reservado: ${res.data.folio}` })
       if (id) loadCorrespondencia(parseInt(id))
     } catch (err: any) {
@@ -536,7 +561,7 @@ const CorrespondenciaDetail = () => {
             <Button
               variant="outlined"
               startIcon={<ReplyIcon />}
-              onClick={() => setRespuestaOpen(true)}
+              onClick={abrirRespuesta}
             >
               Preparar respuesta
             </Button>
@@ -814,12 +839,30 @@ const CorrespondenciaDetail = () => {
               fullWidth
               label="Tipo de documento"
               value={respuestaForm.tipo_documento}
-              onChange={(e) => setRespuestaForm({ ...respuestaForm, tipo_documento: e.target.value })}
+              onChange={(e) => {
+                const tipo = e.target.value
+                setRespuestaForm({ ...respuestaForm, tipo_documento: tipo })
+                cargarSiguienteNumeroResp(tipo)
+              }}
             >
               {Object.entries(TIPOS_DOCUMENTO_SALIDA).map(([k, v]) => (
                 <MenuItem key={k} value={k}>{v}</MenuItem>
               ))}
             </TextField>
+            <TextField
+              fullWidth
+              required
+              type="number"
+              label="Número"
+              value={respuestaForm.numero}
+              onChange={(e) => setRespuestaForm({ ...respuestaForm, numero: e.target.value })}
+              helperText={
+                respuestaFolioPreview
+                  ? `Folio: ${respuestaFolioPreview}. Cero Papel aún no está integrado, indica el número manualmente.`
+                  : 'Indica el número del documento (Cero Papel aún no está integrado).'
+              }
+              inputProps={{ min: 1 }}
+            />
             <TextField
               fullWidth
               required
@@ -834,7 +877,7 @@ const CorrespondenciaDetail = () => {
           <Button
             variant="contained"
             onClick={handlePrepararRespuesta}
-            disabled={respuestaLoading || !respuestaForm.materia.trim()}
+            disabled={respuestaLoading || !respuestaForm.materia.trim() || !respuestaForm.numero}
           >
             {respuestaLoading ? <CircularProgress size={20} /> : 'Reservar número'}
           </Button>

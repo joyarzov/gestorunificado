@@ -71,6 +71,9 @@ class CorrespondenciaSalidaController extends Controller
             'materia' => 'required|string|max:1000',
             'destinatario' => 'nullable|string|max:200',
             'respuesta_a_id' => 'nullable|exists:correspondencia,id',
+            // Número correlativo manual (Cero Papel aún no integrado al 100%).
+            // Si no viene, se usa el siguiente automático de la serie.
+            'numero' => 'nullable|integer|min:1',
         ]);
 
         // Partes/admin reservan libremente; el Alcalde solo como RESPUESTA a
@@ -117,8 +120,21 @@ class CorrespondenciaSalidaController extends Controller
 
         $prefijo = Correspondencia::TIPOS_SALIDA[$request->tipo_documento];
 
+        // El número puede venir manual (Cero Papel aún no integrado) o automático.
+        if ($request->filled('numero')) {
+            $folio = Correspondencia::formatearFolio($prefijo, (int) $request->numero);
+            if (Correspondencia::where('folio', $folio)->exists()) {
+                return $this->errorResponse(
+                    "El número {$request->numero} ya está usado en esta serie ({$folio}). Elige otro.",
+                    422
+                );
+            }
+        } else {
+            $folio = Correspondencia::siguienteFolio($prefijo);
+        }
+
         $salida = Correspondencia::create([
-            'folio' => Correspondencia::siguienteFolio($prefijo),
+            'folio' => $folio,
             'direccion' => 'salida',
             'tipo_documento_salida' => $request->tipo_documento,
             'remitente' => $request->destinatario ?: 'Por definir', // en salidas este campo es el DESTINATARIO externo
@@ -134,6 +150,25 @@ class CorrespondenciaSalidaController extends Controller
         ]);
 
         return $this->successResponse($salida, "Número reservado: {$salida->folio}", 201);
+    }
+
+    /**
+     * Sugiere el siguiente correlativo de una serie, para pre-llenar el campo
+     * de número manual al reservar (el usuario lo puede cambiar).
+     */
+    public function siguienteNumero(Request $request)
+    {
+        $request->validate([
+            'tipo_documento' => 'required|in:' . implode(',', array_keys(Correspondencia::TIPOS_SALIDA)),
+        ]);
+
+        $prefijo = Correspondencia::TIPOS_SALIDA[$request->tipo_documento];
+
+        return $this->successResponse([
+            'numero' => Correspondencia::siguienteNumero($prefijo),
+            'prefijo' => $prefijo,
+            'anio' => now()->year,
+        ]);
     }
 
     /**

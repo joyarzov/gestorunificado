@@ -194,8 +194,18 @@ export const correspondenciaAPI = {
     materia: string
     destinatario?: string
     respuesta_a_id?: number
+    numero?: number
   }) => {
     const response = await api.post<ApiResponse<Correspondencia>>('/correspondencia/salidas/reservar', data)
+    return response.data
+  },
+
+  // Sugiere el siguiente correlativo de la serie para pre-llenar el número manual.
+  salidaSiguienteNumero: async (tipoDocumento: string) => {
+    const response = await api.get<ApiResponse<{ numero: number; prefijo: string; anio: number }>>(
+      '/correspondencia/salidas/siguiente-numero',
+      { params: { tipo_documento: tipoDocumento } },
+    )
     return response.data
   },
 

@@ -156,6 +156,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
 
         // Correspondencia de SALIDA (reserva de número → cola de despacho)
         Route::get('/salidas', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'index']);
+        Route::get('/salidas/siguiente-numero', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'siguienteNumero']);
         Route::post('/salidas/reservar', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'reservar']);
         Route::post('/salidas/{salida}/documento', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'subirDocumento']);
         Route::post('/salidas/{salida}/documento-cero-papel', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'asociarDocumento']);
