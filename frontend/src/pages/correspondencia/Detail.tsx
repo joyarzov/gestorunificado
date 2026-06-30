@@ -194,6 +194,15 @@ const CorrespondenciaDetail = () => {
   const [docCeroPapel, setDocCeroPapel] = useState<Documento | null>(null)
   const [docsLoading, setDocsLoading] = useState(false)
 
+  // Firmas efectivas (ya firmadas) de un documento de Cero Papel: se muestran
+  // en vez de pedir el firmante a mano (el sistema ya sabe quién firmó).
+  const firmasFirmadas = (doc: Documento | null) =>
+    (doc?.firmas ?? []).filter((f) => f.estado === 'firmado')
+  const firmantesTexto = (doc: Documento | null) =>
+    firmasFirmadas(doc)
+      .map((f) => f.usuario?.nombre || f.nombre_cargo || '—')
+      .join(', ')
+
   const abrirSubirRespuesta = (r: Correspondencia) => {
     setSubirRespuesta(r)
     setSubirRespModo('pdf')
@@ -954,10 +963,8 @@ const CorrespondenciaDetail = () => {
                 value={docCeroPapel}
                 onChange={(_, v) => {
                   setDocCeroPapel(v)
-                  // Prellenar el firmante con el creador del documento si está vacío.
-                  if (v && !subirRespForm.firmante && v.creador?.nombre) {
-                    setSubirRespForm((f) => ({ ...f, firmante: v.creador!.nombre }))
-                  }
+                  // El firmante de la salida = quienes firmaron el documento (no editable).
+                  setSubirRespForm((f) => ({ ...f, firmante: firmantesTexto(v) }))
                 }}
                 getOptionLabel={(opt) => `${opt.numero || opt.identificador} · ${opt.titulo}`}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
@@ -978,13 +985,31 @@ const CorrespondenciaDetail = () => {
               value={subirRespForm.destinatario}
               onChange={(e) => setSubirRespForm({ ...subirRespForm, destinatario: e.target.value })}
             />
-            <TextField
-              fullWidth
-              required
-              label="Firmante del documento"
-              value={subirRespForm.firmante}
-              onChange={(e) => setSubirRespForm({ ...subirRespForm, firmante: e.target.value })}
-            />
+            {subirRespModo === 'pdf' ? (
+              <TextField
+                fullWidth
+                required
+                label="Firmante del documento"
+                value={subirRespForm.firmante}
+                onChange={(e) => setSubirRespForm({ ...subirRespForm, firmante: e.target.value })}
+                helperText="Nombre y cargo de quien firma el PDF"
+              />
+            ) : docCeroPapel ? (
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Firmas del documento</Typography>
+                {firmasFirmadas(docCeroPapel).length > 0 ? (
+                  firmasFirmadas(docCeroPapel).map((f) => (
+                    <Typography key={f.id} variant="body2" sx={{ color: 'text.secondary' }}>
+                      ✓ {f.usuario?.nombre || f.nombre_cargo || '—'}
+                      {f.usuario?.nombre && f.nombre_cargo ? ` · ${f.nombre_cargo}` : ''}
+                      {f.fecha_firma ? ` · ${format(new Date(f.fecha_firma), 'dd/MM/yyyy', { locale: es })}` : ''}
+                    </Typography>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">El documento no registra firmas.</Typography>
+                )}
+              </Box>
+            ) : null}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -992,7 +1017,13 @@ const CorrespondenciaDetail = () => {
           <Button
             variant="contained"
             onClick={handleSubirRespuesta}
-            disabled={subirRespLoading || !subirRespArchivo || !subirRespForm.destinatario.trim() || !subirRespForm.firmante.trim()}
+            disabled={
+              subirRespLoading
+              || !subirRespForm.destinatario.trim()
+              || (subirRespModo === 'pdf'
+                ? (!subirRespArchivo || !subirRespForm.firmante.trim())
+                : !docCeroPapel)
+            }
           >
             {subirRespLoading ? <CircularProgress size={20} /> : 'Enviar a despacho'}
           </Button>
