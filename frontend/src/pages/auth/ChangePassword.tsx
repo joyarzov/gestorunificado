@@ -212,8 +212,8 @@ const ChangePassword = () => {
 
       {user?.debe_cambiar_password && (
         <Alert severity="warning" sx={{ mb: 3, maxWidth: 500 }}>
-          <strong>Debes cambiar tu contraseña temporal antes de continuar.</strong> Ingresa la
-          contraseña temporal que recibiste por correo como “Contraseña Actual” y define una nueva
+          <strong>Debe cambiar su contraseña temporal antes de continuar.</strong> Ingrese la
+          contraseña temporal que recibió por correo como “Contraseña Actual” y defina una nueva
           en la sección <strong>Cambiar Contraseña</strong>.
         </Alert>
       )}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenido(a) a la Plataforma de Correspondencia Digital</title>
+    <title>Bienvenido a la Plataforma de Correspondencia Digital</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f5f7; font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; color:#4D4D4D;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:24px 0;">
@@ -42,12 +42,13 @@
                     {{-- Cuerpo --}}
                     <tr>
                         <td style="padding:32px 28px 8px 28px;">
-                            <p style="margin:0 0 16px 0; font-size:15px;">Hola{{ $nombre ? ' ' . $nombre : '' }},</p>
-                            <h1 style="margin:0 0 12px 0; font-size:20px; color:#1a1a1a; font-weight:bold;">Has sido incorporado(a) a la plataforma</h1>
+                            <p style="margin:0 0 16px 0; font-size:15px;">Estimado(a){{ $nombre ? ' ' . $nombre : '' }}:</p>
+                            <h1 style="margin:0 0 12px 0; font-size:20px; color:#1a1a1a; font-weight:bold;">Su cuenta ha sido incorporada a la plataforma</h1>
                             <p style="margin:0 0 20px 0; font-size:15px; line-height:1.6;">
-                                Te damos la bienvenida a la nueva <strong>Plataforma de Correspondencia Digital</strong> de la
-                                Ilustre Municipalidad de Cabo de Hornos. Tu cuenta ya está creada. A continuación encontrarás
-                                tus credenciales de acceso y los pasos que debes seguir antes de ingresar.
+                                Junto con saludar, le informamos que ha sido incorporado(a) a la nueva
+                                <strong>Plataforma de Correspondencia Digital</strong> de la Ilustre Municipalidad de
+                                Cabo de Hornos. Su cuenta ya se encuentra creada. A continuación encontrará sus
+                                credenciales de acceso y los pasos que deberá seguir antes de ingresar.
                             </p>
                         </td>
                     </tr>
@@ -58,7 +59,7 @@
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f7fc; border:1px solid #cfe4f3; border-radius:8px;">
                                 <tr>
                                     <td style="padding:18px 20px;">
-                                        <p style="margin:0 0 10px 0; font-size:13px; font-weight:bold; color:#005a96; text-transform:uppercase; letter-spacing:0.5px;">Tus credenciales</p>
+                                        <p style="margin:0 0 10px 0; font-size:13px; font-weight:bold; color:#005a96; text-transform:uppercase; letter-spacing:0.5px;">Credenciales de acceso</p>
                                         <p style="margin:0 0 6px 0; font-size:15px;">
                                             <strong>Usuario (RUT):</strong>
                                             <span style="font-family:'Courier New', monospace;">{{ $rut }}</span>
@@ -68,8 +69,8 @@
                                             <span style="font-family:'Courier New', monospace; background-color:#ffffff; border:1px dashed #28A9E3; padding:2px 8px; border-radius:4px; letter-spacing:1px;">{{ $passwordTemporal }}</span>
                                         </p>
                                         <p style="margin:10px 0 0 0; font-size:13px; color:#777777;">
-                                            Por seguridad, al iniciar sesión por primera vez el sistema te pedirá
-                                            <strong>cambiar esta contraseña</strong> por una personal.
+                                            Por seguridad, al iniciar sesión por primera vez el sistema le solicitará
+                                            <strong>cambiar esta contraseña</strong> por una de su elección.
                                         </p>
                                     </td>
                                 </tr>
@@ -80,34 +81,37 @@
                     {{-- Requisitos antes de acceder --}}
                     <tr>
                         <td style="padding:20px 28px 8px 28px;">
-                            <h2 style="margin:0 0 12px 0; font-size:16px; color:#1a1a1a;">Antes de ingresar, sigue estos pasos</h2>
+                            <h2 style="margin:0 0 12px 0; font-size:16px; color:#1a1a1a;">Pasos previos al ingreso</h2>
 
                             <p style="margin:0 0 14px 0; font-size:15px; line-height:1.6;">
-                                <strong>1. Conéctate a la red del municipio.</strong><br>
+                                <strong>1. Conéctese a la red del municipio.</strong><br>
                                 La plataforma solo funciona estando conectado(a) a la red interna municipal
-                                (en las dependencias del municipio o por la red autorizada). Desde fuera de esa
-                                red no podrás acceder.
+                                (en las dependencias del municipio o por la red autorizada). Fuera de dicha red
+                                no será posible acceder.
                             </p>
 
                             <p style="margin:0 0 14px 0; font-size:15px; line-height:1.6;">
-                                <strong>2. Descarga e instala el certificado de seguridad (SSL).</strong><br>
-                                Es necesario para que tu navegador confíe en la plataforma y no muestre advertencias.
-                                Descárgalo desde:
+                                <strong>2. Descargue e instale el certificado de seguridad (SSL).</strong><br>
+                                Es necesario para que su navegador confíe en la plataforma y no muestre advertencias.
+                                Al instalarlo, deberá colocarlo en el almacén
+                                <strong>«Entidades de certificación raíz de confianza»</strong>
+                                (en inglés, <em>Trusted Root Certification Authorities</em>). En el siguiente enlace
+                                encontrará el botón de descarga y la guía paso a paso de instalación:
                             </p>
 
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 10px 0;">
                                 <tr>
                                     <td style="border-radius:6px; background-color:#0071BC;">
-                                        <a href="{{ $certUrl }}" target="_blank"
+                                        <a href="{{ $certGuiaUrl }}" target="_blank"
                                            style="display:inline-block; padding:12px 24px; font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:6px;">
-                                            Descargar certificado SSL
+                                            Descargar e instalar el certificado SSL
                                         </a>
                                     </td>
                                 </tr>
                             </table>
                             <p style="margin:0 0 14px 0; font-size:13px; color:#777777; word-break:break-all;">
-                                Enlace directo: <a href="{{ $certUrl }}" style="color:#0071BC;">{{ $certUrl }}</a><br>
-                                Guía paso a paso para instalarlo: <a href="{{ $certGuiaUrl }}" style="color:#0071BC;">{{ $certGuiaUrl }}</a>
+                                Guía e instalación: <a href="{{ $certGuiaUrl }}" style="color:#0071BC;">{{ $certGuiaUrl }}</a><br>
+                                Descarga directa del archivo: <a href="{{ $certUrl }}" style="color:#0071BC;">{{ $certUrl }}</a>
                             </p>
                         </td>
                     </tr>
@@ -115,9 +119,9 @@
                     {{-- Acceso --}}
                     <tr>
                         <td style="padding:8px 28px 24px 28px;">
-                            <h2 style="margin:0 0 12px 0; font-size:16px; color:#1a1a1a;">Accede a la plataforma</h2>
+                            <h2 style="margin:0 0 12px 0; font-size:16px; color:#1a1a1a;">Acceso a la plataforma</h2>
                             <p style="margin:0 0 14px 0; font-size:15px; line-height:1.6;">
-                                Una vez conectado(a) a la red municipal y con el certificado instalado, ingresa en:
+                                Una vez conectado(a) a la red municipal y con el certificado instalado, podrá ingresar en:
                             </p>
                             <table role="presentation" cellpadding="0" cellspacing="0">
                                 <tr>
@@ -139,9 +143,9 @@
                     <tr>
                         <td style="padding:20px 28px; border-top:1px solid #ececec; background-color:#fafafa;">
                             <p style="margin:0; font-size:12px; color:#999999; line-height:1.5;">
-                                Si tienes problemas para acceder, contacta al administrador del sistema.<br>
+                                Ante cualquier dificultad para acceder, comuníquese con el administrador del sistema.<br>
                                 Correo automático del Gestor Municipal — Ilustre Municipalidad de Cabo de Hornos.
-                                Por favor no respondas a esta dirección.
+                                Por favor no responda a esta dirección.
                             </p>
                         </td>
                     </tr>
