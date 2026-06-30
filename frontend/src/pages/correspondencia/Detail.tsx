@@ -64,11 +64,12 @@ const CorrespondenciaDetail = () => {
   // Espeja al backend (User::contexto()->id), usado para validar el creador de una salida.
   const ctxUserId = actuandoComo?.id ?? user?.id
 
-  // Quién puede subir/anular el PDF de una respuesta: Partes/admin o quien reservó
-  // el folio. Espeja validarSalida(creadorOPartes) del backend para no mostrar
-  // acciones que el servidor rechazaría con 403.
+  // Quién puede subir/anular el PDF de una respuesta: Partes/admin, el Alcalde
+  // (quien prepara las respuestas; incluye subrogante actuando como Alcalde) o
+  // quien reservó el folio. Espeja validarSalida(creadorOPartes) del backend
+  // para no mostrar acciones que el servidor rechazaría con 403.
   const puedeGestionarSalida = (r: Correspondencia) =>
-    isAdmin() || isOficial() || r.usuario_id === ctxUserId
+    isAdmin() || isOficial() || isAlcalde() || r.usuario_id === ctxUserId
   const [correspondencia, setCorrespondencia] = useState<Correspondencia | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

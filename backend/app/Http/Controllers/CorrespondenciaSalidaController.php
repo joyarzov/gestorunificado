@@ -428,9 +428,12 @@ class CorrespondenciaSalidaController extends Controller
 
         if ($creadorOPartes) {
             $user = Auth::user();
-            $esPartes = $user->isAdmin() || $user->isOficial();
-            if (!$esPartes && $salida->usuario_id !== $user->contexto()->id) {
-                return $this->errorResponse('Solo quien reservó el número (o la Oficina de Partes) puede hacer esto.', 403);
+            // Pueden gestionar la salida: Oficina de Partes/admin, el Alcalde
+            // (incluido un subrogante actuando como Alcalde, vía rol efectivo) —
+            // que es quien prepara las respuestas— o quien reservó el folio.
+            $esGestor = $user->isAdmin() || $user->isOficial() || $user->isAlcalde();
+            if (!$esGestor && $salida->usuario_id !== $user->contexto()->id) {
+                return $this->errorResponse('Solo quien reservó el número, el Alcalde o la Oficina de Partes puede hacer esto.', 403);
             }
         }
 
