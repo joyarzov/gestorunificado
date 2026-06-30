@@ -32,7 +32,7 @@ class DocumentoController extends Controller
             'tipoDocumental:id,nombre,codigo',
             'plantilla:id,nombre,codigo',
             'creador:id,nombre,rut',
-            'firmas',
+            'firmas.usuario:id,nombre,cargo',
             'firmanteAsignado:id,nombre',
             'firmantesAsignados:id,nombre'
         ]);

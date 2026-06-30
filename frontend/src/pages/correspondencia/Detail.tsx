@@ -1001,7 +1001,7 @@ const CorrespondenciaDetail = () => {
                   firmasFirmadas(docCeroPapel).map((f) => (
                     <Typography key={f.id} variant="body2" sx={{ color: 'text.secondary' }}>
                       ✓ {f.usuario?.nombre || f.nombre_cargo || '—'}
-                      {f.usuario?.nombre && f.nombre_cargo ? ` · ${f.nombre_cargo}` : ''}
+                      {f.usuario?.cargo ? ` · ${f.usuario.cargo}` : ''}
                       {f.fecha_firma ? ` · ${format(new Date(f.fecha_firma), 'dd/MM/yyyy', { locale: es })}` : ''}
                     </Typography>
                   ))
