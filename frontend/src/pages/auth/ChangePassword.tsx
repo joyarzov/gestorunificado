@@ -176,12 +176,19 @@ const ChangePassword = () => {
         formData.password,
         formData.passwordConfirmation
       )
-      setSuccess('Contraseña actualizada correctamente')
       setFormData({
         currentPassword: '',
         password: '',
         passwordConfirmation: '',
       })
+      // Si era un cambio obligatorio (clave temporal), refresca el usuario para
+      // limpiar el flag y entra al portal.
+      if (user?.debe_cambiar_password) {
+        await checkAuth()
+        navigate('/portal', { replace: true })
+        return
+      }
+      setSuccess('Contraseña actualizada correctamente')
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setError((err as any)?.response?.data?.message || 'Error al cambiar contraseña')
@@ -193,13 +200,23 @@ const ChangePassword = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
-          Volver
-        </Button>
+        {!user?.debe_cambiar_password && (
+          <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
+            Volver
+          </Button>
+        )}
         <Typography variant="h4" fontWeight="bold">
           Mi Perfil
         </Typography>
       </Box>
+
+      {user?.debe_cambiar_password && (
+        <Alert severity="warning" sx={{ mb: 3, maxWidth: 500 }}>
+          <strong>Debes cambiar tu contraseña temporal antes de continuar.</strong> Ingresa la
+          contraseña temporal que recibiste por correo como “Contraseña Actual” y define una nueva
+          en la sección <strong>Cambiar Contraseña</strong>.
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -213,6 +230,9 @@ const ChangePassword = () => {
         </Alert>
       )}
 
+      {/* Perfil, subrogante y ausencia: se ocultan durante el cambio de clave obligatorio */}
+      {!user?.debe_cambiar_password && (
+      <>
       {/* Profile Section */}
       <Card sx={{ maxWidth: 500, mb: 3 }}>
         <CardContent>
@@ -369,6 +389,8 @@ const ChangePassword = () => {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Password Section */}
       <Card sx={{ maxWidth: 500 }}>

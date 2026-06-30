@@ -24,8 +24,15 @@ const PrivateRoute = () => {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  // Si tiene múltiples roles y no ha seleccionado uno, esperar
-  if (user.roles && user.roles.length > 1 && !selectedRole) {
+  // Contraseña temporal: hasta que la cambie, solo puede estar en "Mi perfil".
+  if (user.debe_cambiar_password && location.pathname !== '/cambiar-password') {
+    return <Navigate to="/cambiar-password" replace />
+  }
+
+  // Si tiene múltiples roles y no ha seleccionado uno, esperar.
+  // Excepción: el cambio de contraseña forzado debe poder mostrarse antes de
+  // elegir perfil (si no, el usuario multi-rol con clave temporal queda atascado).
+  if (user.roles && user.roles.length > 1 && !selectedRole && location.pathname !== '/cambiar-password') {
     return (
       <Box
         display="flex"

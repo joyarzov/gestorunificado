@@ -35,6 +35,7 @@ export interface User {
   visador: boolean
   activo: boolean
   puede_ver_registro_correspondencia?: boolean
+  debe_cambiar_password?: boolean
 }
 
 export interface AuthState {
