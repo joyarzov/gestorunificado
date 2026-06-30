@@ -28,6 +28,7 @@ class User extends Authenticatable
         'visador',
         'puede_ver_registro_correspondencia',
         'debe_cambiar_password',
+        'ultimo_acceso',
     ];
 
     protected $hidden = [
@@ -44,6 +45,7 @@ class User extends Authenticatable
         'visador' => 'boolean',
         'puede_ver_registro_correspondencia' => 'boolean',
         'debe_cambiar_password' => 'boolean',
+        'ultimo_acceso' => 'datetime',
         'subrogancia_activa' => 'boolean',
         'subrogancia_desde' => 'datetime',
         'subrogancia_hasta' => 'datetime',

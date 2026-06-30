@@ -233,6 +233,13 @@ const UsuariosManage = () => {
     setSubroganciaError('')
   }
 
+  const fmtUltimoAcceso = (iso?: string | null) => {
+    if (!iso) return <Typography variant="caption" color="text.secondary">Nunca</Typography>
+    return new Date(iso).toLocaleString('es-CL', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+  }
+
   const renderUsuarioRow = (user: User) => (
     <TableRow key={user.id} hover>
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{user.rut}</TableCell>
@@ -253,6 +260,9 @@ const UsuariosManage = () => {
           color={user.activo ? 'success' : 'default'}
           size="small"
         />
+      </TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 13 }}>
+        {fmtUltimoAcceso(user.ultimo_acceso)}
       </TableCell>
       <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
         <IconButton size="small" onClick={() => handleOpenDialog(user)}>
@@ -313,19 +323,20 @@ const UsuariosManage = () => {
         <Table
           size="small"
           sx={{
-            minWidth: 920,
+            minWidth: 1020,
             tableLayout: 'fixed',
             '& td, & th': { py: 1 },
           }}
         >
           <colgroup>
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '13%' }} />
             <col style={{ width: '11%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '8%' }} />
+            <col style={{ width: '16%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '9%' }} />
             <col style={{ width: 184 }} />
           </colgroup>
           <TableHead>
@@ -337,13 +348,14 @@ const UsuariosManage = () => {
               <TableCell>Departamento</TableCell>
               <TableCell>Roles</TableCell>
               <TableCell>Estado</TableCell>
+              <TableCell>Último acceso</TableCell>
               <TableCell align="center">Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {lista.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">{emptyMsg}</Typography>
                 </TableCell>
               </TableRow>

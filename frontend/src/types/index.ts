@@ -36,6 +36,7 @@ export interface User {
   activo: boolean
   puede_ver_registro_correspondencia?: boolean
   debe_cambiar_password?: boolean
+  ultimo_acceso?: string | null
 }
 
 export interface AuthState {

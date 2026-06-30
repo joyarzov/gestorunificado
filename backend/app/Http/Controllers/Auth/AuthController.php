@@ -60,6 +60,9 @@ class AuthController extends Controller
         // Cerrar solo las sesiones propias previas; dejar vivas las de subrogancia.
         $user->tokens()->where('name', self::TOKEN_PROPIO)->delete();
 
+        // Registrar el último inicio de sesión (visible para el admin).
+        $user->forceFill(['ultimo_acceso' => now()])->save();
+
         // Crear nuevo token (perfil propio)
         $token = $user->createToken(self::TOKEN_PROPIO)->plainTextToken;
 
