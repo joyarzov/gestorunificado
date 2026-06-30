@@ -313,20 +313,20 @@ const UsuariosManage = () => {
         <Table
           size="small"
           sx={{
-            minWidth: 860,
+            minWidth: 920,
             tableLayout: 'fixed',
             '& td, & th': { py: 1 },
           }}
         >
           <colgroup>
             <col style={{ width: '11%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '20%' }} />
             <col style={{ width: '14%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '9%' }} />
-            <col style={{ width: 132 }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: 184 }} />
           </colgroup>
           <TableHead>
             <TableRow>
