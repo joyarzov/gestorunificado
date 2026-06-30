@@ -2,11 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\BienvenidaMail;
 use App\Models\User;
+use App\Services\OnboardingService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Onboarding: entrega una contraseña temporal a usuarios ya creados y les envía
@@ -29,7 +27,7 @@ class EnviarOnboardingUsuarios extends Command
 
     protected $description = 'Envía el correo de bienvenida con contraseña temporal e instrucciones de acceso a usuarios incorporados.';
 
-    public function handle(): int
+    public function handle(OnboardingService $onboarding): int
     {
         $rut = $this->option('rut');
         $todos = (bool) $this->option('todos');
@@ -41,8 +39,6 @@ class EnviarOnboardingUsuarios extends Command
         }
 
         $urlBase = rtrim($this->option('url'), '/');
-        $certUrl = $urlBase . '/certificado-municipal.crt';
-        $certGuiaUrl = $urlBase . '/certificados';
 
         $query = User::where('activo', true);
         if ($rut) {
@@ -71,27 +67,13 @@ class EnviarOnboardingUsuarios extends Command
                 continue;
             }
 
-            $passwordTemporal = $this->option('password') ?: $this->generarPassword();
-
             if ($dryRun) {
                 $resumen[] = [$user->rut, $user->nombre, $email, 'Se enviaría'];
                 continue;
             }
 
-            $user->update([
-                'password' => Hash::make($passwordTemporal),
-                'debe_cambiar_password' => true,
-            ]);
-
             try {
-                Mail::to($email)->send(new BienvenidaMail(
-                    nombre: (string) $user->nombre,
-                    rut: (string) $user->rut,
-                    passwordTemporal: $passwordTemporal,
-                    appUrl: $urlBase,
-                    certUrl: $certUrl,
-                    certGuiaUrl: $certGuiaUrl,
-                ));
+                $onboarding->enviar($user, 'bienvenida', $urlBase, $this->option('password') ?: null);
                 $enviados++;
                 $resumen[] = [$user->rut, $user->nombre, $email, 'ENVIADO'];
             } catch (\Throwable $e) {
@@ -104,19 +86,5 @@ class EnviarOnboardingUsuarios extends Command
         $this->info("Enviados: {$enviados} · Omitidos/errores: {$omitidos}");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Contraseña temporal legible: prefijo "CdH" + 6 caracteres de un alfabeto
-     * sin caracteres ambiguos (sin 0/O/1/I/l). Cumple el mínimo de 6 al cambiar.
-     */
-    private function generarPassword(): string
-    {
-        $alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        $sufijo = '';
-        for ($i = 0; $i < 6; $i++) {
-            $sufijo .= $alfabeto[random_int(0, strlen($alfabeto) - 1)];
-        }
-        return 'CdH' . $sufijo;
     }
 }

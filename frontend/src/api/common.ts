@@ -80,6 +80,13 @@ export const usersAPI = {
     })
     return response.data
   },
+
+  // Envía al usuario un correo de acceso con clave temporal y lo obliga a
+  // cambiarla en el próximo login. tipo: 'bienvenida' (incorporación) o 'reset'.
+  enviarAcceso: async (id: number, tipo: 'bienvenida' | 'reset') => {
+    const response = await api.post<ApiResponse<null>>(`/users/${id}/enviar-acceso`, { tipo })
+    return response.data
+  },
 }
 
 // API Hora Oficial (NTP SHOA - America/Punta_Arenas)

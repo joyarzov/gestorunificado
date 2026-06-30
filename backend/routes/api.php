@@ -129,6 +129,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::middleware('role:admin')->group(function () {
             Route::post('/{user}/activate', [UserController::class, 'activar']);
             Route::post('/{user}/change-password', [UserController::class, 'cambiarPassword']);
+            Route::post('/{user}/enviar-acceso', [UserController::class, 'enviarAcceso']);
         });
     });
     Route::apiResource('users', UserController::class)->middleware('role:admin');

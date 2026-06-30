@@ -26,6 +26,7 @@ import {
   Checkbox,
   Tooltip,
   InputAdornment,
+  Snackbar,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -35,6 +36,7 @@ import {
   EventBusy as SubroganciaActivaIcon,
   EventAvailable as SubroganciaInactivaIcon,
   Search as SearchIcon,
+  MarkEmailRead as EnviarAccesoIcon,
 } from '@mui/icons-material'
 import { usersAPI, departamentosAPI } from '../../api/common'
 import { organigramaAPI } from '../../api/organigrama'
@@ -187,6 +189,28 @@ const UsuariosManage = () => {
     }
   }
 
+  // Enviar acceso: correo de bienvenida o restablecimiento de contraseña.
+  const [accesoTarget, setAccesoTarget] = useState<User | null>(null)
+  const [accesoLoading, setAccesoLoading] = useState<'bienvenida' | 'reset' | null>(null)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; severity: 'success' | 'error'; msg: string }>({
+    open: false, severity: 'success', msg: '',
+  })
+
+  const handleEnviarAcceso = async (tipo: 'bienvenida' | 'reset') => {
+    if (!accesoTarget) return
+    setAccesoLoading(tipo)
+    try {
+      const res = await usersAPI.enviarAcceso(accesoTarget.id, tipo)
+      setSnackbar({ open: true, severity: 'success', msg: res.message || 'Correo enviado' })
+      setAccesoTarget(null)
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSnackbar({ open: true, severity: 'error', msg: (err as any)?.response?.data?.message || 'No se pudo enviar el correo' })
+    } finally {
+      setAccesoLoading(null)
+    }
+  }
+
   // Subrogancia: dialog para activar (con fecha opcional) o desactivar.
   const [subroganciaTarget, setSubroganciaTarget] = useState<User | null>(null)
   const [subroganciaHasta, setSubroganciaHasta] = useState('')
@@ -247,6 +271,18 @@ const UsuariosManage = () => {
               color={user.subrogancia_activa ? 'warning' : 'default'}
             >
               {user.subrogancia_activa ? <SubroganciaActivaIcon /> : <SubroganciaInactivaIcon />}
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={user.email ? 'Enviar acceso (bienvenida / restablecer contraseña)' : 'El usuario no tiene correo registrado'}>
+          <span>
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => setAccesoTarget(user)}
+              disabled={!user.email}
+            >
+              <EnviarAccesoIcon />
             </IconButton>
           </span>
         </Tooltip>
@@ -563,6 +599,52 @@ const UsuariosManage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Enviar acceso: correo de bienvenida o restablecer contraseña */}
+      <Dialog open={!!accesoTarget} onClose={() => accesoLoading || setAccesoTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Enviar acceso · {accesoTarget?.nombre}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 1 }}>
+            Se enviará un correo a <strong>{accesoTarget?.email}</strong> con una contraseña temporal.
+            En ambos casos el usuario deberá cambiarla en su próximo inicio de sesión.
+          </DialogContentText>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            <strong>Correo de bienvenida</strong>: incorporación a la plataforma, con instrucciones de
+            certificado SSL y red municipal.<br />
+            <strong>Restablecer contraseña</strong>: solo entrega la nueva clave temporal.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2 }}>
+          <Button onClick={() => setAccesoTarget(null)} disabled={!!accesoLoading}>Cancelar</Button>
+          <Button
+            variant="outlined"
+            onClick={() => handleEnviarAcceso('reset')}
+            disabled={!!accesoLoading}
+            startIcon={accesoLoading === 'reset' ? <CircularProgress size={18} /> : undefined}
+          >
+            Restablecer contraseña
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleEnviarAcceso('bienvenida')}
+            disabled={!!accesoLoading}
+            startIcon={accesoLoading === 'bienvenida' ? <CircularProgress size={18} /> : <EnviarAccesoIcon />}
+          >
+            Correo de bienvenida
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} sx={{ width: '100%' }}>
+          {snackbar.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

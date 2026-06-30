@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\OnboardingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -143,5 +144,30 @@ class UserController extends Controller
         ]);
 
         return $this->successResponse(null, 'Contraseña actualizada');
+    }
+
+    /**
+     * Envía al usuario un correo de acceso con una contraseña temporal y lo deja
+     * obligado a cambiarla en el próximo inicio de sesión. Dos modalidades:
+     *  - 'bienvenida': correo de incorporación con instrucciones (certificado, red).
+     *  - 'reset': solo restablecimiento de la contraseña.
+     */
+    public function enviarAcceso(Request $request, User $user, OnboardingService $onboarding)
+    {
+        $request->validate([
+            'tipo' => 'required|in:bienvenida,reset',
+        ]);
+
+        try {
+            $onboarding->enviar($user, $request->tipo);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
+
+        $mensaje = $request->tipo === 'reset'
+            ? "Contraseña restablecida. Se envió la nueva clave temporal a {$user->email}."
+            : "Correo de bienvenida enviado a {$user->email}.";
+
+        return $this->successResponse(null, $mensaje);
     }
 }
