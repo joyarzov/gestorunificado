@@ -259,8 +259,10 @@ const UsuariosManage = () => {
   const fmtUltimoAcceso = (iso?: string | null) => {
     if (!iso) return <Typography variant="caption" color="text.secondary">Nunca</Typography>
     const d = new Date(iso)
-    const fecha = d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    const hora = d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
+    // Hora oficial de Cabo de Hornos (Magallanes, UTC-3), independiente del navegador.
+    const TZ = 'America/Punta_Arenas'
+    const fecha = d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ })
+    const hora = d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ })
     return (
       <Box sx={{ lineHeight: 1.2 }}>
         <Box>{fecha}</Box>
