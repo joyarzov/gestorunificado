@@ -102,6 +102,14 @@ export const organigramaAPI = {
     return response.data
   },
 
+  asignarSubroganteDeUsuario: async (userId: number, subroganteId: number | null) => {
+    const response = await api.patch<ApiResponse<unknown>>(
+      `/organigrama/usuarios/${userId}/subrogante`,
+      { subrogante_id: subroganteId },
+    )
+    return response.data
+  },
+
   activarSubroganciaDeUsuario: async (
     userId: number,
     data?: { desde?: string | null; hasta?: string | null }

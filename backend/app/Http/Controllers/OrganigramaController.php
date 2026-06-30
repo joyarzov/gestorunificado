@@ -236,6 +236,26 @@ class OrganigramaController extends Controller
      * Admin: activa la subrogancia de cualquier usuario (caso uso: ausencia
      * imprevista en que el subrogado no alcanzó a activarla).
      */
+    /**
+     * Admin: asigna (o quita) el subrogante de cualquier usuario. Espeja la
+     * lógica de actualizarMiSubrogante, pero sobre un usuario objetivo.
+     */
+    public function asignarSubroganteDeUsuario(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'subrogante_id' => 'nullable|integer|exists:users,id',
+        ]);
+
+        if (!empty($data['subrogante_id']) && (int) $data['subrogante_id'] === $user->id) {
+            return $this->errorResponse('Un usuario no puede ser su propio subrogante', 422);
+        }
+
+        $user->update(['subrogante_id' => $data['subrogante_id'] ?? null]);
+        $user->load('subrogante:id,nombre,cargo');
+
+        return $this->successResponse($user, 'Subrogante actualizado');
+    }
+
     public function activarSubroganciaDeUsuario(Request $request, User $user)
     {
         $data = $request->validate([

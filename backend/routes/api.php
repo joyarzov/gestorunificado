@@ -117,6 +117,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
             Route::patch('/departamentos/{departamento}/parent', [OrganigramaController::class, 'actualizarParent']);
             Route::patch('/departamentos/{departamento}/jefe', [OrganigramaController::class, 'actualizarJefe']);
             Route::patch('/usuarios/{user}/departamento', [OrganigramaController::class, 'moverUsuarioDepartamento']);
+            Route::patch('/usuarios/{user}/subrogante', [OrganigramaController::class, 'asignarSubroganteDeUsuario']);
             Route::post('/usuarios/{user}/subrogancia/activar', [OrganigramaController::class, 'activarSubroganciaDeUsuario']);
             Route::post('/usuarios/{user}/subrogancia/desactivar', [OrganigramaController::class, 'desactivarSubroganciaDeUsuario']);
         });
