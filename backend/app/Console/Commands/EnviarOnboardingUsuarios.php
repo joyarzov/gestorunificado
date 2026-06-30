@@ -21,6 +21,7 @@ class EnviarOnboardingUsuarios extends Command
     protected $signature = 'usuarios:onboarding
         {--rut= : Enviar solo a este RUT (formato 12345678-9)}
         {--todos : Enviar a TODOS los usuarios activos con correo}
+        {--excluir= : RUTs a excluir (separados por coma), p.ej. 11111111-1,12345678-9}
         {--url=https://docmunicipal.local : URL base de la plataforma en la red municipal}
         {--password= : Contraseña temporal fija (si se omite, se genera una por usuario)}
         {--dry-run : No cambia contraseñas ni envía correos; solo muestra a quién se enviaría}';
@@ -43,6 +44,16 @@ class EnviarOnboardingUsuarios extends Command
         $query = User::where('activo', true);
         if ($rut) {
             $query->where('rut', User::formatRut($rut));
+        }
+        if ($this->option('excluir')) {
+            $excluidos = collect(explode(',', $this->option('excluir')))
+                ->map(fn ($r) => User::formatRut(trim($r)))
+                ->filter()
+                ->all();
+            if ($excluidos) {
+                $query->whereNotIn('rut', $excluidos);
+                $this->warn('Excluidos: ' . implode(', ', $excluidos));
+            }
         }
         $usuarios = $query->orderBy('nombre')->get();
 
