@@ -235,9 +235,15 @@ const UsuariosManage = () => {
 
   const fmtUltimoAcceso = (iso?: string | null) => {
     if (!iso) return <Typography variant="caption" color="text.secondary">Nunca</Typography>
-    return new Date(iso).toLocaleString('es-CL', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    })
+    const d = new Date(iso)
+    const fecha = d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const hora = d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
+    return (
+      <Box sx={{ lineHeight: 1.2 }}>
+        <Box>{fecha}</Box>
+        <Typography variant="caption" color="text.secondary">{hora}</Typography>
+      </Box>
+    )
   }
 
   const renderUsuarioRow = (user: User) => (
@@ -323,7 +329,7 @@ const UsuariosManage = () => {
         <Table
           size="small"
           sx={{
-            minWidth: 1020,
+            minWidth: 1040,
             tableLayout: 'fixed',
             '& td, & th': { py: 1 },
           }}
@@ -334,10 +340,10 @@ const UsuariosManage = () => {
             <col style={{ width: '11%' }} />
             <col style={{ width: '16%' }} />
             <col style={{ width: '13%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '7%' }} />
+            <col style={{ width: '10%' }} />
             <col style={{ width: '9%' }} />
-            <col style={{ width: 184 }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: 176 }} />
           </colgroup>
           <TableHead>
             <TableRow>
