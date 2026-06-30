@@ -157,7 +157,7 @@ class CorrespondenciaController extends Controller
             'derivaciones.usuarioDestino',
             'derivaciones.actuandoComo',
             'mensajes:id,correspondencia_id,usuario_id',
-            'respuestas:id,folio,tipo_documento_salida,estado,remitente,fecha_despacho,respuesta_a_id',
+            'respuestas:id,folio,tipo_documento_salida,estado,remitente,firmante_nombre,fecha_despacho,respuesta_a_id,usuario_id',
             'respuestaA:id,folio,remitente',
         ]);
         $correspondencia->append('resumen_gestion');

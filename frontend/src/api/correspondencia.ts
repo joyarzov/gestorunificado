@@ -219,6 +219,25 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  salidaAsociarDocumento: async (
+    id: number,
+    documentoId: number,
+    destinatario: string,
+    firmanteNombre?: string,
+    fechaDocumento?: string,
+  ) => {
+    const response = await api.post<ApiResponse<Correspondencia>>(
+      `/correspondencia/salidas/${id}/documento-cero-papel`,
+      {
+        documento_id: documentoId,
+        destinatario,
+        firmante_nombre: firmanteNombre,
+        fecha_documento: fechaDocumento,
+      },
+    )
+    return response.data
+  },
+
   salidaDespachar: async (id: number, data: { medio_despacho: string; fecha_despacho?: string; referencia_despacho?: string }) => {
     const response = await api.post<ApiResponse<Correspondencia>>(`/correspondencia/salidas/${id}/despachar`, data)
     return response.data

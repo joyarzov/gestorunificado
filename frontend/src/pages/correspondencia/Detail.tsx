@@ -22,6 +22,9 @@ import {
   IconButton,
   TextField,
   MenuItem,
+  ToggleButton,
+  ToggleButtonGroup,
+  Autocomplete,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -38,7 +41,8 @@ import {
   Unarchive as DesarchivarIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
-import { Correspondencia, Adjunto } from '../../types'
+import { documentosAPI } from '../../api/gestor'
+import { Correspondencia, Adjunto, Documento } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -150,34 +154,56 @@ const CorrespondenciaDetail = () => {
     }
   }
 
-  // Subir PDF firmado de una respuesta (reserva del alcalde → cola de Partes)
+  // Subir/asociar documento de una respuesta (reserva del alcalde → cola de Partes).
+  // Dos modos: 'pdf' = subir un PDF externo; 'cero_papel' = asociar un documento
+  // de Cero Papel ya firmado.
   const [subirRespuesta, setSubirRespuesta] = useState<Correspondencia | null>(null)
+  const [subirRespModo, setSubirRespModo] = useState<'pdf' | 'cero_papel'>('pdf')
   const [subirRespForm, setSubirRespForm] = useState({ destinatario: '', firmante: '' })
   const [subirRespArchivo, setSubirRespArchivo] = useState<File | null>(null)
   const [subirRespLoading, setSubirRespLoading] = useState(false)
   const subirRespFileRef = useRef<HTMLInputElement>(null)
+  // Documentos de Cero Papel firmados disponibles para asociar
+  const [docsCeroPapel, setDocsCeroPapel] = useState<Documento[]>([])
+  const [docCeroPapel, setDocCeroPapel] = useState<Documento | null>(null)
+  const [docsLoading, setDocsLoading] = useState(false)
 
   const abrirSubirRespuesta = (r: Correspondencia) => {
     setSubirRespuesta(r)
+    setSubirRespModo('pdf')
     setSubirRespForm({
       destinatario: r.remitente !== 'Por definir' ? r.remitente : (correspondencia?.remitente || ''),
       firmante: r.firmante_nombre || (user ? `${user.nombre}${user.cargo ? ', ' + user.cargo : ''}` : ''),
     })
     setSubirRespArchivo(null)
+    setDocCeroPapel(null)
+    // Cargar documentos firmados de Cero Papel para la opción de asociar.
+    setDocsLoading(true)
+    documentosAPI
+      .listar({ estado: 'firmado', per_page: 50 })
+      .then((res) => setDocsCeroPapel(res.data.data))
+      .catch(() => setDocsCeroPapel([]))
+      .finally(() => setDocsLoading(false))
   }
 
   const handleSubirRespuesta = async () => {
-    if (!subirRespuesta || !subirRespArchivo) return
+    if (!subirRespuesta) return
+    if (subirRespModo === 'pdf' && !subirRespArchivo) return
+    if (subirRespModo === 'cero_papel' && !docCeroPapel) return
     setSubirRespLoading(true)
     try {
-      const res = await correspondenciaAPI.salidaSubirDocumento(
-        subirRespuesta.id, subirRespArchivo, subirRespForm.destinatario, subirRespForm.firmante,
-      )
+      const res = subirRespModo === 'pdf'
+        ? await correspondenciaAPI.salidaSubirDocumento(
+            subirRespuesta.id, subirRespArchivo!, subirRespForm.destinatario, subirRespForm.firmante,
+          )
+        : await correspondenciaAPI.salidaAsociarDocumento(
+            subirRespuesta.id, docCeroPapel!.id, subirRespForm.destinatario, subirRespForm.firmante || undefined,
+          )
       setSubirRespuesta(null)
       setSnackbar({ open: true, message: res.message || 'Documento enviado a despacho' })
       if (id) loadCorrespondencia(parseInt(id))
     } catch (err: any) {
-      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo subir el documento' })
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo enviar el documento' })
     } finally {
       setSubirRespLoading(false)
     }
@@ -852,16 +878,55 @@ const CorrespondenciaDetail = () => {
             <Alert severity="info">
               Al enviar, el documento queda en la cola de <strong>Oficina de Partes</strong> para su despacho al destinatario.
             </Alert>
-            <input
-              ref={subirRespFileRef}
-              type="file"
-              accept=".pdf"
-              style={{ display: 'none' }}
-              onChange={(e) => setSubirRespArchivo(e.target.files?.[0] ?? null)}
-            />
-            <Button variant="outlined" startIcon={<AttachIcon />} onClick={() => subirRespFileRef.current?.click()}>
-              {subirRespArchivo ? subirRespArchivo.name : 'Seleccionar PDF firmado'}
-            </Button>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              color="primary"
+              value={subirRespModo}
+              onChange={(_, v) => { if (v) setSubirRespModo(v) }}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              <ToggleButton value="pdf">Subir PDF externo</ToggleButton>
+              <ToggleButton value="cero_papel">Documento Cero Papel</ToggleButton>
+            </ToggleButtonGroup>
+
+            {subirRespModo === 'pdf' ? (
+              <>
+                <input
+                  ref={subirRespFileRef}
+                  type="file"
+                  accept=".pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setSubirRespArchivo(e.target.files?.[0] ?? null)}
+                />
+                <Button variant="outlined" startIcon={<AttachIcon />} onClick={() => subirRespFileRef.current?.click()}>
+                  {subirRespArchivo ? subirRespArchivo.name : 'Seleccionar PDF firmado'}
+                </Button>
+              </>
+            ) : (
+              <Autocomplete
+                options={docsCeroPapel}
+                loading={docsLoading}
+                value={docCeroPapel}
+                onChange={(_, v) => {
+                  setDocCeroPapel(v)
+                  // Prellenar el firmante con el creador del documento si está vacío.
+                  if (v && !subirRespForm.firmante && v.creador?.nombre) {
+                    setSubirRespForm((f) => ({ ...f, firmante: v.creador!.nombre }))
+                  }
+                }}
+                getOptionLabel={(opt) => `${opt.numero || opt.identificador} · ${opt.titulo}`}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                noOptionsText={docsLoading ? 'Cargando…' : 'No hay documentos firmados'}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Documento de Cero Papel (firmado)"
+                    helperText="Solo aparecen documentos en estado firmado"
+                  />
+                )}
+              />
+            )}
             <TextField
               fullWidth
               required

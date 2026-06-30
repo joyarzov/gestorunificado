@@ -158,6 +158,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/salidas', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'index']);
         Route::post('/salidas/reservar', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'reservar']);
         Route::post('/salidas/{salida}/documento', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'subirDocumento']);
+        Route::post('/salidas/{salida}/documento-cero-papel', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'asociarDocumento']);
         Route::post('/salidas/{salida}/despachar', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'despachar']);
         Route::post('/salidas/{salida}/devolver', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'devolver']);
         Route::post('/salidas/{salida}/anular', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'anular']);

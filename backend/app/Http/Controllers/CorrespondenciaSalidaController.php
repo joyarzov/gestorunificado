@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Correspondencia;
+use App\Models\Documento;
 use App\Models\User;
 use App\Services\NotificacionService;
 use Illuminate\Http\Request;
@@ -100,6 +101,18 @@ class CorrespondenciaSalidaController extends Controller
                     422
                 );
             }
+            // Evitar reservar más de un folio para la misma entrada mientras
+            // haya una respuesta en curso (sin despachar / sin anular).
+            $enCurso = Correspondencia::salidas()
+                ->where('respuesta_a_id', $entrada->id)
+                ->whereIn('estado', ['reservada', 'devuelta', 'por_despachar'])
+                ->first();
+            if ($enCurso) {
+                return $this->errorResponse(
+                    "Ya hay una respuesta en curso para esta correspondencia ({$enCurso->folio}). Súbele el documento o anúlala antes de reservar otro número.",
+                    422
+                );
+            }
         }
 
         $prefijo = Correspondencia::TIPOS_SALIDA[$request->tipo_documento];
@@ -112,7 +125,11 @@ class CorrespondenciaSalidaController extends Controller
             'descripcion' => $request->materia,
             'respuesta_a_id' => $request->respuesta_a_id,
             'fecha_recibo' => now(),
-            'usuario_id' => Auth::id(),
+            // Dueño institucional de la salida = contexto (el Alcalde cuando se
+            // reserva por subrogancia), no el actor real. Así coincide con
+            // validarSalida(creadorOPartes) y el alcalde/subrogante puede subir
+            // o anular el folio que reservó.
+            'usuario_id' => $user->contexto()->id,
             'estado' => 'reservada',
         ]);
 
@@ -142,12 +159,85 @@ class CorrespondenciaSalidaController extends Controller
         }
         $path = $request->file('documento')->store('correspondencia/salidas/' . $salida->id, 'public');
 
+        $this->dejarEnColaDespacho(
+            $salida,
+            $path,
+            $request->file('documento')->getClientOriginalName(),
+            $request->destinatario,
+            $request->firmante_nombre,
+            $request->fecha_documento ?: now(),
+        );
+
+        return $this->successResponse($salida->fresh(), 'Documento recibido: la salida quedó en la cola de despacho');
+    }
+
+    /**
+     * Asocia un documento de CERO PAPEL ya creado (y firmado) como el documento
+     * de respuesta de la salida. Copia el PDF del documento a la salida y la deja
+     * en la cola de despacho de Oficina de Partes. Válido desde reservada/devuelta.
+     */
+    public function asociarDocumento(Request $request, Correspondencia $salida)
+    {
+        if ($denied = $this->validarSalida($salida, ['reservada', 'devuelta'], creadorOPartes: true)) {
+            return $denied;
+        }
+
+        $request->validate([
+            'documento_id' => 'required|exists:documentos,id',
+            'destinatario' => 'required|string|max:200',
+            'firmante_nombre' => 'nullable|string|max:200',
+            'fecha_documento' => 'nullable|date',
+        ]);
+
+        $documento = Documento::find($request->documento_id);
+
+        // Solo documentos cerrados/firmados y con PDF disponible sirven como respuesta.
+        if (!in_array($documento->estado, [Documento::ESTADO_FIRMADO, Documento::ESTADO_INCORPORADO], true)) {
+            return $this->errorResponse('Solo se puede asociar un documento firmado de Cero Papel.', 422);
+        }
+        if (!$documento->archivo_pdf || !Storage::disk('public')->exists($documento->archivo_pdf)) {
+            return $this->errorResponse('El documento seleccionado no tiene un PDF disponible.', 422);
+        }
+
+        // Copiar el PDF del documento a la carpeta de la salida (mismo patrón que subir).
+        if ($salida->documento_ruta) {
+            Storage::disk('public')->delete($salida->documento_ruta);
+        }
+        $nombre = ($documento->numero ?: $documento->identificador) . '.pdf';
+        $destino = 'correspondencia/salidas/' . $salida->id . '/' . basename($documento->archivo_pdf);
+        Storage::disk('public')->put($destino, Storage::disk('public')->get($documento->archivo_pdf));
+
+        $this->dejarEnColaDespacho(
+            $salida,
+            $destino,
+            $nombre,
+            $request->destinatario,
+            $request->firmante_nombre ?: ($documento->creador?->nombre ?? 'Cero Papel'),
+            $request->fecha_documento ?: ($documento->fecha_firma ?: now()),
+        );
+
+        return $this->successResponse($salida->fresh(), 'Documento de Cero Papel asociado: la salida quedó en la cola de despacho');
+    }
+
+    /**
+     * Marca la salida como "por_despachar" con el documento dado y notifica a
+     * Oficina de Partes. Compartido por subirDocumento (PDF externo) y
+     * asociarDocumento (documento de Cero Papel).
+     */
+    private function dejarEnColaDespacho(
+        Correspondencia $salida,
+        string $documentoRuta,
+        string $documentoNombre,
+        string $destinatario,
+        string $firmanteNombre,
+        $fechaDocumento
+    ): void {
         $salida->update([
-            'documento_ruta' => $path,
-            'documento_nombre' => $request->file('documento')->getClientOriginalName(),
-            'remitente' => $request->destinatario,
-            'firmante_nombre' => $request->firmante_nombre,
-            'fecha_documento' => $request->fecha_documento ?: now(),
+            'documento_ruta' => $documentoRuta,
+            'documento_nombre' => $documentoNombre,
+            'remitente' => $destinatario, // en salidas este campo es el destinatario externo
+            'firmante_nombre' => $firmanteNombre,
+            'fecha_documento' => $fechaDocumento,
             'estado' => 'por_despachar',
             'motivo_devolucion' => null,
         ]);
@@ -164,8 +254,6 @@ class CorrespondenciaSalidaController extends Controller
                 ['correspondencia_id' => $salida->id, 'url' => '/salidas']
             );
         }
-
-        return $this->successResponse($salida->fresh(), 'Documento recibido: la salida quedó en la cola de despacho');
     }
 
     /** Despacha la salida (solo Oficina de Partes / admin). */
