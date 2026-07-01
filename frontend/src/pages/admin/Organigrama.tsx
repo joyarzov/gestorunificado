@@ -8,6 +8,7 @@ import ReactFlow, {
   NodeProps,
   Handle,
   Position,
+  MarkerType,
   ReactFlowProvider,
   useReactFlow,
 } from 'reactflow'
@@ -234,7 +235,7 @@ const NODE_H = 70
 function layoutNodos(nodos: Node[], edges: Edge[]): Node[] {
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 18, ranksep: 40, marginx: 15, marginy: 15 })
+  g.setGraph({ rankdir: 'TB', nodesep: 34, ranksep: 64, marginx: 15, marginy: 15 })
 
   nodos.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }))
   edges.forEach((e) => g.setEdge(e.source, e.target))
@@ -360,16 +361,25 @@ const OrganigramaInner = () => {
   )
 
   const edges: Edge[] = useMemo(
-    () =>
-      organigramaVisible
+    () => {
+      // Color de cada conector = color del padre (según su tipo). Así se distingue
+      // fácilmente de qué unidad "cuelga" cada línea cuando se fusionan varias.
+      const tipoPorId = new Map(organigramaVisible.map((n) => [n.id, n.tipo]))
+      return organigramaVisible
         .filter((n) => n.parent_id !== null && n.parent_id !== undefined && !ocultos.has(n.parent_id))
-        .map((n) => ({
-          id: `e-${n.parent_id}-${n.id}`,
-          source: String(n.parent_id),
-          target: String(n.id),
-          type: 'smoothstep',
-          style: { stroke: '#9aa3b0', strokeWidth: 1.5 },
-        })),
+        .map((n) => {
+          const colorPadre = tipoColor[tipoPorId.get(n.parent_id as number) ?? 'departamento'] ?? '#9aa3b0'
+          return {
+            id: `e-${n.parent_id}-${n.id}`,
+            source: String(n.parent_id),
+            target: String(n.id),
+            type: 'smoothstep',
+            pathOptions: { borderRadius: 12 },
+            style: { stroke: colorPadre, strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: colorPadre, width: 16, height: 16 },
+          }
+        })
+    },
     [organigramaVisible, ocultos]
   )
 
