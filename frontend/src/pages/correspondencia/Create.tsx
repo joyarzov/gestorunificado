@@ -184,6 +184,7 @@ const CorrespondenciaCreate = () => {
                   value={formData.numero_documento}
                   onChange={(e) => handleChange('numero_documento', e.target.value)}
                   placeholder="Ej: OF-2024-001"
+                  inputProps={{ maxLength: 100 }}
                 />
               </Grid>
 
@@ -195,6 +196,7 @@ const CorrespondenciaCreate = () => {
                   value={formData.remitente}
                   onChange={(e) => handleChange('remitente', e.target.value)}
                   placeholder="Nombre del remitente o institución"
+                  inputProps={{ maxLength: 255 }}
                 />
               </Grid>
 

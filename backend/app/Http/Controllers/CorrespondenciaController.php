@@ -112,9 +112,9 @@ class CorrespondenciaController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'remitente' => 'required|string|max:200',
+            'remitente' => 'required|string|max:255',
             'fecha_recibo' => 'required|date',
-            'numero_documento' => 'nullable|string|max:50',
+            'numero_documento' => 'nullable|string|max:100',
             'fecha_documento' => 'nullable|date',
             'descripcion' => 'nullable|string',
             'departamento_id' => 'nullable|exists:departamentos,id',
@@ -180,9 +180,9 @@ class CorrespondenciaController extends Controller
         }
 
         $request->validate([
-            'remitente' => 'sometimes|required|string|max:200',
+            'remitente' => 'sometimes|required|string|max:255',
             'fecha_recibo' => 'sometimes|required|date',
-            'numero_documento' => 'nullable|string|max:50',
+            'numero_documento' => 'nullable|string|max:100',
             'fecha_documento' => 'nullable|date',
             'descripcion' => 'nullable|string',
             'departamento_id' => 'nullable|exists:departamentos,id',
