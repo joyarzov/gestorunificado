@@ -89,6 +89,21 @@ export const usersAPI = {
   },
 }
 
+export interface AdminDashboardStats {
+  usuarios: { activos: number; inactivos: number; sin_primer_ingreso: number; clave_pendiente: number }
+  correspondencia: { total: number; entradas: number; salidas: number; archivadas: number; salidas_pendientes: number }
+  documentos: { total: number; borrador: number; pendiente_firma: number; firmado: number }
+  expedientes: number
+  oirs: number
+}
+
+export const adminAPI = {
+  dashboard: async () => {
+    const response = await api.get<ApiResponse<AdminDashboardStats>>('/admin/dashboard')
+    return response.data
+  },
+}
+
 // API Hora Oficial (NTP SHOA - America/Punta_Arenas)
 export const horaOficialAPI = {
   obtener: async () => {

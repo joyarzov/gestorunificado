@@ -342,6 +342,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/configuracion', [ConfiguracionController::class, 'index']);
         Route::patch('/configuracion/{clave}', [ConfiguracionController::class, 'update']);
         Route::post('/configuracion/probar-correo', [ConfiguracionController::class, 'probarCorreo']);
+        Route::get('/admin/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'stats']);
     });
 
     // Sello del usuario autenticado (miniatura real para el modal de firma)
