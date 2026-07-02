@@ -44,6 +44,18 @@ import { usersAPI, departamentosAPI } from '../../api/common'
 import { organigramaAPI } from '../../api/organigrama'
 import { User, Departamento } from '../../types'
 
+// Extrae un mensaje legible de un error de Axios/Laravel: prioriza los errores
+// de validación (422) campo por campo y cae al `message` general o al fallback.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extraerMensajeError = (err: any, fallback: string): string => {
+  const data = err?.response?.data
+  if (data?.errors && typeof data.errors === 'object') {
+    const mensajes = Object.values(data.errors as Record<string, string[]>).flat()
+    if (mensajes.length) return mensajes.join(' ')
+  }
+  return data?.message || fallback
+}
+
 const rolesOptions = [
   { value: 'admin', label: 'Administrador' },
   { value: 'alcalde', label: 'Alcalde' },
@@ -79,6 +91,7 @@ const UsuariosManage = () => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const [formData, setFormData] = useState({
     rut: '',
@@ -114,6 +127,7 @@ const UsuariosManage = () => {
   }
 
   const handleOpenDialog = (user?: User) => {
+    setSaveError('')
     if (user) {
       setEditingUser(user)
       setFormData({
@@ -147,6 +161,7 @@ const UsuariosManage = () => {
   const handleCloseDialog = () => {
     setDialogOpen(false)
     setEditingUser(null)
+    setSaveError('')
   }
 
   const handleChange = (field: string, value: unknown) => {
@@ -155,6 +170,7 @@ const UsuariosManage = () => {
 
   const handleSave = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       const data: Record<string, unknown> = {
         ...formData,
@@ -173,8 +189,14 @@ const UsuariosManage = () => {
       }
       loadData()
       handleCloseDialog()
+      setSnackbar({
+        open: true,
+        severity: 'success',
+        msg: editingUser ? 'Usuario actualizado' : 'Usuario creado',
+      })
     } catch (err) {
       console.error('Error al guardar:', err)
+      setSaveError(extraerMensajeError(err, 'No se pudo guardar el usuario'))
     } finally {
       setSaving(false)
     }
@@ -493,6 +515,11 @@ const UsuariosManage = () => {
           {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
         </DialogTitle>
         <DialogContent>
+          {saveError && (
+            <Alert severity="error" sx={{ mt: 1, mb: 1 }} onClose={() => setSaveError('')}>
+              {saveError}
+            </Alert>
+          )}
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} md={6}>
               <TextField
@@ -512,6 +539,7 @@ const UsuariosManage = () => {
                 value={formData.password}
                 onChange={(e) => handleChange('password', e.target.value)}
                 required={!editingUser}
+                helperText="Mínimo 6 caracteres"
               />
             </Grid>
             <Grid item xs={12}>
