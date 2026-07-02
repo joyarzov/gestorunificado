@@ -111,8 +111,9 @@ const BandejaEntrada = () => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           {/* "Activas" agrupa lo por recibir Y lo derivado en seguimiento;
-              el estado puntual de cada ítem lo dice su chip. Las archivadas
-              (proceso cerrado por el Alcalde) tienen su propia pestaña. */}
+              el estado puntual de cada ítem lo dice su chip. "Archivadas" reúne
+              el archivo personal del funcionario (sus derivaciones archivadas)
+              y los procesos cerrados por el Alcalde. */}
           <Tab label={`Activas (${counts.pendientes})`} />
           <Tab label={`Recibidas (${counts.recibidas})`} />
           <Tab label={`Archivadas (${counts.archivadas})`} />

@@ -587,10 +587,15 @@ class DerivacionController extends Controller
               });
         });
 
-        // Las correspondencias con proceso cerrado van a su propia pestaña
-        // "Archivadas"; las pestañas de trabajo no las mezclan.
+        // Pestaña "Archivadas" = archivo personal del funcionario (su derivación
+        // en estado 'archivado') O proceso cerrado por el Alcalde (correspondencia
+        // 'archivado'). Sin la primera condición, archivar la propia derivación la
+        // hacía desaparecer de TODAS las pestañas mientras el proceso siguiera abierto.
         $noArchivadas = fn ($q) => $q->whereHas('correspondencia', fn ($c) => $c->where('estado', '!=', 'archivado'));
-        $archivadas = fn ($q) => $q->whereHas('correspondencia', fn ($c) => $c->where('estado', 'archivado'));
+        $archivadas = fn ($q) => $q->where(function ($q2) {
+            $q2->where('estado', 'archivado')
+               ->orWhereHas('correspondencia', fn ($c) => $c->where('estado', 'archivado'));
+        });
 
         // Contadores de las pestañas (independientes de la página actual)
         $counts = [
@@ -783,16 +788,10 @@ class DerivacionController extends Controller
             return $this->errorResponse('No tienes permiso para archivar esta derivación', 403);
         }
 
+        // Archivo PERSONAL del funcionario: solo su derivación. No toca el estado
+        // de la correspondencia — el cierre formal del proceso (correspondencia
+        // 'archivado' = "Completada") es exclusivo del Alcalde vía "Cerrar proceso".
         $derivacion->update(['estado' => 'archivado']);
-
-        // Verificar si todas las derivaciones están archivadas
-        $pendientes = Derivacion::where('correspondencia_id', $derivacion->correspondencia_id)
-            ->where('estado', '!=', 'archivado')
-            ->count();
-
-        if ($pendientes === 0) {
-            $derivacion->correspondencia->update(['estado' => 'archivado']);
-        }
 
         return $this->successResponse($derivacion, 'Derivación archivada');
     }
