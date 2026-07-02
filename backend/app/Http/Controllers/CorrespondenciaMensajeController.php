@@ -222,7 +222,11 @@ class CorrespondenciaMensajeController extends Controller
     private function esParticipante(Correspondencia $correspondencia, ?User $user): bool
     {
         if (!$user) return false;
-        return $this->participantesIds($correspondencia)->contains($user->id)
+        // Subrogancia: se evalúa la participación con el contexto institucional
+        // (el titular al que se subrroga), no con el actor real, para que el
+        // subrogante pueda ver/escribir en el hilo del titular. El mensaje se
+        // sigue guardando con el id del actor real (trazabilidad de quién escribió).
+        return $this->participantesIds($correspondencia)->contains($user->contexto()->id)
             || $user->isAdmin()
             || $user->isAlcalde();
     }

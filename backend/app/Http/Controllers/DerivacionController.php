@@ -729,7 +729,12 @@ class DerivacionController extends Controller
 
         $derivacion->update([
             'estado' => 'recibido',
-            'usuario_destino_id' => $user->id,
+            // Subrogancia: NO reasignar la derivación al actor real (el subrogante),
+            // porque las bandejas filtran el destino por el contexto institucional
+            // (el titular) y la correspondencia desaparecería de su bandeja. Si la
+            // derivación iba a un usuario específico, se conserva a ese titular; si
+            // iba a un departamento (sin usuario), la toma el contexto (titular).
+            'usuario_destino_id' => $derivacion->usuario_destino_id ?? $user->contexto()->id,
             'fecha_recepcion' => now(),
         ]);
 
