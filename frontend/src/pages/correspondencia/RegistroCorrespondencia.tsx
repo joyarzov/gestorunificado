@@ -40,9 +40,9 @@ const estadoLabel: Record<string, string> = {
   devuelta: 'Devuelta',
   anulada: 'Anulada',
 }
-const estadoColor: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
+const estadoColor: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error' | 'secondary'> = {
   pendiente: 'warning',
-  derivada_alcaldia: 'info',
+  derivada_alcaldia: 'secondary',
   en_proceso: 'info',
   derivada_funcionario: 'info',
   completada: 'info',
