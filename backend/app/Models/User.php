@@ -97,6 +97,23 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'subrogante_id');
     }
 
+    /**
+     * Titulares en cuyo nombre este usuario (delegado) puede emitir documentos.
+     * Ej.: para la secretaria, devuelve al Alcalde. Ver delegaciones_emision.
+     */
+    public function emisoresDelegados()
+    {
+        return $this->belongsToMany(User::class, 'delegaciones_emision', 'delegado_id', 'titular_id')
+            ->withTimestamps();
+    }
+
+    /** Delegados que pueden emitir en nombre de este usuario (titular). */
+    public function delegadosDeEmision()
+    {
+        return $this->belongsToMany(User::class, 'delegaciones_emision', 'titular_id', 'delegado_id')
+            ->withTimestamps();
+    }
+
     public function jefaturas()
     {
         return $this->hasMany(Departamento::class, 'jefe_id');

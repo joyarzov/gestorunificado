@@ -26,6 +26,7 @@ use App\Http\Controllers\FirmaSelloController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\OrganigramaController;
 use App\Http\Controllers\DocumentoPlantillaAdminController;
+use App\Http\Controllers\DelegacionEmisionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -134,6 +135,12 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         });
     });
     Route::apiResource('users', UserController::class)->middleware('role:admin');
+
+    // Delegación de emisión (Cero Papel): quién puede emitir en nombre de quién. Solo admin.
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/delegaciones-emision', [DelegacionEmisionController::class, 'index']);
+        Route::put('/delegaciones-emision/{delegado}', [DelegacionEmisionController::class, 'actualizar']);
+    });
 
     // Notificaciones
     Route::prefix('notificaciones')->group(function () {
@@ -271,6 +278,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(fun
         Route::get('/estadisticas', [DocumentoController::class, 'estadisticas']);
         Route::get('/firma-config', [DocumentoController::class, 'firmaConfig']);
         Route::get('/pendientes-firma', [DocumentoController::class, 'pendientesFirma']);
+        Route::get('/emisores-delegados', [DocumentoController::class, 'emisoresDelegados']);
         Route::get('/plantillas', [DocumentoController::class, 'getPlantillas']);
         // Plantillas personales (presets por usuario)
         Route::get('/mis-plantillas', [PlantillaPersonalController::class, 'index']);

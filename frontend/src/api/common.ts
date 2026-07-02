@@ -104,6 +104,26 @@ export const adminAPI = {
   },
 }
 
+// Delegación de emisión: qué titulares puede representar cada delegado (solo admin).
+export interface DelegacionEmision {
+  delegado: { id: number; nombre: string; cargo: string | null }
+  titulares: { id: number; nombre: string; cargo: string | null }[]
+}
+
+export const delegacionesEmisionAPI = {
+  listar: async () => {
+    const response = await api.get<ApiResponse<DelegacionEmision[]>>('/delegaciones-emision')
+    return response.data
+  },
+  // Reemplaza el conjunto de titulares que un delegado puede representar.
+  actualizar: async (delegadoId: number, titularIds: number[]) => {
+    const response = await api.put<ApiResponse<unknown>>(`/delegaciones-emision/${delegadoId}`, {
+      titular_ids: titularIds,
+    })
+    return response.data
+  },
+}
+
 // API Hora Oficial (NTP SHOA - America/Punta_Arenas)
 export const horaOficialAPI = {
   obtener: async () => {

@@ -97,7 +97,8 @@ class DocumentoController extends Controller
             'firmante_asignado_id' => 'nullable|exists:users,id',
             'firmantes_asignados' => 'nullable|array',
             'firmantes_asignados.*' => 'exists:users,id',
-            'firmas_requeridas' => 'nullable|integer|min:1'
+            'firmas_requeridas' => 'nullable|integer|min:1',
+            'emitido_en_nombre_de_id' => 'nullable|exists:users,id',
         ]);
 
         // Regla Cero Papel: todo documento debe estar asociado a al menos un expediente.
@@ -107,6 +108,18 @@ class DocumentoController extends Controller
         }
         if (empty($expedientesValidacion)) {
             return $this->errorResponse('Debe asociar el documento a al menos un expediente.', 422);
+        }
+
+        // Delegación de emisión: si se emite en nombre de un titular, el creador
+        // debe estar autorizado para ese titular (defensa en backend, no solo UI).
+        $emisorId = $request->emitido_en_nombre_de_id;
+        if ($emisorId && (int) $emisorId !== Auth::id()) {
+            $autorizado = Auth::user()->emisoresDelegados()->where('users.id', $emisorId)->exists();
+            if (!$autorizado) {
+                return $this->errorResponse('No estás autorizado para emitir documentos en nombre de esa persona.', 403);
+            }
+        } else {
+            $emisorId = null; // emitir a nombre propio no se registra como delegación
         }
 
         DB::beginTransaction();
@@ -146,6 +159,7 @@ class DocumentoController extends Controller
                 'fecha_creacion' => now(),
                 'mecanismo_incorporacion' => Documento::MECANISNO_DIGITAL,
                 'creado_por' => Auth::id(),
+                'emitido_en_nombre_de_id' => $emisorId,
                 'actualizado_por' => Auth::id(),
                 'firmante_asignado_id' => $request->firmante_asignado_id,
                 'firmas_requeridas' => $request->firmas_requeridas,
@@ -200,6 +214,19 @@ class DocumentoController extends Controller
             Log::error('Error al crear documento: ' . $e->getMessage());
             return $this->errorResponse('Error al crear documento: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Titulares en cuyo nombre el usuario autenticado puede emitir documentos
+     * (delegación de emisión). Alimenta el selector "Emitir en nombre de".
+     */
+    public function emisoresDelegados()
+    {
+        $titulares = Auth::user()->emisoresDelegados()
+            ->where('users.activo', true)
+            ->get(['users.id', 'nombre', 'cargo']);
+
+        return $this->successResponse($titulares);
     }
 
     public function show(Documento $documento)

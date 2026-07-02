@@ -29,6 +29,7 @@ import {
   Snackbar,
   ToggleButton,
   ToggleButtonGroup,
+  Autocomplete,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -39,8 +40,9 @@ import {
   EventAvailable as SubroganciaInactivaIcon,
   Search as SearchIcon,
   MarkEmailRead as EnviarAccesoIcon,
+  AssignmentInd as DelegacionIcon,
 } from '@mui/icons-material'
-import { usersAPI, departamentosAPI } from '../../api/common'
+import { usersAPI, departamentosAPI, delegacionesEmisionAPI } from '../../api/common'
 import { organigramaAPI } from '../../api/organigrama'
 import { User, Departamento } from '../../types'
 
@@ -350,6 +352,11 @@ const UsuariosManage = () => {
             </IconButton>
           </span>
         </Tooltip>
+        <Tooltip title="Delegación de emisión (emitir documentos en nombre de…)">
+          <IconButton size="small" onClick={() => openDelegacionDialog(user)}>
+            <DelegacionIcon />
+          </IconButton>
+        </Tooltip>
         <IconButton
           size="small"
           onClick={() => handleToggleActive(user)}
@@ -417,6 +424,42 @@ const UsuariosManage = () => {
       </TableContainer>
     </Card>
   )
+
+  // Delegación de emisión: qué titulares puede representar este usuario al crear
+  // documentos de Cero Papel (ej. la secretaria emite en nombre del Alcalde).
+  const [delegacionTarget, setDelegacionTarget] = useState<User | null>(null)
+  const [titularesSel, setTitularesSel] = useState<User[]>([])
+  const [delegacionLoading, setDelegacionLoading] = useState(false)
+
+  const openDelegacionDialog = async (u: User) => {
+    setDelegacionTarget(u)
+    setTitularesSel([])
+    try {
+      const res = await delegacionesEmisionAPI.listar()
+      const encontrado = res.data.find((d) => d.delegado.id === u.id)
+      if (encontrado) {
+        const ids = encontrado.titulares.map((t) => t.id)
+        setTitularesSel(usuarios.filter((x) => ids.includes(x.id)))
+      }
+    } catch (err) {
+      console.error('No se pudieron cargar las delegaciones:', err)
+    }
+  }
+
+  const handleGuardarDelegacion = async () => {
+    if (!delegacionTarget) return
+    setDelegacionLoading(true)
+    try {
+      await delegacionesEmisionAPI.actualizar(delegacionTarget.id, titularesSel.map((t) => t.id))
+      setSnackbar({ open: true, severity: 'success', msg: 'Delegación de emisión actualizada' })
+      setDelegacionTarget(null)
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSnackbar({ open: true, severity: 'error', msg: (err as any)?.response?.data?.message || 'No se pudo guardar la delegación' })
+    } finally {
+      setDelegacionLoading(false)
+    }
+  }
 
   const handleConfirmSubrogancia = async () => {
     if (!subroganciaTarget) return
@@ -748,6 +791,46 @@ const UsuariosManage = () => {
             startIcon={accesoLoading === 'bienvenida' ? <CircularProgress size={18} /> : <EnviarAccesoIcon />}
           >
             Correo de bienvenida
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delegación de emisión: en nombre de quién puede emitir documentos */}
+      <Dialog open={!!delegacionTarget} onClose={() => !delegacionLoading && setDelegacionTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Delegación de emisión · {delegacionTarget?.nombre}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Selecciona en nombre de qué personas <strong>{delegacionTarget?.nombre}</strong> podrá crear
+            documentos de Cero Papel. Al elegirlas en el formulario, el titular aparecerá en el campo
+            «DE:» y quedará asignado como firmante (él firma con su clave). La autoría real se registra
+            como {delegacionTarget?.nombre}.
+          </DialogContentText>
+          <Autocomplete
+            multiple
+            options={usuarios.filter((u) => u.activo && u.id !== delegacionTarget?.id).sort(ordenarPorNombre)}
+            getOptionLabel={(u) => `${u.nombre}${u.cargo ? ' · ' + u.cargo : ''}`}
+            value={titularesSel}
+            onChange={(_, v) => setTitularesSel(v)}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Emitir en nombre de" placeholder="Buscar persona…" />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip {...getTagProps({ index })} key={option.id} label={option.nombre} size="small" />
+              ))
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDelegacionTarget(null)} disabled={delegacionLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleGuardarDelegacion}
+            disabled={delegacionLoading}
+            startIcon={delegacionLoading ? <CircularProgress size={16} /> : null}
+          >
+            Guardar
           </Button>
         </DialogActions>
       </Dialog>

@@ -196,6 +196,10 @@ const DocumentoNew = () => {
   const [palabrasClave, setPalabrasClave] = useState('')
   const [firmantesSeleccionados, setFirmantesSeleccionados] = useState<User[]>([])
   const [variables, setVariables] = useState<Record<string, string>>({})
+  // Delegación de emisión: titulares en cuyo nombre este usuario puede emitir
+  // (ej. la secretaria emite como el Alcalde). Vacío para la mayoría de usuarios.
+  const [emisoresDelegados, setEmisoresDelegados] = useState<{ id: number; nombre: string; cargo: string | null }[]>([])
+  const [emitidoEnNombreDe, setEmitidoEnNombreDe] = useState<number | ''>('')
 
   // Campos especiales para decretos
   const [articulos, setArticulos] = useState<ArticuloDecreto[]>([
@@ -318,6 +322,13 @@ const DocumentoNew = () => {
         console.error('No se pudieron cargar las plantillas personales:', e)
       }
 
+      // Emisores delegados (opcional): la mayoría de usuarios no tiene ninguno.
+      try {
+        setEmisoresDelegados((await documentosAPI.emisoresDelegados()).data)
+      } catch (e) {
+        console.error('No se pudieron cargar los emisores delegados:', e)
+      }
+
       // Modo edición: precargar el documento existente. Se matchea la distribución contra la
       // lista COMPLETA de departamentos (incluye inactivos) para no perder asociaciones existentes.
       if (isEditMode && editId) {
@@ -438,14 +449,35 @@ const DocumentoNew = () => {
     varsIniciales['fecha'] = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`
     varsIniciales['anio'] = String(hoy.getFullYear())
 
-    // Auto-llenar remitente en memorándum con el usuario logueado
+    // Auto-llenar remitente en memorándum: con el titular si se emite en su
+    // nombre (delegación), o con el usuario logueado en caso normal.
     const esMemoPlantilla = plantilla.codigo === 'PLT_MEMO_001' || plantilla.codigo.toLowerCase().includes('memo')
-    if (esMemoPlantilla && user) {
-      varsIniciales['de'] = user.nombre + (user.cargo ? `\n${user.cargo}` : '')
+    if (esMemoPlantilla) {
+      const titular = emitidoEnNombreDe ? emisoresDelegados.find(t => t.id === emitidoEnNombreDe) : null
+      if (titular) {
+        varsIniciales['de'] = titular.nombre + (titular.cargo ? `\n${titular.cargo}` : '')
+      } else if (user) {
+        varsIniciales['de'] = user.nombre + (user.cargo ? `\n${user.cargo}` : '')
+      }
     }
 
     setVariables(varsIniciales)
     setActiveStep(1)
+  }
+
+  // Elegir en nombre de quién se emite: prellena el "DE:" con el titular (o con
+  // el usuario propio) y lo preasigna como firmante (quien emite es quien firma).
+  const handleEmisorChange = (titularId: number | '') => {
+    setEmitidoEnNombreDe(titularId)
+    const titular = titularId === '' ? null : emisoresDelegados.find(t => t.id === titularId)
+    const deTexto = titular
+      ? titular.nombre + (titular.cargo ? `\n${titular.cargo}` : '')
+      : (user ? user.nombre + (user.cargo ? `\n${user.cargo}` : '') : '')
+    setVariables(prev => ({ ...prev, de: deTexto }))
+    if (titular) {
+      const titularUser = funcionarios.find(f => f.id === titularId)
+      setFirmantesSeleccionados(titularUser ? [titularUser] : [])
+    }
   }
 
   // Seleccionar una plantilla personal (preset): carga la plantilla base y prellena el formulario
@@ -749,6 +781,7 @@ const DocumentoNew = () => {
         palabras_clave: palabrasClave || undefined,
         firmantes_asignados: firmantesSeleccionados.map(f => f.id),
         firmas_requeridas: firmantesSeleccionados.length || undefined,
+        emitido_en_nombre_de_id: emitidoEnNombreDe || undefined,
       }
 
       const response = await documentosAPI.crear(data)
@@ -1268,6 +1301,30 @@ const DocumentoNew = () => {
             placeholder="Separadas por comas"
           />
         </Grid>
+
+        {/* Emitir en nombre de (delegación de emisión) */}
+        {emisoresDelegados.length > 0 && (
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <TextField
+              select
+              fullWidth
+              label="Emitir en nombre de"
+              value={emitidoEnNombreDe}
+              onChange={(e) => handleEmisorChange(e.target.value === '' ? '' : Number(e.target.value))}
+              helperText={emitidoEnNombreDe
+                ? 'El documento saldrá a nombre de esta persona (DE:) y quedará asignada como firmante.'
+                : 'Puedes emitir este documento en nombre de otra persona que te haya autorizado.'}
+            >
+              <MenuItem value="">Yo mismo{user?.nombre ? ` (${user.nombre})` : ''}</MenuItem>
+              {emisoresDelegados.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.nombre}{t.cargo ? ` · ${t.cargo}` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        )}
 
         {/* Firmantes */}
         <Grid item xs={12}>

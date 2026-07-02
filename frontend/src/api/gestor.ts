@@ -54,6 +54,7 @@ export interface CreateDocumentoData {
   firmante_asignado_id?: number
   firmantes_asignados?: number[]
   firmas_requeridas?: number
+  emitido_en_nombre_de_id?: number
 }
 
 export interface PreviewPlantillaData {
@@ -304,6 +305,14 @@ export const documentosAPI = {
     const response = await api.get<ApiResponse<PaginatedResponse<Documento>>>('/documentos/pendientes-firma', {
       params,
     })
+    return response.data
+  },
+
+  // Titulares en cuyo nombre el usuario puede emitir documentos (delegación de emisión).
+  emisoresDelegados: async () => {
+    const response = await api.get<ApiResponse<{ id: number; nombre: string; cargo: string | null }[]>>(
+      '/documentos/emisores-delegados',
+    )
     return response.data
   },
 

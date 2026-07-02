@@ -46,6 +46,7 @@ class Documento extends Model
         'plantilla_id',
         'expediente_id',
         'creado_por',
+        'emitido_en_nombre_de_id',
         'actualizado_por',
         'departamento_id',
         'contenido_json',
@@ -127,6 +128,12 @@ class Documento extends Model
     public function creador()
     {
         return $this->belongsTo(User::class, 'creado_por');
+    }
+
+    /** Titular en cuyo nombre se emitió el documento (delegación de emisión). */
+    public function emitidoEnNombreDe()
+    {
+        return $this->belongsTo(User::class, 'emitido_en_nombre_de_id');
     }
 
     public function actualizador()
