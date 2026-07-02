@@ -39,6 +39,7 @@ import {
   Reply as ReplyIcon,
   Archive as ArchivarIcon,
   Unarchive as DesarchivarIcon,
+  UploadFile as UploadIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { documentosAPI } from '../../api/gestor'
@@ -95,6 +96,37 @@ const CorrespondenciaDetail = () => {
   const [acuseDialogOpen, setAcuseDialogOpen] = useState(false)
   const [acuseDerivacionId, setAcuseDerivacionId] = useState<number | null>(null)
   const [acuseLoading, setAcuseLoading] = useState(false)
+
+  // Subir adjunto a la ficha (Partes/admin): para ingresos que quedaron sin
+  // el documento adjunto. Espeja AdjuntoController::subirCorrespondencia.
+  const adjuntoInputRef = useRef<HTMLInputElement>(null)
+  const [adjuntoSubiendo, setAdjuntoSubiendo] = useState(false)
+
+  const handleSubirAdjuntoFicha = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (adjuntoInputRef.current) adjuntoInputRef.current.value = ''
+    if (!correspondencia || files.length === 0) return
+
+    setAdjuntoSubiendo(true)
+    const fallidos: string[] = []
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        fallidos.push(`${file.name}: supera 10 MB`)
+        continue
+      }
+      try {
+        await correspondenciaAPI.subirAdjunto(correspondencia.id, file)
+      } catch (err: any) {
+        fallidos.push(`${file.name}: ${err?.response?.data?.message || 'error al subir'}`)
+      }
+    }
+    setAdjuntoSubiendo(false)
+    setSnackbar({
+      open: true,
+      message: fallidos.length ? fallidos.join(' · ') : 'Adjunto subido a la ficha',
+    })
+    if (id) loadCorrespondencia(parseInt(id))
+  }
 
   // Cierre / reapertura del proceso (solo Alcalde)
   const [archivoLoading, setArchivoLoading] = useState(false)
@@ -738,10 +770,33 @@ const CorrespondenciaDetail = () => {
           {/* Adjuntos */}
           <Card sx={{ mb: 2 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                <AttachIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Adjuntos
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="h6">
+                  <AttachIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Adjuntos
+                </Typography>
+                {(isAdmin() || isOficial()) && correspondencia.estado !== 'archivado' && (
+                  <>
+                    <input
+                      ref={adjuntoInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rar,.jpg,.jpeg,.png"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={handleSubirAdjuntoFicha}
+                    />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={adjuntoSubiendo ? <CircularProgress size={16} /> : <UploadIcon />}
+                      onClick={() => adjuntoInputRef.current?.click()}
+                      disabled={adjuntoSubiendo}
+                    >
+                      Subir
+                    </Button>
+                  </>
+                )}
+              </Box>
               {correspondencia.adjuntos && correspondencia.adjuntos.length > 0 ? (
                 <List dense>
                   {correspondencia.adjuntos.map((adj) => (
@@ -775,6 +830,8 @@ const CorrespondenciaDetail = () => {
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   Sin adjuntos
+                  {(isAdmin() || isOficial()) && correspondencia.estado !== 'archivado'
+                    && ' — usa "Subir" para agregar el documento recibido.'}
                 </Typography>
               )}
             </CardContent>

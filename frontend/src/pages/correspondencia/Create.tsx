@@ -106,6 +106,13 @@ const CorrespondenciaCreate = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // El ingreso siempre debe llevar el documento recibido adjunto.
+    if (!isEditMode && adjuntos.length === 0) {
+      setError('Debes adjuntar al menos un documento (PDF) antes de guardar el ingreso.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -221,7 +228,7 @@ const CorrespondenciaCreate = () => {
               {!isEditMode && (
                 <Grid item xs={12} md={6}>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Documentos adjuntos (PDF, máx. 10 MB c/u)
+                    Documentos adjuntos * (PDF, máx. 10 MB c/u) — obligatorio al menos uno
                   </Typography>
                   <input
                     ref={fileInputRef}
@@ -254,6 +261,11 @@ const CorrespondenciaCreate = () => {
                       {adjuntoError}
                     </Typography>
                   )}
+                  {adjuntos.length === 0 && (
+                    <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                      Debes adjuntar el documento recibido para poder guardar.
+                    </Typography>
+                  )}
                 </Grid>
               )}
 
@@ -278,7 +290,12 @@ const CorrespondenciaCreate = () => {
                     type="submit"
                     variant="contained"
                     startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
-                    disabled={loading || !formData.remitente}
+                    disabled={
+                      loading
+                      || !formData.remitente
+                      || !formData.fecha_recibo
+                      || (!isEditMode && adjuntos.length === 0)
+                    }
                   >
                     {loading ? 'Guardando...' : (isEditMode ? 'Actualizar' : 'Guardar')}
                   </Button>
