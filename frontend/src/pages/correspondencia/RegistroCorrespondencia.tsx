@@ -23,38 +23,14 @@ import {
 import { Visibility as VerIcon, Search as SearchIcon, MenuBook as LibroIcon } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Correspondencia } from '../../types'
+import { estadoCorrespondencia, ESTADO_CORRESPONDENCIA } from '../../utils/estadoCorrespondencia'
 import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const estadoLabel: Record<string, string> = {
-  pendiente: 'Pendiente',
-  derivada_alcaldia: 'Derivada a Alcaldía',
-  en_proceso: 'En proceso',
-  derivada_funcionario: 'Derivada a funcionario',
-  completada: 'En gestión',
-  archivado: 'Completada',
-  reservada: 'Reservada',
-  por_despachar: 'Por despachar',
-  despachada: 'Despachada',
-  devuelta: 'Devuelta',
-  anulada: 'Anulada',
-}
-const estadoColor: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error' | 'secondary'> = {
-  pendiente: 'warning',
-  derivada_alcaldia: 'secondary',
-  en_proceso: 'info',
-  derivada_funcionario: 'info',
-  completada: 'info',
-  archivado: 'success',
-  reservada: 'warning',
-  por_despachar: 'warning',
-  despachada: 'success',
-  devuelta: 'error',
-  anulada: 'error',
-}
-
-const ESTADOS = Object.keys(estadoLabel)
+// Estados del filtro: se derivan del catálogo único de estados (misma etiqueta
+// y color que el resto de la app). No mantener un mapa propio aquí.
+const ESTADOS = Object.keys(ESTADO_CORRESPONDENCIA)
 
 const RegistroCorrespondencia = () => {
   const navigate = useNavigate()
@@ -128,7 +104,7 @@ const RegistroCorrespondencia = () => {
             <TextField select fullWidth size="small" label="Estado" value={estado}
               onChange={(e) => { setEstado(e.target.value); setPage(0) }}>
               <MenuItem value="">Todos</MenuItem>
-              {ESTADOS.map((e) => <MenuItem key={e} value={e}>{estadoLabel[e]}</MenuItem>)}
+              {ESTADOS.map((e) => <MenuItem key={e} value={e}>{estadoCorrespondencia(e).label}</MenuItem>)}
             </TextField>
           </Grid>
         </Grid>
@@ -174,7 +150,7 @@ const RegistroCorrespondencia = () => {
                     <TableCell>{c.fecha_recibo ? format(new Date(c.fecha_recibo), 'dd/MM/yyyy', { locale: es }) : '-'}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
-                        <Chip label={estadoLabel[c.estado] || c.estado} size="small" color={estadoColor[c.estado] || 'default'} />
+                        <Chip label={estadoCorrespondencia(c.estado).label} size="small" color={estadoCorrespondencia(c.estado).color} />
                         <ResumenGestion correspondencia={c} variant="lista" />
                       </Box>
                     </TableCell>
