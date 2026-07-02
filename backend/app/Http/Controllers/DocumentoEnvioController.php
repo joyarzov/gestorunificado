@@ -12,6 +12,32 @@ use Illuminate\Http\Request;
 class DocumentoEnvioController extends Controller
 {
     /**
+     * Quién puede distribuir un documento firmado: el creador, el titular en cuyo
+     * nombre se emitió (ej: secretaria crea en nombre del Alcalde → el Alcalde
+     * también puede enviarlo) o cualquier firmante del documento.
+     * Las comparaciones institucionales usan contexto() (subrogancia); la
+     * de creador usa el id real porque creado_por guarda al actor real.
+     */
+    private function puedeDistribuir(Documento $documento, User $user): bool
+    {
+        if ($documento->creado_por === $user->id) {
+            return true;
+        }
+
+        $ctxId = $user->contexto()->id;
+
+        if ($documento->emitido_en_nombre_de_id === $ctxId) {
+            return true;
+        }
+
+        if ($documento->firmante_asignado_id === $ctxId) {
+            return true;
+        }
+
+        return $documento->firmantesAsignados()->where('users.id', $ctxId)->exists();
+    }
+
+    /**
      * Enviar documento firmado a destinatario(s)
      * Soporta envío directo (memo con _destinatario_id/para) y envío con selección manual (decretos)
      */
@@ -22,9 +48,9 @@ class DocumentoEnvioController extends Controller
             return $this->errorResponse('El documento debe estar firmado para ser enviado', 422);
         }
 
-        // Verificar que el usuario sea el creador
-        if ($documento->creado_por !== $request->user()->id) {
-            return $this->errorResponse('Solo el creador puede enviar el documento', 403);
+        // Autorización: creador, titular de emisión o firmante pueden distribuir
+        if (!$this->puedeDistribuir($documento, $request->user())) {
+            return $this->errorResponse('Solo el creador, el titular de emisión o un firmante pueden enviar el documento.', 403);
         }
 
         // Si se envían destinatario_ids desde el request (envío manual, ej: decretos)

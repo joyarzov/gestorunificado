@@ -236,6 +236,7 @@ class DocumentoController extends Controller
             'tipoDocumental',
             'plantilla',
             'creador:id,nombre,rut',
+            'emitidoEnNombreDe:id,nombre,cargo',
             'firmas.usuario',
             'firmanteAsignado',
             'firmantesAsignados',

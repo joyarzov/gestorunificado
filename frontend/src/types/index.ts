@@ -340,6 +340,9 @@ export interface Documento {
   expedientes?: Expediente[]
   creado_por: number
   creador?: User
+  // Titular en cuyo nombre se emitió el documento (delegación de emisión)
+  emitido_en_nombre_de_id?: number | null
+  emitido_en_nombre_de?: { id: number; nombre: string; cargo?: string | null } | null
   actualizado_por?: number
   departamento_id?: number
   contenido_json?: Record<string, string>

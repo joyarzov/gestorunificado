@@ -788,6 +788,12 @@ class DerivacionController extends Controller
             return $this->errorResponse('No tienes permiso para archivar esta derivación', 403);
         }
 
+        // Flujo obligatorio: primero el acuse de recibo, después el archivo.
+        // (La UI ya lo impone; este guard evita saltárselo por API directa.)
+        if ($derivacion->estado !== 'recibido') {
+            return $this->errorResponse('Debes marcar la derivación como recibida antes de archivarla.', 422);
+        }
+
         // Archivo PERSONAL del funcionario: solo su derivación. No toca el estado
         // de la correspondencia — el cierre formal del proceso (correspondencia
         // 'archivado' = "Completada") es exclusivo del Alcalde vía "Cerrar proceso".

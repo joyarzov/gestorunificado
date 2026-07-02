@@ -127,7 +127,10 @@ const ALTURA_TRAMOS = [20, 100, 180, 260, 340, 420, 500, 580, 660].map(
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, actuandoComo } = useAuth()
+  // Id del contexto institucional (subrogado si actúa como; el propio si no).
+  // Espeja al backend (User::contexto()->id).
+  const ctxUserId = actuandoComo?.id ?? user?.id
   const [documento, setDocumento] = useState<Documento | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -460,12 +463,18 @@ const DocumentoDetail = () => {
     }
   }
 
-  // El creador puede enviar el documento firmado
+  // Pueden enviar el documento firmado: el creador, el titular en cuyo nombre se
+  // emitió (ej: secretaria crea en nombre del Alcalde → el Alcalde también envía)
+  // o un firmante. Espeja a DocumentoEnvioController::puedeDistribuir().
   // Para memos: tiene destinatario preestablecido → enviar directo (solo una vez)
   // Para decretos: sin destinatario preestablecido → abrir selector de usuarios (puede enviar a múltiples)
   const tieneDestinatarioPreset = documento?.contenido_json?.['_destinatario_id'] || documento?.contenido_json?.['para']
   const yaEnviado = envios.length > 0
-  const puedeEnviar = documento?.estado === 'firmado' && documento?.creado_por === user?.id &&
+  const esTitularEmision = documento?.emitido_en_nombre_de_id != null && documento.emitido_en_nombre_de_id === ctxUserId
+  const esFirmanteDelDocumento = documento?.firmante_asignado_id === ctxUserId ||
+    !!documento?.firmantes_asignados?.some(u => u.id === ctxUserId)
+  const puedeEnviar = documento?.estado === 'firmado' &&
+    (documento?.creado_por === user?.id || esTitularEmision || esFirmanteDelDocumento) &&
     (!tieneDestinatarioPreset || !yaEnviado)
 
   // Build the list of firmantes with their status
