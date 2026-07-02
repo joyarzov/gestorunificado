@@ -30,7 +30,7 @@ class UserController extends Controller
     {
         $funcionarios = User::where('activo', true)
             ->orderBy('nombre')
-            ->get(['id', 'rut', 'nombre', 'cargo', 'departamento_id']);
+            ->get(['id', 'rut', 'nombre', 'cargo', 'departamento_id', 'roles']);
 
         return $this->successResponse($funcionarios);
     }

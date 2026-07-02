@@ -256,9 +256,16 @@ const DerivacionDialog = ({
     }
   }
 
+  // El admin es una cuenta técnica adscrita al departamento Alcaldía; NO debe
+  // aparecer como destinatario de una derivación. Institucionalmente la
+  // correspondencia derivada a Alcaldía siempre es para el Alcalde, y ofrecer
+  // al admin en el selector hace que se elija por error y se pierda de su
+  // bandeja. Espeja el criterio operativo del backend (no es receptor).
+  const usuariosSeleccionables = usuarios.filter((u) => !(u.roles || []).includes('admin'))
+
   const filteredUsuarios = selectedDepto
-    ? usuarios.filter((u) => u.departamento_id === selectedDepto.id)
-    : usuarios
+    ? usuariosSeleccionables.filter((u) => u.departamento_id === selectedDepto.id)
+    : usuariosSeleccionables
 
   // Modal FirmaGob (mientras el formulario principal permanece abierto detrás)
   if (showFirmaModal) {
@@ -355,7 +362,7 @@ const DerivacionDialog = ({
                      departamentos en una misma derivación. */
                   <Autocomplete
                     multiple
-                    options={usuarios}
+                    options={usuariosSeleccionables}
                     getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
                     value={selectedUsuarios}
                     onChange={(_, value) => setSelectedUsuarios(value)}
@@ -412,7 +419,7 @@ const DerivacionDialog = ({
                 {tipoDestino === 'todos' && (
                   <Alert severity="warning">
                     Se derivará a <strong>todos los funcionarios activos</strong> del municipio
-                    ({usuarios.length}). Cada uno la recibirá en su bandeja de entrada.
+                    ({usuariosSeleccionables.length}). Cada uno la recibirá en su bandeja de entrada.
                   </Alert>
                 )}
               </>
