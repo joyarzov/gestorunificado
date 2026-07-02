@@ -11,6 +11,17 @@ export interface SubroganciaTokenResponse {
   subrogado: SubrogadoActivo
 }
 
+// Perfil del funcionario auditado (modo "ver como" del admin).
+export interface AuditarFuncionario {
+  id: number
+  nombre: string
+  cargo: string | null
+  roles: string[]
+  aplicaciones_permitidas: string[]
+  departamento_id: number | null
+  puede_ver_registro_correspondencia: boolean
+}
+
 export const authAPI = {
   login: async (rut: string, password: string, forzar = false) => {
     const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
@@ -36,6 +47,20 @@ export const authAPI = {
 
   subroganciaLogout: async () => {
     const response = await api.post<ApiResponse<null>>('/auth/subrogancia-logout')
+    return response.data
+  },
+
+  // Modo auditoría (admin "ver como", solo lectura). Devuelve el perfil del
+  // funcionario para que el frontend arme su vista.
+  auditarIniciar: async (funcionarioId: number) => {
+    const response = await api.post<ApiResponse<{ funcionario: AuditarFuncionario }>>('/auth/auditar', {
+      funcionario_id: funcionarioId,
+    })
+    return response.data
+  },
+
+  auditarLogout: async () => {
+    const response = await api.post<ApiResponse<null>>('/auth/auditar-logout')
     return response.data
   },
 

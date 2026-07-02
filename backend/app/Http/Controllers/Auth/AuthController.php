@@ -173,6 +173,54 @@ class AuthController extends Controller
     }
 
     /**
+     * Modo auditoría ("ver como"): el admin inicia una sesión de solo lectura
+     * para ver la plataforma como el funcionario indicado. No genera token nuevo
+     * (usa el propio del admin + header X-Auditar-Como); aquí solo se valida y se
+     * registra en el log de auditoría, y se devuelve el perfil del funcionario
+     * para que el frontend arme su vista.
+     */
+    public function auditarIniciar(Request $request)
+    {
+        $request->validate(['funcionario_id' => 'required|integer|exists:users,id']);
+
+        $user = $request->user();
+        if (!$user->hasRole('admin')) {
+            return $this->errorResponse('Solo un administrador puede usar el modo auditoría.', 403);
+        }
+
+        $funcionario = User::where('id', $request->funcionario_id)->where('activo', true)->first();
+        if (!$funcionario || $funcionario->id === $user->id) {
+            return $this->errorResponse('Funcionario no válido para auditar.', 422);
+        }
+
+        \Log::info('AUDITORIA ver-como: inicio', [
+            'admin_id' => $user->id, 'admin' => $user->nombre,
+            'auditado_id' => $funcionario->id, 'auditado' => $funcionario->nombre,
+            'ip' => $request->ip(),
+        ]);
+
+        return $this->successResponse([
+            'funcionario' => [
+                'id' => $funcionario->id,
+                'nombre' => $funcionario->nombre,
+                'cargo' => $funcionario->cargo,
+                'roles' => $funcionario->roles ?? [],
+                'aplicaciones_permitidas' => $funcionario->aplicaciones_permitidas ?? [],
+                'departamento_id' => $funcionario->departamento_id,
+                'puede_ver_registro_correspondencia' => (bool) $funcionario->puede_ver_registro_correspondencia,
+            ],
+        ], 'Modo auditoría iniciado');
+    }
+
+    /** Registra el fin de una sesión de auditoría (el frontend limpia el header). */
+    public function auditarLogout(Request $request)
+    {
+        \Log::info('AUDITORIA ver-como: fin', ['admin_id' => $request->user()->id]);
+
+        return $this->successResponse(null, 'Modo auditoría finalizado');
+    }
+
+    /**
      * Cerrar sesión
      */
     public function logout(Request $request)

@@ -84,8 +84,15 @@ Route::prefix('fondos-publico')->group(function () {
     Route::get('/consultar', [FondoPublicoController::class, 'consultar']);
 });
 
+// Modo auditoría del admin (iniciar/terminar "ver como"). Fuera del middleware
+// de solo-lectura para que el admin siempre pueda entrar y salir del modo.
+Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
+    Route::post('/auditar', [AuthController::class, 'auditarIniciar']);
+    Route::post('/auditar-logout', [AuthController::class, 'auditarLogout']);
+});
+
 // Rutas protegidas
-Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo'])->group(function () {
+Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectura.auditoria'])->group(function () {
 
     // Auth
     Route::prefix('auth')->group(function () {

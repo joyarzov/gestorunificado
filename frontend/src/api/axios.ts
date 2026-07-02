@@ -28,6 +28,12 @@ api.interceptors.request.use(
     if (actuandoComoId) {
       config.headers['X-Actuando-Como'] = actuandoComoId
     }
+    // Modo auditoría del admin ("ver como", solo lectura): usa el token propio
+    // del admin (arriba) + este header para que el backend acote la vista.
+    const auditarComoId = sessionStorage.getItem('auditarComoId')
+    if (auditarComoId) {
+      config.headers['X-Auditar-Como'] = auditarComoId
+    }
     const selectedRole = sessionStorage.getItem('selectedRole')
     if (selectedRole) {
       config.headers['X-Perfil-Activo'] = selectedRole
@@ -50,6 +56,8 @@ api.interceptors.response.use(
       sessionStorage.removeItem('actuandoComoId')
       sessionStorage.removeItem('actuandoComo')
       sessionStorage.removeItem('subrogToken')
+      sessionStorage.removeItem('auditarComoId')
+      sessionStorage.removeItem('auditarComo')
       window.location.href = '/login'
     }
     return Promise.reject(error)

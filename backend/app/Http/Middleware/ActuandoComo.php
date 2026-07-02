@@ -28,6 +28,20 @@ class ActuandoComo
     {
         $user = $request->user();
         $targetId = $request->header('X-Actuando-Como');
+        $auditarId = $request->header('X-Auditar-Como');
+
+        // Modo auditoría (solo admin): "ver como" CUALQUIER usuario activo, sin
+        // requerir subrogancia. Se marca como auditoría → SOLO LECTURA (el
+        // middleware SoloLecturaAuditoria bloquea toda escritura). Tiene
+        // prioridad sobre la subrogancia si ambos headers vinieran.
+        if ($user && $auditarId && $user->hasRole('admin')) {
+            $target = User::where('id', $auditarId)->where('activo', true)->first();
+            if ($target && $target->id !== $user->id) {
+                $user->setActuandoComo($target);
+                $user->setAuditando(true);
+                return $next($request);
+            }
+        }
 
         if ($user && $targetId) {
             $target = User::where('id', $targetId)

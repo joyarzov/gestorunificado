@@ -137,6 +137,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Modo auditoría: el admin está "viendo como" otro usuario en SOLO LECTURA
+     * (no es una subrogancia real). Cambia la semántica de getRolesEfectivos()
+     * para reflejar EXACTAMENTE la vista del auditado (sus roles, no la unión),
+     * y el middleware de solo-lectura bloquea cualquier escritura.
+     */
+    protected bool $auditando = false;
+
+    public function setAuditando(bool $v): void
+    {
+        $this->auditando = $v;
+    }
+
+    public function estaAuditando(): bool
+    {
+        return $this->auditando;
+    }
+
+    /**
      * Usuario "efectivo" para filtros de visibilidad y autorización por
      * depto/usuario: el subrogado si hay "actuando como" activo, o el
      * propio usuario si no. NO usar para trazabilidad ni firma — para
@@ -180,6 +198,15 @@ class User extends Authenticatable
     public function getRolesEfectivos(): array
     {
         $propios = $this->roles ?? [];
+        // En modo auditoría se ve EXACTAMENTE la vista del auditado (solo sus
+        // roles), no la unión: el objetivo es reproducir lo que ve el funcionario.
+        if ($this->auditando && $this->actuandoComo) {
+            $rolesAuditado = $this->actuandoComo->roles ?? [];
+            if ($this->perfilActivo !== null && in_array($this->perfilActivo, $rolesAuditado, true)) {
+                return [$this->perfilActivo];
+            }
+            return $rolesAuditado;
+        }
         if ($this->actuandoComo) {
             $propios = array_values(array_unique(array_merge(
                 $propios,

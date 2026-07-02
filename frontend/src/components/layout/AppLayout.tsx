@@ -21,6 +21,14 @@ import {
   Badge,
   Alert,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Autocomplete,
+  TextField,
+  CircularProgress,
+  Tooltip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -30,12 +38,15 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Home as HomeIcon,
   SupervisorAccount as SubroganciaIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import CorporateColorBar from '../branding/CorporateColorBar'
 import NotificacionesBell from './NotificacionesBell'
 import ModuleSwitcher from './ModuleSwitcher'
 import { documentosAPI } from '../../api/gestor'
+import { usersAPI } from '../../api/common'
+import type { User as UserType } from '../../types'
 import {
   MODULES,
   getModuleByPath,
@@ -57,6 +68,10 @@ const AppLayout = () => {
     selectedRole,
     actuandoComo,
     salirDeActuandoComo,
+    auditando,
+    esModoAuditoria,
+    auditarComo,
+    salirAuditoria,
     logout,
     isAdmin,
     isOficial,
@@ -67,6 +82,45 @@ const AppLayout = () => {
     setShowRoleSelector,
   } = useAuth()
   const [pendientesFirmaCount, setPendientesFirmaCount] = useState(0)
+
+  // Modo auditoría ("Ver como"): solo el admin. Diálogo con selector de funcionario.
+  const [verComoOpen, setVerComoOpen] = useState(false)
+  const [funcionarios, setFuncionarios] = useState<UserType[]>([])
+  const [verComoSel, setVerComoSel] = useState<UserType | null>(null)
+  const [verComoLoading, setVerComoLoading] = useState(false)
+
+  const abrirVerComo = async () => {
+    setVerComoSel(null)
+    setVerComoOpen(true)
+    if (funcionarios.length === 0) {
+      try {
+        const res = await usersAPI.funcionarios()
+        setFuncionarios(res.data)
+      } catch (err) {
+        console.error('No se pudieron cargar los funcionarios:', err)
+      }
+    }
+  }
+
+  const confirmarVerComo = async () => {
+    if (!verComoSel) return
+    setVerComoLoading(true)
+    try {
+      await auditarComo(verComoSel.id)
+      setVerComoOpen(false)
+      navigate('/portal')
+    } catch (err) {
+      console.error('No se pudo iniciar el modo auditoría:', err)
+    } finally {
+      setVerComoLoading(false)
+    }
+  }
+
+  // Al salir de auditoría, volver a una página válida para el admin.
+  const handleSalirAuditoria = async () => {
+    await salirAuditoria()
+    navigate('/portal')
+  }
 
   useEffect(() => {
     if (!hasAplicacion('gestor_documental')) return
@@ -348,6 +402,15 @@ const AppLayout = () => {
 
           <Box sx={{ flexGrow: 1 }} />
 
+          {/* Modo auditoría: solo el admin en su sesión normal (no dentro de auditoría) */}
+          {isAdmin() && !esModoAuditoria && (
+            <Tooltip title="Ver como funcionario (auditoría · solo lectura)">
+              <IconButton color="inherit" onClick={abrirVerComo} sx={{ mr: 0.5 }}>
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+
           {/* Switcher 9-puntos */}
           <ModuleSwitcher />
 
@@ -453,8 +516,55 @@ const AppLayout = () => {
             {actuandoComo.cargo ? ` · ${actuandoComo.cargo}` : ''} — Subrogancia activa
           </Alert>
         )}
+        {auditando && (
+          <Alert
+            severity="error"
+            icon={<VisibilityIcon />}
+            action={
+              <Button color="inherit" size="small" onClick={handleSalirAuditoria}>
+                Salir del modo auditoría
+              </Button>
+            }
+            sx={{ mb: 2, fontWeight: 500 }}
+          >
+            Modo auditoría — viendo la plataforma como <strong>{auditando.nombre}</strong>
+            {auditando.cargo ? ` · ${auditando.cargo}` : ''} (solo lectura)
+          </Alert>
+        )}
         <Outlet />
       </Box>
+
+      {/* Selector "Ver como" (modo auditoría del admin) */}
+      <Dialog open={verComoOpen} onClose={() => !verComoLoading && setVerComoOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Ver como funcionario</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Verás la plataforma tal como la ve el funcionario, en <strong>solo lectura</strong>.
+            No podrás modificar datos mientras estés en modo auditoría.
+          </Alert>
+          <Autocomplete
+            options={funcionarios}
+            getOptionLabel={(u) => `${u.nombre}${u.cargo ? ' · ' + u.cargo : ''}`}
+            value={verComoSel}
+            onChange={(_, v) => setVerComoSel(v)}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Funcionario" placeholder="Buscar por nombre…" autoFocus />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVerComoOpen(false)} disabled={verComoLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={confirmarVerComo}
+            disabled={verComoLoading || !verComoSel}
+            startIcon={verComoLoading ? <CircularProgress size={16} /> : <VisibilityIcon />}
+          >
+            Ver como
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

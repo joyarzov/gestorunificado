@@ -1,6 +1,6 @@
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { authAPI } from '../api/auth'
+import { authAPI, AuditarFuncionario } from '../api/auth'
 import { User, SubrogadoActivo } from '../types'
 
 interface AuthContextType {
@@ -15,6 +15,10 @@ interface AuthContextType {
   selectRole: (role: string) => void
   actuarComo: (subrogado: SubrogadoActivo, role: string) => Promise<void>
   salirDeActuandoComo: () => Promise<void>
+  auditando: AuditarFuncionario | null
+  esModoAuditoria: boolean
+  auditarComo: (funcionarioId: number) => Promise<void>
+  salirAuditoria: () => Promise<void>
   checkAuth: () => Promise<void>
   isAdmin: () => boolean
   isOficial: () => boolean
@@ -40,9 +44,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const raw = sessionStorage.getItem('actuandoComo')
     return raw ? (JSON.parse(raw) as SubrogadoActivo) : null
   })
+  const [auditando, setAuditandoState] = useState<AuditarFuncionario | null>(() => {
+    const raw = sessionStorage.getItem('auditarComo')
+    return raw ? (JSON.parse(raw) as AuditarFuncionario) : null
+  })
   const [loading, setLoading] = useState(true)
   const [showRoleSelector, setShowRoleSelector] = useState(false)
   const location = useLocation()
+
+  const esModoAuditoria = auditando !== null
 
   useEffect(() => {
     // No verificar auth en rutas públicas
@@ -68,6 +78,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authAPI.me()
       const userData = response.data
       setUser(userData)
+
+      // Modo auditoría activo tras recargar: mantener la vista del funcionario
+      // (su rol), sin pasar por la lógica de roles del admin.
+      if (sessionStorage.getItem('auditarComoId') && auditando) {
+        const rol = auditando.roles?.[0] ?? sessionStorage.getItem('selectedRole') ?? 'usuario'
+        setSelectedRole(rol)
+        setLoading(false)
+        return
+      }
 
       // Restaurar contexto de subrogancia si vino guardado, validándolo
       // contra los subrogados activos que devuelve el backend.
@@ -117,11 +136,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(userData)
     setLoading(false)
 
-    // Login fresco: cualquier "actuando como" previo de otra sesión se descarta.
+    // Login fresco: cualquier "actuando como" o auditoría previa se descarta.
     setActuandoComoState(null)
+    setAuditandoState(null)
     sessionStorage.removeItem('actuandoComo')
     sessionStorage.removeItem('actuandoComoId')
     sessionStorage.removeItem('subrogToken')
+    sessionStorage.removeItem('auditarComo')
+    sessionStorage.removeItem('auditarComoId')
 
     const opcionesSubrogancia = userData.subrogados_activos?.length ?? 0
     const totalOpciones = (userData.roles?.length ?? 0) + opcionesSubrogancia
@@ -194,6 +216,45 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
+  /**
+   * Modo auditoría ("ver como", solo admin): ver la plataforma como el
+   * funcionario en SOLO LECTURA. Se limpia primero el header (para que la
+   * llamada de inicio no vaya bloqueada), se registra en el backend y se
+   * adopta el rol/aplicaciones del funcionario para reproducir su vista.
+   */
+  const auditarComo = async (funcionarioId: number) => {
+    sessionStorage.removeItem('auditarComoId')
+    // Auditoría y subrogancia son excluyentes.
+    setActuandoComoState(null)
+    sessionStorage.removeItem('actuandoComo')
+    sessionStorage.removeItem('actuandoComoId')
+    sessionStorage.removeItem('subrogToken')
+
+    const res = await authAPI.auditarIniciar(funcionarioId)
+    const f = res.data.funcionario
+    setAuditandoState(f)
+    sessionStorage.setItem('auditarComo', JSON.stringify(f))
+    sessionStorage.setItem('auditarComoId', String(f.id))
+    const rol = f.roles?.[0] ?? 'usuario'
+    setSelectedRole(rol)
+    sessionStorage.setItem('selectedRole', rol)
+    setShowRoleSelector(false)
+  }
+
+  const salirAuditoria = async () => {
+    sessionStorage.removeItem('auditarComoId')
+    try {
+      await authAPI.auditarLogout()
+    } catch (error) {
+      console.error('No se pudo registrar el fin de auditoría:', error)
+    }
+    setAuditandoState(null)
+    sessionStorage.removeItem('auditarComo')
+    // Volver a la sesión propia del admin.
+    setSelectedRole('admin')
+    sessionStorage.setItem('selectedRole', 'admin')
+  }
+
   const logout = async () => {
     try {
       await authAPI.logout()
@@ -203,11 +264,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(null)
       setSelectedRole(null)
       setActuandoComoState(null)
+      setAuditandoState(null)
       localStorage.removeItem('token')
       sessionStorage.removeItem('selectedRole')
       sessionStorage.removeItem('actuandoComo')
       sessionStorage.removeItem('actuandoComoId')
       sessionStorage.removeItem('subrogToken')
+      sessionStorage.removeItem('auditarComo')
+      sessionStorage.removeItem('auditarComoId')
     }
   }
 
@@ -228,12 +292,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const hasAplicacion = (app: string) => {
-    if (isAdmin()) return true
-    // Si tiene aplicaciones explícitas, respetar esa configuración
-    if (user?.aplicaciones_permitidas && user.aplicaciones_permitidas.length > 0) {
-      return user.aplicaciones_permitidas.includes(app)
-    }
-    // Sin configuración explícita: defaults basados en el rol
     const defaultsByRole: Record<string, string[]> = {
       oficial: ['correspondencia'],
       oirs: ['oirs'],
@@ -241,6 +299,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       usuario: ['correspondencia', 'gestor_documental', 'oirs'],
       fomento_productivo: ['fomento_productivo'],
     }
+    // En modo auditoría se usan las aplicaciones del FUNCIONARIO auditado, no
+    // las del admin, para reproducir exactamente su menú.
+    if (auditando) {
+      if (auditando.aplicaciones_permitidas.length > 0) {
+        return auditando.aplicaciones_permitidas.includes(app)
+      }
+      const defaults = selectedRole ? defaultsByRole[selectedRole] : null
+      return defaults ? defaults.includes(app) : false
+    }
+    if (isAdmin()) return true
+    // Si tiene aplicaciones explícitas, respetar esa configuración
+    if (user?.aplicaciones_permitidas && user.aplicaciones_permitidas.length > 0) {
+      return user.aplicaciones_permitidas.includes(app)
+    }
+    // Sin configuración explícita: defaults basados en el rol
     const defaults = selectedRole ? defaultsByRole[selectedRole] : null
     return defaults ? defaults.includes(app) : false
   }
@@ -255,6 +328,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Registro de correspondencia (solo lectura, todas): permiso explícito por usuario, o admin.
   const canViewRegistroCorrespondence = () => {
+    if (auditando) return auditando.puede_ver_registro_correspondencia
     return isAdmin() || !!user?.puede_ver_registro_correspondencia
   }
 
@@ -276,6 +350,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         selectRole,
         actuarComo,
         salirDeActuandoComo,
+        auditando,
+        esModoAuditoria,
+        auditarComo,
+        salirAuditoria,
         checkAuth,
         isAdmin,
         canViewRegistroCorrespondence,
