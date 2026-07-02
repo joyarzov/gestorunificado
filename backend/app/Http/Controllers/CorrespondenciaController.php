@@ -260,16 +260,16 @@ class CorrespondenciaController extends Controller
         $correspondencia->eventos()->create([
             'usuario_id' => $user->id,
             'tipo' => 'archivada',
-            'texto' => 'cerró el proceso (archivada)',
+            'texto' => 'cerró el proceso (completada)',
         ]);
 
         return $this->successResponse(
             $correspondencia->fresh(),
-            "Proceso cerrado: {$correspondencia->folio} quedó archivada"
+            "Proceso cerrado: {$correspondencia->folio} quedó completada"
         );
     }
 
-    /** Reabre el proceso (solo el Alcalde): vuelve a "Recibida por destinatarios". */
+    /** Reabre el proceso (solo el Alcalde): vuelve a "En gestión". */
     public function desarchivar(Correspondencia $correspondencia)
     {
         $user = Auth::user();
@@ -410,8 +410,8 @@ class CorrespondenciaController extends Controller
             'derivada_alcaldia' => 'Derivada a Alcaldía',
             'en_proceso' => 'En Proceso',
             'derivada_funcionario' => 'Derivada a Funcionario',
-            'completada' => 'Recibida por destinatarios',
-            'archivado' => 'Archivada',
+            'completada' => 'En gestión',
+            'archivado' => 'Completada',
         ];
 
         $filename = 'libro-correspondencia-' . now()->format('Y-m-d_Hi') . '.csv';

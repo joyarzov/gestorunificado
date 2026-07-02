@@ -133,7 +133,7 @@ const CorrespondenciaDetail = () => {
 
   const handleArchivar = async () => {
     if (!correspondencia || !window.confirm(
-      `¿Cerrar el proceso de ${correspondencia.folio || 'esta correspondencia'}? Quedará archivada y de solo lectura (solo el Alcalde puede desarchivarla).`
+      `¿Cerrar el proceso de ${correspondencia.folio || 'esta correspondencia'}? Quedará marcada como Completada y de solo lectura (solo el Alcalde puede reabrirla).`
     )) return
     setArchivoLoading(true)
     try {
@@ -591,7 +591,7 @@ const CorrespondenciaDetail = () => {
               onClick={handleDesarchivar}
               disabled={archivoLoading}
             >
-              Desarchivar
+              Reabrir proceso
             </Button>
           )}
           {/* Preparar respuesta: Partes/admin siempre (post-ingreso); el Alcalde
@@ -675,9 +675,9 @@ const CorrespondenciaDetail = () => {
 
       {correspondencia.estado === 'archivado' && (
         <Alert severity="info" icon={<ArchivarIcon />} sx={{ mb: 2 }}>
-          <strong>Proceso cerrado.</strong> Esta correspondencia fue archivada
+          <strong>Proceso completado.</strong> El Alcalde cerró esta correspondencia
           {correspondencia.archivada_at ? ` el ${format(new Date(correspondencia.archivada_at), 'dd/MM/yyyy HH:mm', { locale: es })}` : ''} y
-          es de solo lectura: no admite mensajes, derivaciones ni respuestas. Solo el Alcalde puede desarchivarla.
+          es de solo lectura: no admite mensajes, derivaciones ni respuestas. Solo el Alcalde puede reabrirla.
         </Alert>
       )}
 

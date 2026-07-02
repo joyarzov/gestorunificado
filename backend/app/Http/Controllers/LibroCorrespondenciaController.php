@@ -32,8 +32,8 @@ class LibroCorrespondenciaController extends Controller
         'derivada_alcaldia' => 'Derivada a Alcaldía',
         'en_proceso' => 'En Proceso',
         'derivada_funcionario' => 'Derivada a Funcionario',
-        'completada' => 'Recibida por destinatarios',
-        'archivado' => 'Archivada',
+        'completada' => 'En gestión',
+        'archivado' => 'Completada',
         // ciclo de salida
         'reservada' => 'N° Reservado',
         'por_despachar' => 'Por Despachar',

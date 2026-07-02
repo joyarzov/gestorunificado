@@ -756,11 +756,11 @@ class DerivacionController extends Controller
                 NotificacionService::enviar(
                     $derivacion->usuario_origen_id,
                     'correspondencia',
-                    $quedanPendientes ? 'correspondencia_recibida_parcial' : 'correspondencia_completada',
-                    $quedanPendientes ? 'Acuse de recibo' : 'Correspondencia completada',
+                    $quedanPendientes ? 'correspondencia_recibida_parcial' : 'correspondencia_en_gestion',
+                    $quedanPendientes ? 'Acuse de recibo' : 'Correspondencia recibida',
                     $quedanPendientes
                         ? "{$user->nombre} recibió la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
-                        : "La correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" fue recibida y completada por {$user->nombre}.",
+                        : "La correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" fue recibida por {$user->nombre} y quedó en gestión. El proceso se cierra cuando el Alcalde lo dé por completado.",
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }

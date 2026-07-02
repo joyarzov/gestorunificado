@@ -136,7 +136,7 @@ const Administracion = () => {
             <Grid item xs={6} sm={3}><StatCard valor={stats.correspondencia.entradas} label="Entradas" color="#0071BC" /></Grid>
             <Grid item xs={6} sm={3}><StatCard valor={stats.correspondencia.salidas} label="Salidas" color="#28A9E3" /></Grid>
             <Grid item xs={6} sm={3}><StatCard valor={stats.correspondencia.salidas_pendientes} label="Salidas por despachar" color="#EE5825" destacado /></Grid>
-            <Grid item xs={6} sm={3}><StatCard valor={stats.correspondencia.archivadas} label="Archivadas" color="#94a3b8" /></Grid>
+            <Grid item xs={6} sm={3}><StatCard valor={stats.correspondencia.archivadas} label="Completadas" color="#94a3b8" /></Grid>
           </Grid>
 
           <Typography variant="overline" color="text.secondary">Cero Papel y OIRS</Typography>

@@ -15,10 +15,14 @@ export const ESTADO_CORRESPONDENCIA: Record<
   derivada_alcaldia: { label: 'Derivada a Alcaldía', color: 'secondary' },
   en_proceso: { label: 'En Proceso', color: 'info' },
   derivada_funcionario: { label: 'Derivada a Funcionario', color: 'info' },
-  // "completada" en BD = todos los destinatarios acusaron recibo (el ciclo
-  // de recepción terminó, no necesariamente la gestión de fondo).
-  completada: { label: 'Recibida por destinatarios', color: 'success' },
-  archivado: { label: 'Archivada', color: 'success' },
+  // OJO nomenclatura: el valor "completada" en BD NO significa proceso terminado.
+  // Significa que todos los destinatarios acusaron recibo → el documento está EN
+  // GESTIÓN (recibido, en trámite). El proceso recién termina cuando el Alcalde
+  // lo cierra ("archivado" en BD), que es el único estado que se muestra como
+  // "Completada". Por eso "completada" se pinta azul (no terminado) y "archivado"
+  // verde (terminado). No renombrar los valores de BD sin una migración.
+  completada: { label: 'En gestión', color: 'info' },
+  archivado: { label: 'Completada', color: 'success' },
   // ciclo de salida
   reservada: { label: 'N° Reservado', color: 'warning' },
   por_despachar: { label: 'Por Despachar', color: 'info' },

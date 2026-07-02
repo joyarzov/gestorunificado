@@ -87,7 +87,7 @@ const CorrespondenciaDashboard = () => {
       color: '#0071BC',
     },
     {
-      label: 'Archivadas',
+      label: 'Completadas',
       value: stats?.archivadas ?? 0,
       icon: <ArchiveIcon />,
       color: '#8AC53E',
