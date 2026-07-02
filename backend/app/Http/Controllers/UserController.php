@@ -28,7 +28,11 @@ class UserController extends Controller
 
     public function funcionarios()
     {
+        // El admin es una cuenta técnica: NO debe aparecer como opción operativa
+        // (firmante, destinatario de correspondencia/documentos, jefatura, OIRS…).
+        // Este endpoint alimenta todos esos selectores, así que se filtra aquí.
         $funcionarios = User::where('activo', true)
+            ->whereJsonDoesntContain('roles', 'admin')
             ->orderBy('nombre')
             ->get(['id', 'rut', 'nombre', 'cargo', 'departamento_id', 'roles']);
 
