@@ -206,12 +206,22 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
             : <>{' derivó a '}{conCargo(it.para)}</>}
         </Typography>
 
-        {/* Lista de destinatarios del lote, cada uno con su estado de acuse. */}
+        {/* Lista de destinatarios del lote, con el estado de acuse alineado en
+            una columna fija a la derecha (mismo ancho para todos). */}
         {varios && (
-          <Box component="ul" sx={{ my: 0.4, pl: 2.2 }}>
+          <Box sx={{ my: 0.5, pl: 1.2 }}>
             {it.destinatarios!.map((dst, i) => (
-              <Box component="li" key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.2 }}>
-                <Typography variant="body2">
+              <Box
+                key={i}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 84px',
+                  alignItems: 'center',
+                  columnGap: 1,
+                  py: 0.15,
+                }}
+              >
+                <Typography variant="body2" sx={{ minWidth: 0 }}>
                   <strong>{dst.usuario || dst.departamento || '—'}</strong>
                   {dst.cargo ? ` · ${dst.cargo}` : ''}
                 </Typography>
@@ -219,7 +229,7 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
                   label={dst.acuso ? 'recibido' : 'pendiente'}
                   size="small"
                   color={dst.acuso ? 'success' : 'warning'}
-                  sx={{ height: 17, fontSize: 10 }}
+                  sx={{ height: 18, fontSize: 10, width: '100%' }}
                 />
               </Box>
             ))}
