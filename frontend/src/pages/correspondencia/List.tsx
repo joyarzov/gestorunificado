@@ -296,8 +296,23 @@ const CorrespondenciaList = () => {
                 </TableRow>
               ) : (
                 correspondencias.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell><strong>{item.folio || `#${item.id}`}</strong></TableCell>
+                  <TableRow
+                    key={item.id}
+                    hover
+                    sx={item.tiene_novedades ? { bgcolor: 'action.hover', '& td': { fontWeight: 700 } } : undefined}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {item.tiene_novedades && (
+                          <Box
+                            component="span"
+                            title="Tiene acciones nuevas sin leer"
+                            sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }}
+                          />
+                        )}
+                        <strong>{item.folio || `#${item.id}`}</strong>
+                      </Box>
+                    </TableCell>
                     <TableCell>{item.numero_documento || '-'}</TableCell>
                     <TableCell>{item.remitente}</TableCell>
                     <TableCell>

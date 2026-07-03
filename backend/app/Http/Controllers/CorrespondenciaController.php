@@ -53,8 +53,29 @@ class CorrespondenciaController extends Controller
         $correspondencias = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10));
         $correspondencias->getCollection()->each(fn ($c) => $c->append('resumen_gestion'));
+        $this->marcarNovedades($correspondencias->getCollection(), Auth::user()->contexto()->id);
 
         return $this->successResponse($correspondencias);
+    }
+
+    /**
+     * Marca en cada correspondencia si tiene novedades sin leer para el usuario:
+     * su última actividad es posterior a la última lectura (o no la ha abierto).
+     */
+    private function marcarNovedades($correspondencias, int $usuarioId): void
+    {
+        $ids = collect($correspondencias)->pluck('id')->filter()->unique();
+        if ($ids->isEmpty()) {
+            return;
+        }
+        $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $usuarioId)
+            ->whereIn('correspondencia_id', $ids)
+            ->pluck('leido_at', 'correspondencia_id');
+        foreach ($correspondencias as $c) {
+            $act = $c->ultima_actividad_at;
+            $leido = $lecturas[$c->id] ?? null;
+            $c->tiene_novedades = $act && (!$leido || $act->gt($leido));
+        }
     }
 
     /**
@@ -143,8 +164,18 @@ class CorrespondenciaController extends Controller
 
     public function show(Correspondencia $correspondencia)
     {
-        if (!$correspondencia->esVisiblePara(Auth::user())) {
+        $user = Auth::user();
+        if (!$correspondencia->esVisiblePara($user)) {
             return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+
+        // Marcar como leída al abrirla (apaga el indicador de novedades). En modo
+        // auditoría NO se toca: no debe ensuciar las lecturas reales del funcionario.
+        if (!$user->estaAuditando()) {
+            \App\Models\CorrespondenciaLectura::updateOrCreate(
+                ['usuario_id' => $user->contexto()->id, 'correspondencia_id' => $correspondencia->id],
+                ['leido_at' => now()]
+            );
         }
 
         $correspondencia->load([
@@ -262,6 +293,7 @@ class CorrespondenciaController extends Controller
             'tipo' => 'archivada',
             'texto' => 'cerró el proceso (completada)',
         ]);
+        $correspondencia->registrarActividad($user->contexto()->id);
 
         return $this->successResponse(
             $correspondencia->fresh(),
@@ -292,6 +324,7 @@ class CorrespondenciaController extends Controller
             'tipo' => 'desarchivada',
             'texto' => 'reabrió el proceso (desarchivada)',
         ]);
+        $correspondencia->registrarActividad($user->contexto()->id);
 
         return $this->successResponse(
             $correspondencia->fresh(),

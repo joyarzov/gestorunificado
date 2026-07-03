@@ -238,6 +238,9 @@ class DerivacionController extends Controller
             $correspondencia->update(['estado' => $nuevoEstado]);
         }
 
+        // Novedad para los destinatarios (quien deriva queda "al día").
+        $correspondencia->registrarActividad($ctx->id);
+
         $derivacion->load([
             'correspondencia',
             'departamentoOrigen',
@@ -627,8 +630,16 @@ class DerivacionController extends Controller
         // Igual que CorrespondenciaController::bandeja(): marca por ítem si el
         // usuario puede ACTUAR (recibir/archivar) o solo ver. Sin este campo el
         // frontend muestra "Solo lectura" aunque el usuario sea el destinatario.
-        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user) {
+        // Además marca si la correspondencia tiene novedades sin leer para el
+        // contexto (actividad más reciente que su última lectura).
+        $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $ctx->id)
+            ->whereIn('correspondencia_id', $derivaciones->getCollection()->pluck('correspondencia_id')->filter()->unique())
+            ->pluck('leido_at', 'correspondencia_id');
+        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user, $lecturas) {
             $d->puede_actuar = $d->esDestinatario($user);
+            $act = $d->correspondencia?->ultima_actividad_at;
+            $leido = $lecturas[$d->correspondencia_id] ?? null;
+            $d->tiene_novedades = $act && (!$leido || $act->gt($leido));
             return $d;
         });
 
@@ -774,6 +785,11 @@ class DerivacionController extends Controller
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }
+        }
+
+        // El acuse es una novedad para el resto (quien recibió queda "al día").
+        if ($correspondencia) {
+            $correspondencia->registrarActividad($user->contexto()->id);
         }
 
         return $this->successResponse($derivacion, 'Derivación recibida');

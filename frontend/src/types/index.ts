@@ -99,6 +99,9 @@ export interface Correspondencia {
   respondida_at?: string | null
   archivada_at?: string | null
   archivada_por?: number | null
+  ultima_actividad_at?: string | null
+  // En los listados: la correspondencia tiene acciones nuevas sin leer
+  tiene_novedades?: boolean
   created_at: string
   updated_at: string
 }
@@ -134,6 +137,8 @@ export interface Derivacion {
   created_at: string
   // Solo en la bandeja: si el usuario puede actuar (recibir/archivar) o solo ver
   puede_actuar?: boolean
+  // Solo en la bandeja: la correspondencia tiene acciones nuevas sin leer
+  tiene_novedades?: boolean
 }
 
 // Tipos OIRS

@@ -190,6 +190,9 @@ class CorrespondenciaMensajeController extends Controller
             // notificación best-effort
         }
 
+        // Novedad para los demás participantes (el autor queda "al día").
+        $correspondencia->registrarActividad($user->contexto()->id);
+
         $mensaje->load(['usuario', 'adjuntos']);
         return $this->successResponse($mensaje, 'Mensaje enviado', 201);
     }

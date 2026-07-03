@@ -47,6 +47,7 @@ class Correspondencia extends Model
         'respondida_at',
         'archivada_por',
         'archivada_at',
+        'ultima_actividad_at',
     ];
 
     protected $casts = [
@@ -58,7 +59,30 @@ class Correspondencia extends Model
         'providencia_generada' => 'boolean',
         'respondida_at' => 'datetime',
         'archivada_at' => 'datetime',
+        'ultima_actividad_at' => 'datetime',
     ];
+
+    /**
+     * Registra que ocurrió una acción (mensaje, acuse, derivación, cierre…):
+     * actualiza la marca de actividad y, para el actor, marca como leído (su
+     * propia acción no debe aparecerle como novedad sin leer).
+     */
+    public function registrarActividad(?int $actorId = null): void
+    {
+        $this->forceFill(['ultima_actividad_at' => now()])->save();
+
+        if ($actorId) {
+            CorrespondenciaLectura::updateOrCreate(
+                ['usuario_id' => $actorId, 'correspondencia_id' => $this->id],
+                ['leido_at' => now()]
+            );
+        }
+    }
+
+    public function lecturas()
+    {
+        return $this->hasMany(CorrespondenciaLectura::class);
+    }
 
     /** ¿Proceso cerrado por el Alcalde? Solo lectura hasta desarchivar. */
     public function estaArchivada(): bool

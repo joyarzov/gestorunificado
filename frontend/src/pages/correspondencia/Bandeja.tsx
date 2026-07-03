@@ -149,8 +149,23 @@ const BandejaEntrada = () => {
                 </TableRow>
               ) : (
                 filteredDerivaciones.map((der) => (
-                  <TableRow key={der.id} hover>
-                    <TableCell><strong>{der.correspondencia?.folio || `#${der.correspondencia_id}`}</strong></TableCell>
+                  <TableRow
+                    key={der.id}
+                    hover
+                    sx={der.tiene_novedades ? { bgcolor: 'action.hover', '& td': { fontWeight: 700 } } : undefined}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {der.tiene_novedades && (
+                          <Box
+                            component="span"
+                            title="Tiene acciones nuevas sin leer"
+                            sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }}
+                          />
+                        )}
+                        <strong>{der.correspondencia?.folio || `#${der.correspondencia_id}`}</strong>
+                      </Box>
+                    </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {der.correspondencia?.numero_documento || '-'}
