@@ -187,37 +187,64 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     return { icon: <CheckIcon sx={{ fontSize: 14 }} />, bg: '#2e7d32' } // acuse de recibo
   }
 
-  const contenidoDerivacion = (it: HiloItem) => (
-    <>
-      <Typography variant="body2" sx={{ lineHeight: 1.45 }}>
-        {conCargo(it.de)}
-        {it.actuando_como && (
-          <>
-            {', como subrogante de '}
-            <strong>{it.actuando_como.nombre}</strong>
-            {it.actuando_como.cargo ? ` (${it.actuando_como.cargo})` : ''}
-            {','}
-          </>
-        )}
-        {' derivó a '}
-        {conCargo(it.para)}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.4 }}>
-        <Chip
-          label={it.estado}
-          size="small"
-          color={it.estado === 'recibido' ? 'success' : 'warning'}
-          sx={{ height: 18, fontSize: 10 }}
-        />
-        <Typography variant="caption" color="text.secondary">{fechaCorta(it.fecha)}</Typography>
-      </Box>
-      {it.observaciones && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4, fontStyle: 'italic' }}>
-          "{it.observaciones}"
+  const contenidoDerivacion = (it: HiloItem) => {
+    const varios = (it.destinatarios?.length ?? 0) > 1
+    return (
+      <>
+        <Typography variant="body2" sx={{ lineHeight: 1.45 }}>
+          {conCargo(it.de)}
+          {it.actuando_como && (
+            <>
+              {', como subrogante de '}
+              <strong>{it.actuando_como.nombre}</strong>
+              {it.actuando_como.cargo ? ` (${it.actuando_como.cargo})` : ''}
+              {','}
+            </>
+          )}
+          {varios
+            ? ` derivó a ${it.destinatarios!.length} funcionarios:`
+            : <>{' derivó a '}{conCargo(it.para)}</>}
         </Typography>
-      )}
-    </>
-  )
+
+        {/* Lista de destinatarios del lote, cada uno con su estado de acuse. */}
+        {varios && (
+          <Box component="ul" sx={{ my: 0.4, pl: 2.2 }}>
+            {it.destinatarios!.map((dst, i) => (
+              <Box component="li" key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.2 }}>
+                <Typography variant="body2">
+                  <strong>{dst.usuario || dst.departamento || '—'}</strong>
+                  {dst.cargo ? ` · ${dst.cargo}` : ''}
+                </Typography>
+                <Chip
+                  label={dst.acuso ? 'recibido' : 'pendiente'}
+                  size="small"
+                  color={dst.acuso ? 'success' : 'warning'}
+                  sx={{ height: 17, fontSize: 10 }}
+                />
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.4 }}>
+          {!varios && (
+            <Chip
+              label={it.estado}
+              size="small"
+              color={it.estado === 'recibido' ? 'success' : 'warning'}
+              sx={{ height: 18, fontSize: 10 }}
+            />
+          )}
+          <Typography variant="caption" color="text.secondary">{fechaCorta(it.fecha)}</Typography>
+        </Box>
+        {it.observaciones && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4, fontStyle: 'italic' }}>
+            "{it.observaciones}"
+          </Typography>
+        )}
+      </>
+    )
+  }
 
   const contenidoEvento = (it: HiloItem) => (
     <Typography variant="body2" sx={{ color: 'text.secondary', pt: 0.25 }}>

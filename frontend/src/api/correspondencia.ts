@@ -75,6 +75,8 @@ export interface HiloItem {
   estado?: string
   de?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }
   para?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }
+  // Todos los destinatarios del lote (derivación a varios a la vez), con su acuse
+  destinatarios?: Array<{ usuario?: string | null; cargo?: string | null; departamento?: string | null; acuso?: boolean }>
   actuando_como?: { nombre: string; cargo?: string | null } | null
   observaciones?: string | null
   acciones_para?: string[] | null

@@ -36,7 +36,20 @@ class CorrespondenciaMensajeController extends Controller
 
         $items = [];
 
-        foreach ($correspondencia->derivaciones as $d) {
+        // Agrupar las derivaciones de un mismo "lote" (una derivación a varios
+        // funcionarios de una vez) en un solo item: comparten origen, texto,
+        // acciones e instante. Así el texto largo aparece UNA vez, con la lista
+        // de destinatarios y el estado de acuse de cada uno.
+        $grupos = $correspondencia->derivaciones->groupBy(fn ($d) => implode('|', [
+            $d->usuario_origen_id,
+            $d->actuando_como_user_id,
+            optional($d->created_at)->format('Y-m-d H:i:s'),
+            md5((string) $d->observaciones),
+            md5((string) json_encode($d->acciones_para)),
+        ]));
+
+        foreach ($grupos as $grupo) {
+            $d = $grupo->first();
             $items[] = [
                 'tipo'          => 'derivacion',
                 'id'            => $d->id,
@@ -47,6 +60,7 @@ class CorrespondenciaMensajeController extends Controller
                     'cargo'        => $d->usuarioOrigen?->cargo,
                     'departamento' => $d->departamentoOrigen?->nombre,
                 ],
+                // Compat: primer destinatario (usado cuando el lote es de uno solo).
                 'para'          => [
                     'usuario'      => $d->usuarioDestino?->nombre,
                     'cargo'        => $d->usuarioDestino?->cargo,
@@ -58,16 +72,25 @@ class CorrespondenciaMensajeController extends Controller
                     : null,
                 'observaciones' => $d->observaciones,
                 'acciones_para' => $d->acciones_para,
-                'tiene_pdf'     => !empty($d->pdf_ruta),
+                'tiene_pdf'     => $grupo->contains(fn ($x) => !empty($x->pdf_ruta)),
+                // Todos los destinatarios del lote, con su estado de acuse actual.
+                'destinatarios' => $grupo->map(fn ($x) => [
+                    'usuario'      => $x->usuarioDestino?->nombre,
+                    'cargo'        => $x->usuarioDestino?->cargo,
+                    'departamento' => $x->departamentoDestino?->nombre,
+                    'acuso'        => !is_null($x->fecha_recepcion),
+                ])->values()->all(),
             ];
+        }
 
-            // El acuse de recibo es parte de la trazabilidad: evento propio
-            // en el hilo, con la fecha/hora real de la recepción.
+        // Los acuses de recibo son actos individuales: cada uno aparece en el
+        // hilo en su fecha/hora real (no se agrupan con la derivación).
+        foreach ($correspondencia->derivaciones as $d) {
             if ($d->fecha_recepcion) {
                 $items[] = [
                     'tipo'  => 'evento',
                     'evento_tipo' => 'acuse',
-                    'id'    => $d->id,
+                    'id'    => 'acuse-' . $d->id,
                     'fecha' => $d->fecha_recepcion,
                     'texto' => ($d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre ?? 'El destinatario')
                         . ($d->usuarioDestino?->cargo ? " ({$d->usuarioDestino->cargo})" : '')
