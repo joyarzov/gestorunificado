@@ -40,10 +40,12 @@ class CorrespondenciaMensajeController extends Controller
         // funcionarios de una vez) en un solo item: comparten origen, texto,
         // acciones e instante. Así el texto largo aparece UNA vez, con la lista
         // de destinatarios y el estado de acuse de cada uno.
+        // Se agrupa por minuto (no segundo): el bucle que crea las derivaciones de
+        // un lote puede cruzar el límite del segundo, pero nunca el del minuto.
         $grupos = $correspondencia->derivaciones->groupBy(fn ($d) => implode('|', [
             $d->usuario_origen_id,
             $d->actuando_como_user_id,
-            optional($d->created_at)->format('Y-m-d H:i:s'),
+            optional($d->created_at)->format('Y-m-d H:i'),
             md5((string) $d->observaciones),
             md5((string) json_encode($d->acciones_para)),
         ]));
