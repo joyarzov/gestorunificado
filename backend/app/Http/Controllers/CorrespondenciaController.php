@@ -499,6 +499,81 @@ class CorrespondenciaController extends Controller
         ]);
     }
 
+    /**
+     * Panel del funcionario común: KPIs de SU trabajo (lo que le derivaron),
+     * lo que requiere su atención y lo que lleva sin acusar (atrasos).
+     */
+    public function panelFuncionario()
+    {
+        $user  = Auth::user();
+        $ctx   = $user->contexto();
+        $ctxId = $ctx->id;
+
+        // Derivaciones dirigidas a mí (a mi persona, o a mi depto sin usuario),
+        // igual criterio que la bandeja.
+        $derivaciones = Derivacion::where(function ($q) use ($ctxId, $ctx) {
+                $q->where('usuario_destino_id', $ctxId)
+                  ->orWhere(function ($q2) use ($ctx) {
+                      $q2->whereNull('usuario_destino_id')
+                         ->where('departamento_destino_id', $ctx->departamento_id);
+                  });
+            })
+            ->with(['correspondencia:id,folio,remitente,estado,ultima_actividad_at'])
+            ->get();
+
+        $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $ctxId)
+            ->pluck('leido_at', 'correspondencia_id');
+
+        $umbralAmarillo = 3;
+        $umbralRojo     = 5;
+        $ahora = now();
+
+        $kpis = ['por_recibir' => 0, 'en_gestion' => 0, 'con_novedades' => 0, 'archivadas' => 0];
+        $requiereAtencion = [];
+        $atrasos = [];
+
+        foreach ($derivaciones as $d) {
+            $c = $d->correspondencia;
+            if (!$c) {
+                continue;
+            }
+
+            if ($d->estado === 'pendiente') {
+                $kpis['por_recibir']++;
+                $requiereAtencion[] = ['id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente, 'motivo' => 'Por acusar recibo'];
+                $dias = (int) $d->created_at->diffInDays($ahora);
+                if ($dias >= $umbralAmarillo) {
+                    $atrasos[] = [
+                        'id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente,
+                        'dias' => $dias, 'nivel' => $dias >= $umbralRojo ? 'rojo' : 'amarillo',
+                    ];
+                }
+            } elseif ($d->estado === 'recibido') {
+                $kpis['en_gestion']++;
+            } elseif ($d->estado === 'archivado') {
+                $kpis['archivadas']++;
+            }
+
+            // Novedades sin leer (no las que ya están "por acusar", para no duplicar).
+            $act   = $c->ultima_actividad_at;
+            $leido = $lecturas[$c->id] ?? null;
+            if ($act && (!$leido || $act->gt($leido))) {
+                $kpis['con_novedades']++;
+                if ($d->estado !== 'pendiente') {
+                    $requiereAtencion[] = ['id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente, 'motivo' => 'Novedad sin leer'];
+                }
+            }
+        }
+
+        usort($atrasos, fn ($a, $b) => $b['dias'] <=> $a['dias']);
+
+        return $this->successResponse([
+            'kpis'              => $kpis,
+            'requiere_atencion' => array_slice($requiereAtencion, 0, 8),
+            'atrasos'           => array_slice($atrasos, 0, 8),
+        ]);
+    }
+
     public function search(Request $request)
     {
         return $this->index($request);

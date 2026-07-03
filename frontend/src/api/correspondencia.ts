@@ -71,6 +71,12 @@ export interface PanelAlcalde {
   atrasos: Array<{ id: number; folio?: string; remitente: string; destinatario?: string | null; dias: number; nivel: 'amarillo' | 'rojo' }>
 }
 
+export interface PanelFuncionario {
+  kpis: { por_recibir: number; en_gestion: number; con_novedades: number; archivadas: number }
+  requiere_atencion: Array<{ id: number; folio?: string; remitente: string; motivo: string }>
+  atrasos: Array<{ id: number; folio?: string; remitente: string; dias: number; nivel: 'amarillo' | 'rojo' }>
+}
+
 export interface HiloItem {
   tipo: 'derivacion' | 'mensaje' | 'evento'
   // evento (hitos de trazabilidad: acuses de recibo, cierre del proceso)
@@ -326,6 +332,11 @@ export const correspondenciaAPI = {
 
   panelAlcalde: async () => {
     const response = await api.get<ApiResponse<PanelAlcalde>>('/correspondencia/panel-alcalde')
+    return response.data
+  },
+
+  panelFuncionario: async () => {
+    const response = await api.get<ApiResponse<PanelFuncionario>>('/correspondencia/panel-funcionario')
     return response.data
   },
 

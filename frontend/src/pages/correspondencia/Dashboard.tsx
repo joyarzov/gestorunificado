@@ -30,7 +30,7 @@ import {
   WarningAmber as WarningIcon,
   PriorityHigh as PriorityIcon,
 } from '@mui/icons-material'
-import { correspondenciaAPI, PanelAlcalde } from '../../api/correspondencia'
+import { correspondenciaAPI, PanelAlcalde, PanelFuncionario } from '../../api/correspondencia'
 import { useAuth } from '../../contexts/AuthContext'
 import { Correspondencia } from '../../types'
 import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
@@ -50,10 +50,13 @@ const CorrespondenciaDashboard = () => {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recientes, setRecientes] = useState<Correspondencia[]>([])
   const [panel, setPanel] = useState<PanelAlcalde | null>(null)
+  const [panelFunc, setPanelFunc] = useState<PanelFuncionario | null>(null)
   const [loading, setLoading] = useState(true)
 
   const puedeIngresar = isOficial() || isAdmin()
   const esAlcalde = isAlcalde()
+  // Funcionario común: recibe correspondencia derivada (no alcalde/admin/oficial).
+  const esFuncionario = !isAlcalde() && !isAdmin() && !isOficial()
 
   useEffect(() => {
     const load = async () => {
@@ -64,13 +67,15 @@ const CorrespondenciaDashboard = () => {
         ])
         setStats(estRes.data)
         setRecientes(listRes.data?.data ?? [])
-        // Panel enriquecido solo para el alcalde.
-        if (esAlcalde) {
-          try {
+        // Panel enriquecido según el rol.
+        try {
+          if (esAlcalde) {
             setPanel((await correspondenciaAPI.panelAlcalde()).data)
-          } catch (e) {
-            console.error('No se pudo cargar el panel del alcalde:', e)
+          } else if (esFuncionario) {
+            setPanelFunc((await correspondenciaAPI.panelFuncionario()).data)
           }
+        } catch (e) {
+          console.error('No se pudo cargar el panel:', e)
         }
       } catch (err) {
         console.error('Error cargando dashboard de correspondencia', err)
@@ -80,15 +85,23 @@ const CorrespondenciaDashboard = () => {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [esAlcalde])
+  }, [esAlcalde, esFuncionario])
 
-  // Para el alcalde, KPIs orientados a su acción; para el resto, los genéricos.
+  // KPIs según el rol: alcalde (deriva/supervisa), funcionario (recibe/gestiona)
+  // o genéricos (por estado) para el resto.
   const kpis = panel
     ? [
         { label: 'Por derivar', value: panel.kpis.por_derivar, icon: <SendIcon />, color: '#EE5825' },
         { label: 'En gestión', value: panel.kpis.en_gestion, icon: <TrendingUpIcon />, color: '#0071BC' },
         { label: 'Esperando acuse', value: panel.kpis.esperando_acuse, icon: <UnreadIcon />, color: '#EB1B78' },
         { label: 'Por cerrar', value: panel.kpis.por_cerrar, icon: <CheckIcon />, color: '#8AC53E' },
+      ]
+    : panelFunc
+    ? [
+        { label: 'Por recibir', value: panelFunc.kpis.por_recibir, icon: <UnreadIcon />, color: '#EE5825' },
+        { label: 'En gestión', value: panelFunc.kpis.en_gestion, icon: <TrendingUpIcon />, color: '#0071BC' },
+        { label: 'Con novedades', value: panelFunc.kpis.con_novedades, icon: <MailIcon />, color: '#EB1B78' },
+        { label: 'Archivadas', value: panelFunc.kpis.archivadas, icon: <ArchiveIcon />, color: '#8AC53E' },
       ]
     : [
         { label: 'Total', value: stats?.total ?? 0, icon: <MailIcon />, color: '#28A9E3' },
@@ -271,7 +284,95 @@ const CorrespondenciaDashboard = () => {
         </>
       )}
 
-      {!panel && (
+      {/* Panel del funcionario: atención / accesos / atrasos */}
+      {panelFunc && (
+        <>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={7}>
+              <Paper elevation={1} sx={{ height: '100%' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Requiere tu atención</Typography>
+                </Box>
+                {panelFunc.requiere_atencion.length === 0 ? (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Nada pendiente por ahora.</Typography>
+                  </Box>
+                ) : (
+                  <List disablePadding>
+                    {panelFunc.requiere_atencion.map((r, i) => (
+                      <Box key={`${r.id}-${i}`}>
+                        {i > 0 && <Divider component="li" />}
+                        <ListItem button onClick={() => navigate(`/correspondencia/${r.id}`)}>
+                          <ListItemIcon sx={{ minWidth: 40 }}>
+                            {r.motivo === 'Por acusar recibo'
+                              ? <UnreadIcon color="warning" />
+                              : <MailIcon color="info" />}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={<Typography variant="body2" fontWeight={600}>{r.folio || `#${r.id}`} — {r.remitente}</Typography>}
+                            secondary={r.motivo}
+                          />
+                        </ListItem>
+                      </Box>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={5}>
+              <Paper elevation={1} sx={{ height: '100%' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Accesos rápidos</Typography>
+                </Box>
+                <List disablePadding>
+                  <ListItem button onClick={() => navigate('/bandeja')}>
+                    <ListItemIcon sx={{ minWidth: 40 }}><InboxIcon color="primary" /></ListItemIcon>
+                    <ListItemText primary="Bandeja de entrada" secondary="Lo que te derivaron" />
+                  </ListItem>
+                  <Divider component="li" />
+                  <ListItem button onClick={() => navigate('/buscar')}>
+                    <ListItemIcon sx={{ minWidth: 40 }}><SearchIcon color="primary" /></ListItemIcon>
+                    <ListItemText primary="Búsqueda avanzada" secondary="Busca por número, remitente o fecha" />
+                  </ListItem>
+                </List>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Paper elevation={1} sx={{ mb: 2 }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningIcon color="warning" fontSize="small" />
+              <Typography variant="subtitle1" fontWeight={700}>Sin acusar hace 3+ días</Typography>
+            </Box>
+            {panelFunc.atrasos.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Estás al día con tus acuses.</Typography>
+              </Box>
+            ) : (
+              <List disablePadding>
+                {panelFunc.atrasos.map((a, i) => (
+                  <Box key={`${a.id}-${i}`}>
+                    {i > 0 && <Divider component="li" />}
+                    <ListItem button onClick={() => navigate(`/correspondencia/${a.id}`)}
+                      secondaryAction={<Chip size="small" label={`${a.dias} d`} color={a.nivel === 'rojo' ? 'error' : 'warning'} />}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <PriorityIcon color={a.nivel === 'rojo' ? 'error' : 'warning'} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={<Typography variant="body2" fontWeight={600}>{a.folio || `#${a.id}`} — {a.remitente}</Typography>}
+                        secondary={`${a.dias} días sin acusar recibo`}
+                      />
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            )}
+          </Paper>
+        </>
+      )}
+
+      {!panel && !panelFunc && (
       <Grid container spacing={2}>
         {/* Correspondencias recientes */}
         <Grid item xs={12} md={8}>

@@ -164,6 +164,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/alcalde-info', [CorrespondenciaController::class, 'getAlcaldeInfo']);
         Route::get('/estadisticas', [CorrespondenciaController::class, 'estadisticas']);
         Route::get('/panel-alcalde', [CorrespondenciaController::class, 'panelAlcalde']);
+        Route::get('/panel-funcionario', [CorrespondenciaController::class, 'panelFuncionario']);
         Route::get('/registro', [CorrespondenciaController::class, 'registro']);
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
         Route::get('/search', [CorrespondenciaController::class, 'search']);
