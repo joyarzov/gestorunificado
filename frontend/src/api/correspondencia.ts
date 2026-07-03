@@ -64,6 +64,13 @@ export interface HiloAdjunto {
   tamanio_bytes: number
 }
 
+export interface PanelAlcalde {
+  kpis: { por_derivar: number; en_gestion: number; esperando_acuse: number; por_cerrar: number; completadas: number }
+  salud: { derivadas: number; acuse_completo: number; acuse_parcial: number; sin_acuse: number; respondieron: number }
+  requiere_atencion: Array<{ id: number; folio?: string; remitente: string; motivo: string }>
+  atrasos: Array<{ id: number; folio?: string; remitente: string; destinatario?: string | null; dias: number; nivel: 'amarillo' | 'rojo' }>
+}
+
 export interface HiloItem {
   tipo: 'derivacion' | 'mensaje' | 'evento'
   // evento (hitos de trazabilidad: acuses de recibo, cierre del proceso)
@@ -314,6 +321,11 @@ export const correspondenciaAPI = {
       en_proceso: number
       archivadas: number
     }>>('/correspondencia/estadisticas')
+    return response.data
+  },
+
+  panelAlcalde: async () => {
+    const response = await api.get<ApiResponse<PanelAlcalde>>('/correspondencia/panel-alcalde')
     return response.data
   },
 

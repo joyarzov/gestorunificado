@@ -404,6 +404,101 @@ class CorrespondenciaController extends Controller
         return $this->successResponse($stats);
     }
 
+    /**
+     * Panel del alcalde: KPIs accionables, salud de la gestión, lo que requiere
+     * su atención y los atrasos (derivaciones sin acuse). Todo sobre el universo
+     * visible del usuario, calculado al vuelo (sin estados nuevos).
+     */
+    public function panelAlcalde()
+    {
+        $user  = Auth::user();
+        $ctxId = $user->contexto()->id;
+
+        $corrs = Correspondencia::visiblesPara($user)
+            ->entradas()
+            ->with([
+                'derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion,created_at',
+                'derivaciones.usuarioDestino:id,nombre',
+                'mensajes:id,correspondencia_id,usuario_id',
+            ])
+            ->get();
+
+        $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $ctxId)
+            ->pluck('leido_at', 'correspondencia_id');
+
+        $umbralAmarillo = 3; // días sin acuse → alerta
+        $umbralRojo     = 5;
+        $ahora = now();
+
+        $kpis  = ['por_derivar' => 0, 'en_gestion' => 0, 'esperando_acuse' => 0, 'por_cerrar' => 0, 'completadas' => 0];
+        $salud = ['derivadas' => 0, 'acuse_completo' => 0, 'acuse_parcial' => 0, 'sin_acuse' => 0, 'respondieron' => 0];
+        $requiereAtencion = [];
+        $atrasos = [];
+
+        foreach ($corrs as $c) {
+            if (in_array($c->estado, ['pendiente', 'derivada_alcaldia'], true)) {
+                $kpis['por_derivar']++;
+            } elseif (in_array($c->estado, ['derivada_funcionario', 'en_proceso', 'completada'], true)) {
+                $kpis['en_gestion']++;
+            } elseif ($c->estado === 'archivado') {
+                $kpis['completadas']++;
+            }
+            if ($c->estado === 'completada') {
+                $kpis['por_cerrar']++;
+            }
+
+            // Salud de la gestión (solo aplica cuando ya se derivó a funcionarios).
+            $resumen = $c->resumen_gestion;
+            if ($resumen['destinatarios'] > 0) {
+                $salud['derivadas']++;
+                if ($resumen['con_acuse'] >= $resumen['destinatarios']) {
+                    $salud['acuse_completo']++;
+                } elseif ($resumen['con_acuse'] > 0) {
+                    $salud['acuse_parcial']++;
+                } else {
+                    $salud['sin_acuse']++;
+                    $kpis['esperando_acuse']++;
+                }
+                if (count($resumen['respondieron']) > 0) {
+                    $salud['respondieron']++;
+                }
+            }
+
+            // Requiere tu atención: en su despacho, o con novedades sin leer.
+            $act   = $c->ultima_actividad_at;
+            $leido = $lecturas[$c->id] ?? null;
+            $novedad = $act && (!$leido || $act->gt($leido));
+            if (in_array($c->estado, ['pendiente', 'derivada_alcaldia'], true)) {
+                $requiereAtencion[] = ['id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente, 'motivo' => 'En tu despacho'];
+            } elseif ($novedad) {
+                $requiereAtencion[] = ['id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente, 'motivo' => 'Novedad sin leer'];
+            }
+
+            // Atrasos: derivaciones a un funcionario, sin acuse, hace ≥ umbral días.
+            foreach ($c->derivaciones as $d) {
+                if ($d->usuario_destino_id && $d->estado === 'pendiente' && !$d->fecha_recepcion) {
+                    $dias = (int) $d->created_at->diffInDays($ahora);
+                    if ($dias >= $umbralAmarillo) {
+                        $atrasos[] = [
+                            'id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente,
+                            'destinatario' => $d->usuarioDestino?->nombre, 'dias' => $dias,
+                            'nivel' => $dias >= $umbralRojo ? 'rojo' : 'amarillo',
+                        ];
+                    }
+                }
+            }
+        }
+
+        usort($atrasos, fn ($a, $b) => $b['dias'] <=> $a['dias']);
+
+        return $this->successResponse([
+            'kpis'              => $kpis,
+            'salud'             => $salud,
+            'requiere_atencion' => array_slice($requiereAtencion, 0, 8),
+            'atrasos'           => array_slice($atrasos, 0, 8),
+        ]);
+    }
+
     public function search(Request $request)
     {
         return $this->index($request);

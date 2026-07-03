@@ -25,8 +25,12 @@ import {
   Search as SearchIcon,
   ArrowForward as ArrowForwardIcon,
   TrendingUp as TrendingUpIcon,
+  Send as SendIcon,
+  MarkEmailUnread as UnreadIcon,
+  WarningAmber as WarningIcon,
+  PriorityHigh as PriorityIcon,
 } from '@mui/icons-material'
-import { correspondenciaAPI } from '../../api/correspondencia'
+import { correspondenciaAPI, PanelAlcalde } from '../../api/correspondencia'
 import { useAuth } from '../../contexts/AuthContext'
 import { Correspondencia } from '../../types'
 import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
@@ -42,12 +46,14 @@ interface Stats {
 
 const CorrespondenciaDashboard = () => {
   const navigate = useNavigate()
-  const { isOficial, isAdmin } = useAuth()
+  const { isOficial, isAdmin, isAlcalde } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [recientes, setRecientes] = useState<Correspondencia[]>([])
+  const [panel, setPanel] = useState<PanelAlcalde | null>(null)
   const [loading, setLoading] = useState(true)
 
   const puedeIngresar = isOficial() || isAdmin()
+  const esAlcalde = isAlcalde()
 
   useEffect(() => {
     const load = async () => {
@@ -58,6 +64,14 @@ const CorrespondenciaDashboard = () => {
         ])
         setStats(estRes.data)
         setRecientes(listRes.data?.data ?? [])
+        // Panel enriquecido solo para el alcalde.
+        if (esAlcalde) {
+          try {
+            setPanel((await correspondenciaAPI.panelAlcalde()).data)
+          } catch (e) {
+            console.error('No se pudo cargar el panel del alcalde:', e)
+          }
+        }
       } catch (err) {
         console.error('Error cargando dashboard de correspondencia', err)
       } finally {
@@ -65,34 +79,23 @@ const CorrespondenciaDashboard = () => {
       }
     }
     load()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esAlcalde])
 
-  const kpis = [
-    {
-      label: 'Total',
-      value: stats?.total ?? 0,
-      icon: <MailIcon />,
-      color: '#28A9E3',
-    },
-    {
-      label: 'Pendientes',
-      value: stats?.pendientes ?? 0,
-      icon: <HourglassIcon />,
-      color: '#EE5825',
-    },
-    {
-      label: 'En proceso',
-      value: stats?.en_proceso ?? 0,
-      icon: <TrendingUpIcon />,
-      color: '#0071BC',
-    },
-    {
-      label: 'Completadas',
-      value: stats?.archivadas ?? 0,
-      icon: <ArchiveIcon />,
-      color: '#8AC53E',
-    },
-  ]
+  // Para el alcalde, KPIs orientados a su acción; para el resto, los genéricos.
+  const kpis = panel
+    ? [
+        { label: 'Por derivar', value: panel.kpis.por_derivar, icon: <SendIcon />, color: '#EE5825' },
+        { label: 'En gestión', value: panel.kpis.en_gestion, icon: <TrendingUpIcon />, color: '#0071BC' },
+        { label: 'Esperando acuse', value: panel.kpis.esperando_acuse, icon: <UnreadIcon />, color: '#EB1B78' },
+        { label: 'Por cerrar', value: panel.kpis.por_cerrar, icon: <CheckIcon />, color: '#8AC53E' },
+      ]
+    : [
+        { label: 'Total', value: stats?.total ?? 0, icon: <MailIcon />, color: '#28A9E3' },
+        { label: 'Pendientes', value: stats?.pendientes ?? 0, icon: <HourglassIcon />, color: '#EE5825' },
+        { label: 'En proceso', value: stats?.en_proceso ?? 0, icon: <TrendingUpIcon />, color: '#0071BC' },
+        { label: 'Completadas', value: stats?.archivadas ?? 0, icon: <ArchiveIcon />, color: '#8AC53E' },
+      ]
 
   return (
     <Box>
@@ -177,6 +180,98 @@ const CorrespondenciaDashboard = () => {
         ))}
       </Grid>
 
+      {/* Panel del alcalde: atención / salud / atrasos */}
+      {panel && (
+        <>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={7}>
+              <Paper elevation={1} sx={{ height: '100%' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Requiere tu atención</Typography>
+                </Box>
+                {panel.requiere_atencion.length === 0 ? (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Nada pendiente por ahora.</Typography>
+                  </Box>
+                ) : (
+                  <List disablePadding>
+                    {panel.requiere_atencion.map((r, i) => (
+                      <Box key={r.id}>
+                        {i > 0 && <Divider component="li" />}
+                        <ListItem button onClick={() => navigate(`/correspondencia/${r.id}`)}>
+                          <ListItemIcon sx={{ minWidth: 40 }}>
+                            {r.motivo === 'En tu despacho'
+                              ? <SendIcon color="warning" />
+                              : <UnreadIcon color="info" />}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={<Typography variant="body2" fontWeight={600}>{r.folio || `#${r.id}`} — {r.remitente}</Typography>}
+                            secondary={r.motivo}
+                          />
+                        </ListItem>
+                      </Box>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={5}>
+              <Paper elevation={1} sx={{ height: '100%' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Salud de la gestión</Typography>
+                </Box>
+                <Box sx={{ p: 2 }}>
+                  {([
+                    { label: 'Derivadas a funcionarios', value: panel.salud.derivadas, color: undefined },
+                    { label: 'Con acuse de todos', value: panel.salud.acuse_completo, color: 'success.main' },
+                    { label: 'Acuse parcial', value: panel.salud.acuse_parcial, color: 'warning.main' },
+                    { label: 'Sin ningún acuse', value: panel.salud.sin_acuse, color: 'error.main' },
+                    { label: 'Con respuesta en el hilo', value: panel.salud.respondieron, color: 'info.main' },
+                  ] as const).map((row) => (
+                    <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.6 }}>
+                      <Typography variant="body2" color="text.secondary">{row.label}</Typography>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: row.color }}>{row.value}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Paper elevation={1} sx={{ mb: 2 }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningIcon color="warning" fontSize="small" />
+              <Typography variant="subtitle1" fontWeight={700}>Atrasos · sin acuse hace 3+ días</Typography>
+            </Box>
+            {panel.atrasos.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">Sin atrasos. La gestión está al día.</Typography>
+              </Box>
+            ) : (
+              <List disablePadding>
+                {panel.atrasos.map((a, i) => (
+                  <Box key={`${a.id}-${i}`}>
+                    {i > 0 && <Divider component="li" />}
+                    <ListItem button onClick={() => navigate(`/correspondencia/${a.id}`)}
+                      secondaryAction={<Chip size="small" label={`${a.dias} d`} color={a.nivel === 'rojo' ? 'error' : 'warning'} />}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <PriorityIcon color={a.nivel === 'rojo' ? 'error' : 'warning'} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={<Typography variant="body2" fontWeight={600}>{a.folio || `#${a.id}`} — {a.remitente}</Typography>}
+                        secondary={`${a.dias} días sin acuse${a.destinatario ? ` · ${a.destinatario}` : ''}`}
+                      />
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            )}
+          </Paper>
+        </>
+      )}
+
+      {!panel && (
       <Grid container spacing={2}>
         {/* Correspondencias recientes */}
         <Grid item xs={12} md={8}>
@@ -295,6 +390,7 @@ const CorrespondenciaDashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+      )}
     </Box>
   )
 }
