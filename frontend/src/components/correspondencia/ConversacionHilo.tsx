@@ -374,7 +374,7 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
           <>
             {error && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError(null)}>{error}</Alert>}
 
-            <Box ref={scrollRef} sx={{ maxHeight: 460, overflowY: 'auto', pr: 0.5 }}>
+            <Box ref={scrollRef} sx={{ maxHeight: 760, overflowY: 'auto', pr: 0.5 }}>
               {hilo && hilo.items.length > 0 ? (
                 <>
                   {ocultos > 0 && (
