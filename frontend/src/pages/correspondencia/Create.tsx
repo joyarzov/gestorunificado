@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { correspondenciaAPI } from '../../api/correspondencia'
+import { Adjunto } from '../../types'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
@@ -30,6 +31,9 @@ const CorrespondenciaCreate = () => {
   const [loadingData, setLoadingData] = useState(false)
   const [error, setError] = useState('')
   const [adjuntos, setAdjuntos] = useState<File[]>([])
+  // En edición: adjuntos ya guardados (se suben/borran directo contra el backend).
+  const [adjuntosExistentes, setAdjuntosExistentes] = useState<Adjunto[]>([])
+  const [adjuntoSubiendo, setAdjuntoSubiendo] = useState(false)
   const [adjuntoError, setAdjuntoError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -60,6 +64,7 @@ const CorrespondenciaCreate = () => {
         fecha_recibo: data.fecha_recibo ? new Date(data.fecha_recibo) : new Date(),
         descripcion: data.descripcion || '',
       })
+      setAdjuntosExistentes(data.adjuntos || [])
     } catch (err) {
       setError('Error al cargar la correspondencia')
       console.error(err)
@@ -72,9 +77,11 @@ const CorrespondenciaCreate = () => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setAdjuntoError('')
     const files = Array.from(e.target.files ?? [])
+    // Reset el input para que se pueda volver a seleccionar el mismo archivo si se elimina.
+    if (fileInputRef.current) fileInputRef.current.value = ''
     if (files.length === 0) return
 
     const rechazados: string[] = []
@@ -90,17 +97,40 @@ const CorrespondenciaCreate = () => {
       }
       aceptados.push(f)
     }
+    if (rechazados.length) setAdjuntoError(rechazados.join(' · '))
 
-    setAdjuntos((prev) => [...prev, ...aceptados])
-    if (rechazados.length) {
-      setAdjuntoError(rechazados.join(' · '))
+    // En edición la correspondencia ya existe: se sube cada archivo al instante.
+    if (isEditMode && id) {
+      setAdjuntoSubiendo(true)
+      for (const f of aceptados) {
+        try {
+          const res = await correspondenciaAPI.subirAdjunto(parseInt(id), f)
+          setAdjuntosExistentes((prev) => [...prev, res.data])
+        } catch (err) {
+          console.error(`Error subiendo ${f.name}:`, err)
+          setAdjuntoError(`No se pudo subir ${f.name}.`)
+        }
+      }
+      setAdjuntoSubiendo(false)
+    } else {
+      setAdjuntos((prev) => [...prev, ...aceptados])
     }
-    // Reset el input para que se pueda volver a seleccionar el mismo archivo si se elimina.
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const removeAdjunto = (index: number) => {
     setAdjuntos((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // En edición: borra un adjunto ya guardado directamente en el servidor.
+  const handleBorrarExistente = async (adjId: number) => {
+    setAdjuntoError('')
+    try {
+      await correspondenciaAPI.eliminarAdjunto(adjId)
+      setAdjuntosExistentes((prev) => prev.filter((a) => a.id !== adjId))
+    } catch (err) {
+      console.error('Error al eliminar adjunto:', err)
+      setAdjuntoError('No se pudo eliminar el adjunto.')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,49 +255,64 @@ const CorrespondenciaCreate = () => {
                 />
               </Grid>
 
-              {!isEditMode && (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Documentos adjuntos * (PDF, máx. 10 MB c/u) — obligatorio al menos uno
-                  </Typography>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={handleFileSelect}
-                  />
-                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<UploadIcon />}
-                      onClick={() => fileInputRef.current?.click()}
+              <Grid item xs={12} md={6}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  Documentos adjuntos{!isEditMode && ' *'} (PDF, máx. 10 MB c/u)
+                  {!isEditMode && ' — obligatorio al menos uno'}
+                </Typography>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={adjuntoSubiendo ? <CircularProgress size={16} /> : <UploadIcon />}
+                    onClick={() => fileInputRef.current?.click()}
+                    size="small"
+                    disabled={adjuntoSubiendo}
+                  >
+                    {isEditMode ? 'Subir PDF' : (adjuntos.length === 0 ? 'Seleccionar PDFs' : 'Agregar más')}
+                  </Button>
+                  {/* Edición: adjuntos ya guardados (se borran en el servidor) */}
+                  {isEditMode && adjuntosExistentes.map((adj) => (
+                    <Chip
+                      key={adj.id}
+                      label={adj.nombre_archivo}
+                      onDelete={() => handleBorrarExistente(adj.id)}
                       size="small"
-                    >
-                      {adjuntos.length === 0 ? 'Seleccionar PDFs' : 'Agregar más'}
-                    </Button>
-                    {adjuntos.map((file, idx) => (
-                      <Chip
-                        key={`${file.name}-${idx}`}
-                        label={file.name}
-                        onDelete={() => removeAdjunto(idx)}
-                        size="small"
-                      />
-                    ))}
-                  </Box>
-                  {adjuntoError && (
-                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                      {adjuntoError}
-                    </Typography>
-                  )}
-                  {adjuntos.length === 0 && (
-                    <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
-                      Debes adjuntar el documento recibido para poder guardar.
-                    </Typography>
-                  )}
-                </Grid>
-              )}
+                    />
+                  ))}
+                  {/* Creación: adjuntos pendientes de subir */}
+                  {!isEditMode && adjuntos.map((file, idx) => (
+                    <Chip
+                      key={`${file.name}-${idx}`}
+                      label={file.name}
+                      onDelete={() => removeAdjunto(idx)}
+                      size="small"
+                    />
+                  ))}
+                </Box>
+                {adjuntoError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    {adjuntoError}
+                  </Typography>
+                )}
+                {!isEditMode && adjuntos.length === 0 && (
+                  <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                    Debes adjuntar el documento recibido para poder guardar.
+                  </Typography>
+                )}
+                {isEditMode && adjuntosExistentes.length === 0 && (
+                  <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                    Esta correspondencia no tiene adjuntos.
+                  </Typography>
+                )}
+              </Grid>
 
               <Grid item xs={12}>
                 <TextField
