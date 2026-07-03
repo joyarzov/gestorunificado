@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Derivacion } from '../../types'
+import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -190,15 +191,20 @@ const BandejaEntrada = () => {
                     </TableCell>
                     <TableCell>{der.departamento_origen?.nombre || '-'}</TableCell>
                     <TableCell>
-                      {tab === 2 ? (
-                        <Chip label="Archivada" color="default" size="small" />
-                      ) : (
-                        <Chip
-                          label={der.estado === 'pendiente' ? 'Por recibir' : der.estado === 'recibido' ? 'Recibida' : der.estado === 'derivado' ? 'Derivada a Funcionario' : der.estado}
-                          color={der.estado === 'pendiente' ? 'warning' : der.estado === 'derivado' ? 'info' : 'success'}
-                          size="small"
-                        />
-                      )}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                        {tab === 2 ? (
+                          <Chip label="Archivada" color="default" size="small" />
+                        ) : (
+                          <Chip
+                            label={der.estado === 'pendiente' ? 'Por recibir' : der.estado === 'recibido' ? 'Recibida' : der.estado === 'derivado' ? 'Derivada a Funcionario' : der.estado}
+                            color={der.estado === 'pendiente' ? 'warning' : der.estado === 'derivado' ? 'info' : 'success'}
+                            size="small"
+                          />
+                        )}
+                        {der.correspondencia && (
+                          <ResumenGestion correspondencia={der.correspondencia} variant="lista" />
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell align="center">
                       <IconButton

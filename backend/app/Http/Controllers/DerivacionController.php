@@ -610,6 +610,10 @@ class DerivacionController extends Controller
         $tab = $request->input('tab', 'pendientes');
         $query = (clone $base)->with([
             'correspondencia',
+            // Para el resumen de gestión (acuses / respondieron) en la bandeja.
+            'correspondencia.derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion',
+            'correspondencia.derivaciones.usuarioDestino:id,nombre',
+            'correspondencia.mensajes:id,correspondencia_id,usuario_id',
             'departamentoOrigen',
             'usuarioOrigen',
             'usuarioDestino:id,nombre,cargo',
@@ -640,6 +644,8 @@ class DerivacionController extends Controller
             $act = $d->correspondencia?->ultima_actividad_at;
             $leido = $lecturas[$d->correspondencia_id] ?? null;
             $d->tiene_novedades = $act && (!$leido || $act->gt($leido));
+            // Resumen de gestión (acuses / respondieron) para mostrarlo en la bandeja.
+            $d->correspondencia?->append('resumen_gestion');
             return $d;
         });
 
