@@ -48,3 +48,16 @@ caddy/certs/*
 # Logs
 *.log
 npm-debug.log*
+
+# Material que NO es código y no debe versionarse (contiene capturas, la
+# propuesta comercial y credenciales en texto plano). NUNCA commitear.
+propuesta/
+mockup-rediseno/
+manual de identidad.pdf
+
+# Scripts sueltos de prueba/auditoría (no forman parte de la app)
+backend/_audit_pdf_derivacion.php
+backend/_t_export.php
+
+# Symlink de storage:link (se regenera con artisan storage:link)
+backend/public/storage

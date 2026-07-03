@@ -21,9 +21,14 @@ class ExpedienteController extends Controller
     {
         $query = Expediente::with(['creador', 'departamento']);
 
-        // Filtros
+        // Filtros. "abierto" es un alias para "expedientes donde aún se puede
+        // trabajar" (borrador + en trámite): lo usan los selectores de documento.
         if ($request->filled('estado')) {
-            $query->where('estado', $request->estado);
+            if ($request->estado === 'abierto') {
+                $query->abiertos();
+            } else {
+                $query->where('estado', $request->estado);
+            }
         }
 
         if ($request->filled('nivel_acceso')) {
