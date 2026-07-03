@@ -387,9 +387,17 @@ class CorrespondenciaController extends Controller
             'total' => $porEstado->sum(),
             'pendientes' => (int) ($porEstado['pendiente'] ?? 0),
             'derivada_alcaldia' => (int) ($porEstado['derivada_alcaldia'] ?? 0),
-            'en_proceso' => (int) ($porEstado['en_proceso'] ?? 0),
+            // "En proceso" agrupa TODO lo que está en gestión activa (derivada a
+            // Alcaldía, circulando entre funcionarios, derivada a funcionario y en
+            // gestión). Antes contaba solo el estado literal 'en_proceso', que
+            // casi no se usa → mostraba 0 aunque hubiera correspondencia en curso.
+            'en_proceso' => (int) (($porEstado['derivada_alcaldia'] ?? 0)
+                + ($porEstado['en_proceso'] ?? 0)
+                + ($porEstado['derivada_funcionario'] ?? 0)
+                + ($porEstado['completada'] ?? 0)),
             'derivada_funcionario' => (int) ($porEstado['derivada_funcionario'] ?? 0),
             'completada' => (int) ($porEstado['completada'] ?? 0),
+            // "Completadas" = proceso cerrado por el Alcalde ('archivado' en BD).
             'archivadas' => (int) ($porEstado['archivado'] ?? 0),
         ];
 
