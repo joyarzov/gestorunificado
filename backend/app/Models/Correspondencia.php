@@ -175,7 +175,10 @@ class Correspondencia extends Model
      * derivaciones activas y los mensajes ya existentes.
      *
      * Requiere tener cargadas las relaciones 'derivaciones.usuarioDestino' y
-     * 'mensajes' (los controladores las eager-loadean para evitar N+1).
+     * 'mensajes'. Si el eager load usa un SELECT acotado de 'derivaciones', DEBE
+     * incluir: usuario_origen_id, usuario_destino_id, estado y fecha_recepcion
+     * (usuario_origen_id es imprescindible para detectar las derivaciones de
+     * tránsito; sin él el conteo de acuses queda inconsistente entre vistas).
      */
     public function getResumenGestionAttribute(): array
     {
