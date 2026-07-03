@@ -105,7 +105,8 @@ class AuthController extends Controller
             ->where(function ($q) use ($now) {
                 $q->whereNull('subrogancia_hasta')->orWhere('subrogancia_hasta', '>=', $now);
             })
-            ->get(['id', 'nombre', 'cargo', 'roles', 'departamento_id', 'subrogancia_hasta'])
+            ->get(['id', 'nombre', 'cargo', 'roles', 'departamento_id', 'subrogancia_hasta',
+                'aplicaciones_permitidas', 'puede_ver_registro_correspondencia'])
             ->map(fn ($u) => [
                 'id'               => $u->id,
                 'nombre'           => $u->nombre,
@@ -113,6 +114,10 @@ class AuthController extends Controller
                 'roles'            => $u->roles ?? [],
                 'departamento_id'  => $u->departamento_id,
                 'subrogancia_hasta' => $u->subrogancia_hasta,
+                // Permisos del subrogado: al subrogar se ve EXACTAMENTE lo suyo
+                // (el frontend arma el menú con estos, no con los del subrogante).
+                'aplicaciones_permitidas' => $u->aplicaciones_permitidas ?? [],
+                'puede_ver_registro_correspondencia' => (bool) $u->puede_ver_registro_correspondencia,
             ])
             ->all();
     }

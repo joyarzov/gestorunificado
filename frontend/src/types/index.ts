@@ -13,6 +13,9 @@ export interface SubrogadoActivo {
   roles: string[]
   departamento_id?: number | null
   subrogancia_hasta?: string | null
+  // Permisos del subrogado: al subrogar se ve exactamente lo suyo.
+  aplicaciones_permitidas?: string[]
+  puede_ver_registro_correspondencia?: boolean
 }
 
 // Tipos de usuario

@@ -299,23 +299,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       usuario: ['correspondencia', 'gestor_documental', 'oirs'],
       fomento_productivo: ['fomento_productivo'],
     }
-    // En modo auditoría se usan las aplicaciones del FUNCIONARIO auditado, no
-    // las del admin, para reproducir exactamente su menú.
-    if (auditando) {
-      if (auditando.aplicaciones_permitidas.length > 0) {
-        return auditando.aplicaciones_permitidas.includes(app)
-      }
+    const porDefault = () => {
       const defaults = selectedRole ? defaultsByRole[selectedRole] : null
       return defaults ? defaults.includes(app) : false
     }
     if (isAdmin()) return true
-    // Si tiene aplicaciones explícitas, respetar esa configuración
+    // Modo auditoría: aplicaciones del FUNCIONARIO auditado (reproduce su menú).
+    if (auditando) {
+      return auditando.aplicaciones_permitidas.length > 0
+        ? auditando.aplicaciones_permitidas.includes(app)
+        : porDefault()
+    }
+    // Subrogancia: aplicaciones del SUBROGADO (ni más ni menos que él).
+    if (actuandoComo) {
+      return (actuandoComo.aplicaciones_permitidas?.length ?? 0) > 0
+        ? actuandoComo.aplicaciones_permitidas!.includes(app)
+        : porDefault()
+    }
+    // Perfil propio: aplicaciones explícitas del usuario, o defaults por rol.
     if (user?.aplicaciones_permitidas && user.aplicaciones_permitidas.length > 0) {
       return user.aplicaciones_permitidas.includes(app)
     }
-    // Sin configuración explícita: defaults basados en el rol
-    const defaults = selectedRole ? defaultsByRole[selectedRole] : null
-    return defaults ? defaults.includes(app) : false
+    return porDefault()
   }
 
   const canViewAllCorrespondence = () => {
@@ -327,8 +332,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   // Registro de correspondencia (solo lectura, todas): permiso explícito por usuario, o admin.
+  // Al subrogar/auditar se usa el permiso del subrogado/auditado, no el propio.
   const canViewRegistroCorrespondence = () => {
     if (auditando) return auditando.puede_ver_registro_correspondencia
+    if (actuandoComo) return !!actuandoComo.puede_ver_registro_correspondencia
     return isAdmin() || !!user?.puede_ver_registro_correspondencia
   }
 

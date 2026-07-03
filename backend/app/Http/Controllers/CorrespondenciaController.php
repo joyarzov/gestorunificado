@@ -86,7 +86,9 @@ class CorrespondenciaController extends Controller
     public function registro(Request $request)
     {
         $user = Auth::user();
-        if (!($user->puede_ver_registro_correspondencia || $user->isAdmin())) {
+        // El permiso se evalúa sobre el CONTEXTO: al subrogar se ve exactamente
+        // lo del subrogado (si él no puede ver el registro, el subrogante tampoco).
+        if (!($user->contexto()->puede_ver_registro_correspondencia || $user->isAdmin())) {
             return $this->errorResponse('No tienes permiso para ver el registro de correspondencia', 403);
         }
 
