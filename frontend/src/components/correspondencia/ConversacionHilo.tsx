@@ -36,6 +36,13 @@ const esVisualizable = (adj: HiloAdjunto): 'pdf' | 'imagen' | null => {
 const formatTamanio = (bytes: number) =>
   bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
+// Límites del adjunto en el hilo, alineados con el backend
+// (CorrespondenciaMensajeController: max 20 MB y estas extensiones).
+const MAX_ADJUNTO_BYTES = 20 * 1024 * 1024
+// Tope del total de un envío, con margen bajo el post_max_size del servidor (25 MB).
+const MAX_TOTAL_BYTES = 23 * 1024 * 1024
+const EXTENSIONES_PERMITIDAS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'rar', 'jpg', 'jpeg', 'png']
+
 const fechaCorta = (iso: string) => {
   try {
     return format(new Date(iso), "dd/MM/yyyy HH:mm", { locale: es })
@@ -72,7 +79,27 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
 
   const handleSeleccionarArchivos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nuevos = Array.from(e.target.files ?? [])
-    setArchivos((prev) => [...prev, ...nuevos])
+    // Validar en el cliente (tamaño y tipo) para dar feedback inmediato: antes
+    // un archivo demasiado grande fallaba en el servidor sin mensaje claro.
+    const rechazados: string[] = []
+    const aceptados = nuevos.filter((f) => {
+      const ext = f.name.split('.').pop()?.toLowerCase() ?? ''
+      if (!EXTENSIONES_PERMITIDAS.includes(ext)) {
+        rechazados.push(`${f.name}: tipo .${ext} no permitido`)
+        return false
+      }
+      if (f.size > MAX_ADJUNTO_BYTES) {
+        rechazados.push(`${f.name}: ${formatTamanio(f.size)} supera el máximo de 20 MB`)
+        return false
+      }
+      return true
+    })
+    if (rechazados.length) {
+      setError(rechazados.join(' · '))
+    }
+    if (aceptados.length) {
+      setArchivos((prev) => [...prev, ...aceptados])
+    }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -80,6 +107,13 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
 
   const handleEnviar = async () => {
     if (!mensaje.trim() && archivos.length === 0) return
+    // El servidor descarta el envío completo si el total supera su límite
+    // (~25 MB) sin dar un error claro; se valida aquí para avisar antes.
+    const totalBytes = archivos.reduce((s, f) => s + f.size, 0)
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      setError(`El total de adjuntos (${formatTamanio(totalBytes)}) supera el máximo de 23 MB. Envíalos en mensajes separados.`)
+      return
+    }
     setEnviando(true)
     setError(null)
     try {
