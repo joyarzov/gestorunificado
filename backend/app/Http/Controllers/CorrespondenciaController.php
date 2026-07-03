@@ -19,7 +19,7 @@ class CorrespondenciaController extends Controller
             ->entradas()
             ->with([
                 'departamento', 'usuario', 'adjuntos',
-                'derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,usuario_destino_id,estado,fecha_recepcion',
                 'derivaciones.usuarioDestino:id,nombre',
                 'mensajes:id,correspondencia_id,usuario_id',
             ]);
@@ -95,7 +95,7 @@ class CorrespondenciaController extends Controller
         $query = Correspondencia::query()
             ->with([
                 'departamento', 'usuario', 'adjuntos',
-                'derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,usuario_destino_id,estado,fecha_recepcion',
                 'derivaciones.usuarioDestino:id,nombre',
                 'mensajes:id,correspondencia_id,usuario_id',
             ]);
@@ -417,7 +417,7 @@ class CorrespondenciaController extends Controller
         $corrs = Correspondencia::visiblesPara($user)
             ->entradas()
             ->with([
-                'derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion,created_at',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,usuario_destino_id,estado,fecha_recepcion,created_at',
                 'derivaciones.usuarioDestino:id,nombre',
                 'mensajes:id,correspondencia_id,usuario_id',
             ])

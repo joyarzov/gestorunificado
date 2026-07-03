@@ -611,7 +611,7 @@ class DerivacionController extends Controller
         $query = (clone $base)->with([
             'correspondencia',
             // Para el resumen de gestión (acuses / respondieron) en la bandeja.
-            'correspondencia.derivaciones:id,correspondencia_id,usuario_destino_id,estado,fecha_recepcion',
+            'correspondencia.derivaciones:id,correspondencia_id,usuario_origen_id,usuario_destino_id,estado,fecha_recepcion',
             'correspondencia.derivaciones.usuarioDestino:id,nombre',
             'correspondencia.mensajes:id,correspondencia_id,usuario_id',
             'departamentoOrigen',
