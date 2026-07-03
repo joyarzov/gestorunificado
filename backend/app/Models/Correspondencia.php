@@ -181,9 +181,15 @@ class Correspondencia extends Model
     {
         // Destinatarios dirigidos a funcionarios. Se incluye 'archivado' porque
         // archivar la derivación es un archivo PERSONAL del funcionario: no borra
-        // que fue destinatario ni que acusó recibo. Se excluye 'derivado' (la
-        // derivación original al Alcalde, ya reencaminada).
-        $activas = $this->derivaciones->whereIn('estado', ['pendiente', 'recibido', 'archivado']);
+        // que fue destinatario ni que acusó recibo.
+        // Se EXCLUYEN las derivaciones de TRÁNSITO: aquellas cuyo destinatario a
+        // su vez re-derivó (la que el Alcalde recibió de Partes y reencaminó a
+        // funcionarios). Ese destino no "acusa recibo" —deriva— así que no debe
+        // contar como destinatario de gestión ni inflar el denominador de acuses.
+        $reencaminaron = $this->derivaciones->pluck('usuario_origen_id')->filter()->unique();
+        $activas = $this->derivaciones
+            ->whereIn('estado', ['pendiente', 'recibido', 'archivado'])
+            ->reject(fn ($d) => $d->usuario_destino_id && $reencaminaron->contains($d->usuario_destino_id));
         $autoresIds = $this->mensajes->pluck('usuario_id')->unique();
 
         $respondieron = $activas
