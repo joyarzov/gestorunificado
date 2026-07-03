@@ -179,7 +179,11 @@ class Correspondencia extends Model
      */
     public function getResumenGestionAttribute(): array
     {
-        $activas = $this->derivaciones->whereIn('estado', ['pendiente', 'recibido']);
+        // Destinatarios dirigidos a funcionarios. Se incluye 'archivado' porque
+        // archivar la derivación es un archivo PERSONAL del funcionario: no borra
+        // que fue destinatario ni que acusó recibo. Se excluye 'derivado' (la
+        // derivación original al Alcalde, ya reencaminada).
+        $activas = $this->derivaciones->whereIn('estado', ['pendiente', 'recibido', 'archivado']);
         $autoresIds = $this->mensajes->pluck('usuario_id')->unique();
 
         $respondieron = $activas
@@ -191,7 +195,9 @@ class Correspondencia extends Model
 
         return [
             'destinatarios' => $activas->count(),
-            'con_acuse'     => $activas->where('estado', 'recibido')->count(),
+            // El acuse es permanente: se cuenta por fecha_recepcion (no se pierde
+            // al archivar, cuando el estado deja de ser 'recibido').
+            'con_acuse'     => $activas->filter(fn ($d) => !is_null($d->fecha_recepcion))->count(),
             'respondieron'  => $respondieron,
         ];
     }
