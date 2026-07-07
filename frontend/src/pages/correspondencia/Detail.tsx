@@ -110,8 +110,8 @@ const CorrespondenciaDetail = () => {
     setAdjuntoSubiendo(true)
     const fallidos: string[] = []
     for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        fallidos.push(`${file.name}: supera 10 MB`)
+      if (file.size > 30 * 1024 * 1024) {
+        fallidos.push(`${file.name}: supera 30 MB`)
         continue
       }
       try {

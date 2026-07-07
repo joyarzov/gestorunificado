@@ -21,7 +21,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Adjunto } from '../../types'
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30 MB
 
 const CorrespondenciaCreate = () => {
   const navigate = useNavigate()
@@ -92,7 +92,7 @@ const CorrespondenciaCreate = () => {
         continue
       }
       if (f.size > MAX_FILE_SIZE) {
-        rechazados.push(`${f.name}: supera 10 MB`)
+        rechazados.push(`${f.name}: supera 30 MB`)
         continue
       }
       aceptados.push(f)

@@ -26,7 +26,7 @@ class AdjuntoController extends Controller
         }
 
         $request->validate([
-            'archivo' => 'required|file|max:10240', // 10MB máximo
+            'archivo' => 'required|file|max:30720', // 30MB máximo
         ]);
 
         $file = $request->file('archivo');

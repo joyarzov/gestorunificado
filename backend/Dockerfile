@@ -19,10 +19,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configurar límites de upload para PDFs (hasta 25MB)
+# Configurar límites de upload para PDFs (hasta 30MB de archivo + margen multipart)
 RUN { \
-        echo 'upload_max_filesize = 25M'; \
-        echo 'post_max_size = 25M'; \
+        echo 'upload_max_filesize = 40M'; \
+        echo 'post_max_size = 40M'; \
         echo 'memory_limit = 256M'; \
     } > /usr/local/etc/php/conf.d/uploads.ini
 
