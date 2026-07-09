@@ -33,8 +33,7 @@ import {
   FileDownload as DownloadIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
-import { departamentosAPI } from '../../api/common'
-import { Correspondencia, Departamento } from '../../types'
+import { Correspondencia } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -46,7 +45,6 @@ const CorrespondenciaList = () => {
   const navigate = useNavigate()
   const { isAdmin, isOficial } = useAuth()
   const [correspondencias, setCorrespondencias] = useState<Correspondencia[]>([])
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -55,15 +53,8 @@ const CorrespondenciaList = () => {
   // Filtros
   const [search, setSearch] = useState('')
   const [estado, setEstado] = useState('')
-  const [departamentoId, setDepartamentoId] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
-
-  useEffect(() => {
-    departamentosAPI.listar().then((res) => {
-      if (res.success) setDepartamentos(res.data)
-    }).catch(() => {})
-  }, [])
 
   useEffect(() => {
     loadCorrespondencias()
@@ -78,7 +69,6 @@ const CorrespondenciaList = () => {
         per_page: rowsPerPage,
         search: search || undefined,
         estado: estado || undefined,
-        departamento_id: departamentoId ? Number(departamentoId) : undefined,
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
       })
@@ -99,14 +89,13 @@ const CorrespondenciaList = () => {
   const handleLimpiar = () => {
     setSearch('')
     setEstado('')
-    setDepartamentoId('')
     setFechaDesde('')
     setFechaHasta('')
     setPage(0)
     setTimeout(() => loadCorrespondencias(), 0)
   }
 
-  const hayFiltrosActivos = search || estado || departamentoId || fechaDesde || fechaHasta
+  const hayFiltrosActivos = search || estado || fechaDesde || fechaHasta
 
   const [exportando, setExportando] = useState(false)
   const handleExportar = async () => {
@@ -115,7 +104,6 @@ const CorrespondenciaList = () => {
       const blob = await correspondenciaAPI.exportar({
         search: search || undefined,
         estado: estado || undefined,
-        departamento_id: departamentoId ? Number(departamentoId) : undefined,
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
       })
@@ -187,25 +175,6 @@ const CorrespondenciaList = () => {
                 ),
               }}
             />
-          </Grid>
-
-          {/* Departamento */}
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Departamento</InputLabel>
-              <Select
-                value={departamentoId}
-                label="Departamento"
-                onChange={(e) => setDepartamentoId(e.target.value)}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                {departamentos.map((depto) => (
-                  <MenuItem key={depto.id} value={depto.id}>
-                    {depto.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
           </Grid>
 
           {/* Estado */}
