@@ -261,6 +261,18 @@ class DerivacionController extends Controller
         } else {
             $deptoDestinoNombre = $derivacion->departamentoDestino->nombre ?? 'Destino';
             $usuariosDestino = User::where('departamento_id', $request->departamento_destino_id)->get();
+
+            // Si el departamento destino tiene un alcalde, la derivación "a
+            // Alcaldía" está dirigida al alcalde: se notifica SOLO a quienes
+            // tienen rol 'alcalde', no a todos los miembros del departamento
+            // (evita que la secretaría u otros usuarios del depto —o el admin—
+            // reciban la correspondencia del alcalde). Para departamentos
+            // normales (sin alcalde) se sigue notificando a todo el departamento.
+            $alcaldesDestino = $usuariosDestino->filter(fn ($u) => $u->isAlcalde());
+            if ($alcaldesDestino->isNotEmpty()) {
+                $usuariosDestino = $alcaldesDestino->values();
+            }
+
             NotificacionService::enviar(
                 $usuariosDestino,
                 'correspondencia',
