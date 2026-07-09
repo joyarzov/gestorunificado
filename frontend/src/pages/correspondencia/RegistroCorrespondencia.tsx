@@ -119,7 +119,6 @@ const RegistroCorrespondencia = () => {
                 <TableCell>Dirección</TableCell>
                 <TableCell>Remitente</TableCell>
                 <TableCell>Descripción</TableCell>
-                <TableCell>Departamento</TableCell>
                 <TableCell>Fecha</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell align="center">Acciones</TableCell>
@@ -127,9 +126,9 @@ const RegistroCorrespondencia = () => {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4 }}><CircularProgress /></TableCell></TableRow>
               ) : items.length === 0 ? (
-                <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">No se encontraron correspondencias</Typography>
                 </TableCell></TableRow>
               ) : (
@@ -146,7 +145,6 @@ const RegistroCorrespondencia = () => {
                         {c.descripcion || '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell>{c.departamento?.nombre || '-'}</TableCell>
                     <TableCell>{c.fecha_recibo ? format(new Date(c.fecha_recibo), 'dd/MM/yyyy', { locale: es }) : '-'}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
