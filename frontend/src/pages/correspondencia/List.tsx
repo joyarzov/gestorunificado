@@ -274,7 +274,6 @@ const CorrespondenciaList = () => {
                 <TableCell>Nº Documento</TableCell>
                 <TableCell>Remitente</TableCell>
                 <TableCell>Fecha Recibo</TableCell>
-                <TableCell>Departamento</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
@@ -282,13 +281,13 @@ const CorrespondenciaList = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : correspondencias.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       {hayFiltrosActivos ? 'No se encontraron correspondencias con los filtros aplicados' : 'No hay correspondencias registradas'}
                     </Typography>
@@ -318,7 +317,6 @@ const CorrespondenciaList = () => {
                     <TableCell>
                       {format(new Date(item.fecha_recibo), 'dd/MM/yyyy', { locale: es })}
                     </TableCell>
-                    <TableCell>{item.departamento?.nombre || '-'}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
                         <Chip
