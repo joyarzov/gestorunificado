@@ -8,6 +8,7 @@ import Login from './pages/auth/Login'
 import RecuperarPassword from './pages/auth/RecuperarPassword'
 import RestablecerPassword from './pages/auth/RestablecerPassword'
 import Manuales from './pages/Manuales'
+import Notificaciones from './pages/Notificaciones'
 import Certificados from './pages/Certificados'
 import PublicHome from './pages/PublicHome'
 import Portal from './pages/Portal'
@@ -99,6 +100,7 @@ function App() {
           {/* Con AppLayout */}
           <Route element={<AppLayout />}>
             <Route path="/cambiar-password" element={<ChangePassword />} />
+            <Route path="/notificaciones" element={<Notificaciones />} />
 
             {/* Correspondencia */}
             <Route path="/correspondencia" element={<CorrespondenciaDashboard />} />

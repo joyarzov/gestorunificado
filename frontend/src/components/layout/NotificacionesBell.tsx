@@ -168,6 +168,20 @@ const NotificacionesBell = () => {
             </Typography>
           </Box>
         )}
+
+        <Divider />
+        <Box sx={{ px: 2, py: 1, textAlign: 'center' }}>
+          <Button
+            fullWidth
+            size="small"
+            onClick={() => {
+              handleClose()
+              navigate('/notificaciones')
+            }}
+          >
+            Ver todas las notificaciones
+          </Button>
+        </Box>
       </Popover>
     </>
   )

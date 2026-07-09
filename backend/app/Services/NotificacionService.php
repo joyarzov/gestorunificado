@@ -51,7 +51,7 @@ class NotificacionService
                 'data'    => $data,
             ]);
 
-            self::encolarEmail($user, $notif, $modulo, $titulo, $mensaje, $data);
+            self::encolarEmail($user, $notif, $modulo, $tipo, $titulo, $mensaje, $data);
         }
 
         // Subrogancia: si un destinatario está ausente (subrogancia activa), su
@@ -82,13 +82,20 @@ class NotificacionService
                 'data'    => $dataEspejo,
             ]);
 
-            self::encolarEmail($subrogante, $notif, $modulo, $titulo, $mensajeEspejo, $dataEspejo);
+            self::encolarEmail($subrogante, $notif, $modulo, $tipo, $titulo, $mensajeEspejo, $dataEspejo);
         }
     }
 
-    private static function encolarEmail(User $user, Notificacion $notif, string $modulo, string $titulo, string $mensaje, array $data): void
+    private static function encolarEmail(User $user, Notificacion $notif, string $modulo, string $tipo, string $titulo, string $mensaje, array $data): void
     {
         if (empty($user->email) || !filter_var($user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        // La notificación in-app ya quedó creada; aquí solo decidimos el email.
+        // Roles que trabajan dentro del sistema no reciben correo de eventos
+        // informativos (los ven en la campana), para reducir la fatiga de correos.
+        if (self::emailSilenciadoParaRol($user, $tipo)) {
             return;
         }
 
@@ -101,6 +108,25 @@ class NotificacionService
             // No romper el flujo de negocio si el correo falla; la notificación in-app ya quedó.
             Log::warning("NotificacionService: no se pudo encolar email para user {$user->id}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * ¿Se debe omitir el email para este usuario según su rol y el tipo de evento?
+     * Solo aplica a los roles configurados en notificaciones.email.roles_solo_accionables
+     * y a los tipos marcados como informativos. La notificación in-app no se ve afectada.
+     */
+    private static function emailSilenciadoParaRol(User $user, string $tipo): bool
+    {
+        $rolesSoloAccionables = config('notificaciones.email.roles_solo_accionables', []);
+        $tiposInformativos = config('notificaciones.email.tipos_informativos', []);
+
+        if (empty($rolesSoloAccionables) || empty($tiposInformativos)) {
+            return false;
+        }
+        if (!in_array($tipo, $tiposInformativos, true)) {
+            return false;
+        }
+        return $user->hasAnyRole($rolesSoloAccionables);
     }
 
     /**
