@@ -7,6 +7,7 @@ import {
   CardContent,
   Grid,
   Chip,
+  Link,
   Button,
   List,
   ListItem,
@@ -739,6 +740,24 @@ const CorrespondenciaDetail = () => {
                   </Typography>
                   <Typography>{correspondencia.descripcion || 'Sin descripción'}</Typography>
                 </Grid>
+                {correspondencia.respuesta_a && (
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      En respuesta a
+                    </Typography>
+                    <Typography>
+                      <Link
+                        component="button"
+                        type="button"
+                        onClick={() => navigate(`/correspondencia/${correspondencia.respuesta_a!.id}`)}
+                        sx={{ fontWeight: 600, verticalAlign: 'baseline' }}
+                      >
+                        {correspondencia.respuesta_a.folio || `#${correspondencia.respuesta_a.id}`}
+                      </Link>
+                      {correspondencia.respuesta_a.remitente ? ` · ${correspondencia.respuesta_a.remitente}` : ''}
+                    </Typography>
+                  </Grid>
+                )}
               </Grid>
             </CardContent>
           </Card>
@@ -874,7 +893,16 @@ const CorrespondenciaDetail = () => {
                       }
                     >
                       <ListItemText
-                        primary={<strong>{r.folio}</strong>}
+                        primary={
+                          <Link
+                            component="button"
+                            type="button"
+                            onClick={() => navigate(`/correspondencia/${r.id}`)}
+                            sx={{ fontWeight: 700, verticalAlign: 'baseline' }}
+                          >
+                            {r.folio}
+                          </Link>
+                        }
                         secondary={
                           <Chip
                             size="small"
