@@ -264,7 +264,7 @@ const CorrespondenciaCreate = () => {
 
               <Grid item xs={12} md={6}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                  Documentos adjuntos{!isEditMode && ' *'} (PDF, máx. 10 MB c/u)
+                  Documentos adjuntos{!isEditMode && ' *'} (PDF, máx. {MAX_FILE_SIZE / (1024 * 1024)} MB c/u)
                   {!isEditMode && ' — obligatorio al menos uno'}
                 </Typography>
                 <input

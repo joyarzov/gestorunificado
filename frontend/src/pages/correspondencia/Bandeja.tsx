@@ -33,7 +33,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 const BandejaEntrada = () => {
   const navigate = useNavigate()
-  const { user, actuandoComo } = useAuth()
+  const { user, actuandoComo, isAlcalde } = useAuth()
   const [derivaciones, setDerivaciones] = useState<Derivacion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -214,7 +214,10 @@ const BandejaEntrada = () => {
                       >
                         <ViewIcon />
                       </IconButton>
-                      {tab !== 2 && der.estado === 'pendiente' && der.puede_actuar && (
+                      {/* El alcalde NO acusa recibo desde la bandeja: debe abrir la
+                          correspondencia (su acuse firma una providencia con FirmaGob/OTP,
+                          que el ícono rápido no puede pedir). Ver detalle siempre disponible. */}
+                      {tab !== 2 && der.estado === 'pendiente' && der.puede_actuar && !isAlcalde() && (
                         <IconButton
                           size="small"
                           color="success"
