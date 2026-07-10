@@ -32,6 +32,7 @@ class CorrespondenciaMensajeController extends Controller
             'derivaciones.departamentoOrigen', 'derivaciones.departamentoDestino',
             'derivaciones.actuandoComo',
             'mensajes.usuario', 'mensajes.adjuntos',
+            'respuestas.despachadaPor:id,nombre,cargo',
         ]);
 
         $items = [];
@@ -130,6 +131,25 @@ class CorrespondenciaMensajeController extends Controller
                 'texto' => ($e->usuario?->nombre ?? 'Sistema')
                     . ($e->usuario?->cargo ? " ({$e->usuario->cargo})" : '')
                     . ' ' . $e->texto,
+            ];
+        }
+
+        // Despacho de las respuestas (salidas vinculadas): cuando una respuesta
+        // se despacha hacia el destinatario, queda como hito en el hilo de la
+        // entrada, cerrando visualmente el ciclo "entró -> se gestionó -> salió".
+        foreach ($correspondencia->respuestas as $r) {
+            if (!$r->fecha_despacho) {
+                continue;
+            }
+            $medio  = $r->medio_despacho ? " vía {$r->medio_despacho}" : '';
+            $quien  = $r->despachadaPor?->nombre ? " por {$r->despachadaPor->nombre}" : '';
+            $tipo   = $r->tipo_documento_salida ? " ({$r->tipo_documento_salida})" : '';
+            $items[] = [
+                'tipo'        => 'evento',
+                'evento_tipo' => 'despacho',
+                'id'          => 'desp-' . $r->id,
+                'fecha'       => $r->fecha_despacho,
+                'texto'       => "Se despachó la respuesta {$r->folio}{$tipo}{$medio}{$quien}",
             ];
         }
 

@@ -184,6 +184,7 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
     if (it.tipo === 'mensaje') return { icon: <ChatIcon sx={{ fontSize: 12 }} />, bg: '#28A9E3' }
     if (it.evento_tipo === 'archivada') return { icon: <ArchiveIcon sx={{ fontSize: 13 }} />, bg: '#4D4D4D' }
     if (it.evento_tipo === 'desarchivada') return { icon: <UnarchiveIcon sx={{ fontSize: 13 }} />, bg: '#ed6c02' }
+    if (it.evento_tipo === 'despacho') return { icon: <SendIcon sx={{ fontSize: 12 }} />, bg: '#8AC53E' }
     return { icon: <CheckIcon sx={{ fontSize: 14 }} />, bg: '#2e7d32' } // acuse de recibo
   }
 
