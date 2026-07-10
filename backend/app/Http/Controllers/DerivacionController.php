@@ -684,6 +684,13 @@ class DerivacionController extends Controller
             return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde).', 422);
         }
 
+        // Idempotencia: una derivación solo se acusa una vez. Evita que un doble clic
+        // regenere providencia, sobrescriba fecha_recepcion (evidencia del libro) o
+        // duplique notificaciones.
+        if ($derivacion->estado !== 'pendiente') {
+            return $this->errorResponse('Esta derivación ya fue recibida.', 422);
+        }
+
         // Si es Alcalde, generar y firmar una Providencia (dirigida a Alcaldía por defecto) con FirmaGob
         if ($user->isAlcalde()) {
             $request->validate([
@@ -776,7 +783,7 @@ class DerivacionController extends Controller
         // acusaron recibo. Con derivación múltiple (varios funcionarios o
         // "todos"), el primer acuse no debe marcarla Completada.
         $correspondencia = $derivacion->correspondencia;
-        if ($correspondencia && in_array($correspondencia->estado, ['derivada_funcionario', 'derivada_alcaldia'])) {
+        if ($correspondencia && in_array($correspondencia->estado, ['derivada_funcionario', 'derivada_alcaldia', 'en_proceso'])) {
             $quedanPendientes = Derivacion::where('correspondencia_id', $correspondencia->id)
                 ->where('estado', 'pendiente')
                 ->exists();

@@ -55,11 +55,12 @@ const CorrespondenciaList = () => {
   const [estado, setEstado] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     loadCorrespondencias()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage])
+  }, [page, rowsPerPage, reloadKey])
 
   const loadCorrespondencias = async () => {
     setLoading(true)
@@ -83,7 +84,7 @@ const CorrespondenciaList = () => {
 
   const handleBuscar = () => {
     setPage(0)
-    loadCorrespondencias()
+    setReloadKey((k) => k + 1)
   }
 
   const handleLimpiar = () => {
@@ -92,7 +93,7 @@ const CorrespondenciaList = () => {
     setFechaDesde('')
     setFechaHasta('')
     setPage(0)
-    setTimeout(() => loadCorrespondencias(), 0)
+    setReloadKey((k) => k + 1)
   }
 
   const hayFiltrosActivos = search || estado || fechaDesde || fechaHasta

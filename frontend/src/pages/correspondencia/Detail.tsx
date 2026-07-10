@@ -393,17 +393,22 @@ const CorrespondenciaDetail = () => {
 
   // Determinar si el funcionario puede marcar como recibida
   const isFuncionario = !isAdmin() && !isOficial() && !isAlcalde()
+  // Coincide con el backend esDestinatario(): la derivación es para mí si va a mi
+  // usuario, o si va al departamento (sin usuario) y es mi departamento. Filtrar
+  // solo por departamento hacía que, con 2 destinatarios del mismo depto, el 2º
+  // tomara la derivación del 1º y recibiera 403 al acusar.
+  const esMiDerivacionPendiente = (d: { estado: string; usuario_destino_id?: number; departamento_destino_id?: number }) =>
+    d.estado === 'pendiente' &&
+    (d.usuario_destino_id === ctxUserId ||
+      (d.usuario_destino_id == null && d.departamento_destino_id === ctxDepartamentoId))
+
   const derivacionPendienteParaUsuario = correspondencia?.estado === 'derivada_funcionario'
-    ? correspondencia.derivaciones?.find(
-        (d) => d.estado === 'pendiente' && d.departamento_destino_id === ctxDepartamentoId
-      )
+    ? correspondencia.derivaciones?.find(esMiDerivacionPendiente)
     : undefined
 
   // Derivación pendiente para el alcalde (cuando recibe desde Oficina de Partes)
   const derivacionPendienteParaAlcalde = isAlcalde() && correspondencia?.estado === 'derivada_alcaldia'
-    ? correspondencia.derivaciones?.find(
-        (d) => d.estado === 'pendiente' && d.departamento_destino_id === ctxDepartamentoId
-      )
+    ? correspondencia.derivaciones?.find(esMiDerivacionPendiente)
     : undefined
 
   const handleMarcarRecibida = async () => {

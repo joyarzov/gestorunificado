@@ -23,6 +23,13 @@ import { Adjunto } from '../../types'
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30 MB
 
+const toYmdLocal = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const CorrespondenciaCreate = () => {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -148,8 +155,8 @@ const CorrespondenciaCreate = () => {
     try {
       const data = {
         ...formData,
-        fecha_documento: formData.fecha_documento?.toISOString().split('T')[0],
-        fecha_recibo: formData.fecha_recibo?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        fecha_documento: formData.fecha_documento ? toYmdLocal(formData.fecha_documento) : undefined,
+        fecha_recibo: formData.fecha_recibo ? toYmdLocal(formData.fecha_recibo) : toYmdLocal(new Date()),
       }
 
       if (isEditMode && id) {
