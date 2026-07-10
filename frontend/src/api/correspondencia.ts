@@ -81,9 +81,11 @@ export interface HiloItem {
   tipo: 'derivacion' | 'mensaje' | 'evento'
   // evento (hitos de trazabilidad: acuses de recibo, cierre del proceso)
   texto?: string
-  evento_tipo?: 'acuse' | 'archivada' | 'desarchivada' | string
+  evento_tipo?: 'acuse' | 'archivada' | 'desarchivada' | 'despacho' | string
   id: number | string
   fecha: string
+  // Si el hito solo tiene fecha (sin hora real, ej. despacho): mostrar sin HH:mm.
+  solo_fecha?: boolean
   // derivacion
   estado?: string
   de?: { usuario?: string | null; cargo?: string | null; departamento?: string | null }

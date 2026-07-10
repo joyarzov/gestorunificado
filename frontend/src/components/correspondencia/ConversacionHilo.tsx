@@ -51,6 +51,15 @@ const fechaCorta = (iso: string) => {
   }
 }
 
+// Para hitos sin hora real (ej. despacho, que solo tiene fecha): solo el día.
+const soloFecha = (iso: string) => {
+  try {
+    return format(new Date(iso), "dd/MM/yyyy", { locale: es })
+  } catch {
+    return iso
+  }
+}
+
 interface Props {
   correspondenciaId: number
 }
@@ -260,7 +269,9 @@ const ConversacionHilo = ({ correspondenciaId }: Props) => {
   const contenidoEvento = (it: HiloItem) => (
     <Typography variant="body2" sx={{ color: 'text.secondary', pt: 0.25 }}>
       <strong>{it.texto}</strong>
-      <Typography component="span" variant="caption" sx={{ ml: 0.75 }}>{fechaCorta(it.fecha)}</Typography>
+      <Typography component="span" variant="caption" sx={{ ml: 0.75 }}>
+        {it.solo_fecha ? soloFecha(it.fecha) : fechaCorta(it.fecha)}
+      </Typography>
     </Typography>
   )
 

@@ -148,7 +148,12 @@ class CorrespondenciaMensajeController extends Controller
                 'tipo'        => 'evento',
                 'evento_tipo' => 'despacho',
                 'id'          => 'desp-' . $r->id,
-                'fecha'       => $r->fecha_despacho,
+                // fecha_despacho es solo fecha (sin hora). Se ancla al mediodía para
+                // que el ordenamiento y la agrupación por día no se corran de día por
+                // conversión de zona horaria, y se marca solo_fecha para no mostrar
+                // una hora inventada en el hilo.
+                'fecha'       => $r->fecha_despacho->copy()->setTime(12, 0),
+                'solo_fecha'  => true,
                 'texto'       => "Se despachó la respuesta {$r->folio}{$tipo}{$medio}{$quien}",
             ];
         }
