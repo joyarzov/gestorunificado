@@ -29,6 +29,7 @@ export interface CreateDerivacionData {
   observaciones?: string
   acciones_para?: string[]
   otp?: string
+  firma_desatendida?: boolean
   firma_y?: number
   firma_page?: string
   firma_col?: number
@@ -301,10 +302,11 @@ export const correspondenciaAPI = {
     return { blob: response.data as Blob, token }
   },
 
-  libroFirmar: async (previewToken: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number) => {
+  libroFirmar: async (previewToken: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number, desatendida?: boolean) => {
     const response = await api.post<ApiResponse<LibroCorrespondencia>>('/correspondencia/libros/firmar', {
       preview_token: previewToken,
       otp,
+      firma_desatendida: desatendida,
       firma_y: firmaY,
       firma_page: firmaPage,
       firma_col: firmaCol,
@@ -367,11 +369,22 @@ export const correspondenciaAPI = {
     firmaPage?: string,
     firmaCol?: number,
     previewToken?: string,
+    desatendida?: boolean,
   ) => {
+    // El Alcalde firma (atendida con OTP o desatendida sin OTP); el funcionario
+    // solo acusa recibo (payload vacío).
+    const esFirmaAlcalde = !!otp || !!desatendida
     const response = await api.post<ApiResponse<Derivacion>>(
       `/derivaciones/${id}/recibir`,
-      otp
-        ? { otp, firma_y: firmaY, firma_page: firmaPage, firma_col: firmaCol, preview_token: previewToken }
+      esFirmaAlcalde
+        ? {
+            otp,
+            firma_desatendida: desatendida,
+            firma_y: firmaY,
+            firma_page: firmaPage,
+            firma_col: firmaCol,
+            preview_token: previewToken,
+          }
         : {}
     )
     return response.data

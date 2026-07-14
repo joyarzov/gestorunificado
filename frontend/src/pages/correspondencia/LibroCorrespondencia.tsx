@@ -99,12 +99,12 @@ const LibroCorrespondencia = () => {
     }
   }
 
-  const handleFirmar = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
+  const handleFirmar = async ({ otp, firmaY, firmaPage, firmaCol, desatendida }: FirmaParams) => {
     if (!previewToken) return
     setFirmaLoading(true)
     setFirmaError(null)
     try {
-      const res = await correspondenciaAPI.libroFirmar(previewToken, otp, firmaY, firmaPage, firmaCol)
+      const res = await correspondenciaAPI.libroFirmar(previewToken, otp, firmaY, firmaPage, firmaCol, desatendida)
       setShowFirmaModal(false)
       revokePreview()
       setMensaje({ tipo: 'success', texto: res.message || `Libro ${res.data.folio} generado y firmado` })

@@ -25,6 +25,7 @@ import {
 import { departamentosAPI, usersAPI } from '../../api/common'
 import { correspondenciaAPI, CreateDerivacionData } from '../../api/correspondencia'
 import { Departamento, User } from '../../types'
+import { useAuth } from '../../contexts/AuthContext'
 import FirmaGobModal, { FirmaParams } from './FirmaGobModal'
 
 const ACCIONES_PARA_OPTIONS = [
@@ -58,6 +59,7 @@ const DerivacionDialog = ({
   mode = 'alcalde',
   onSuccess,
 }: DerivacionDialogProps) => {
+  const { checkAuth } = useAuth()
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [usuarios, setUsuarios] = useState<User[]>([])
   const [selectedDepto, setSelectedDepto] = useState<Departamento | null>(null)
@@ -192,19 +194,22 @@ const DerivacionDialog = ({
     }
   }
 
-  const handleFirmarYDerivar = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
+  const handleFirmarYDerivar = async ({ otp, firmaY, firmaPage, firmaCol, desatendida }: FirmaParams) => {
     if (!pendingData) return
     setFirmaLoading(true)
     setFirmaError(null)
     try {
       await correspondenciaAPI.derivar({
         ...pendingData,
-        otp,
+        otp: desatendida ? undefined : otp,
+        firma_desatendida: desatendida,
         firma_y: firmaY,
         firma_page: firmaPage,
         firma_col: firmaCol,
         preview_token: previewToken ?? undefined,
       })
+      // Refrescar el user para preseleccionar el modo elegido en la próxima firma.
+      checkAuth()
       setShowFirmaModal(false)
       revokePreview()
       setProvidenciaCorrespondenciaId(correspondenciaId)

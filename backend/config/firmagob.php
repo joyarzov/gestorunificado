@@ -10,5 +10,9 @@ return [
     'secret'        => env('FIRMAGOB_SECRET', ''),
     'entity'        => env('FIRMAGOB_ENTITY', ''),
     'purpose'       => env('FIRMAGOB_PURPOSE', 'Propósito General'),
+    // Propósito del certificado DESATENDIDO (firma sin OTP). Debe coincidir
+    // carácter por carácter con el propósito registrado en la RA para ese
+    // certificado (los acentos importan), o FirmaGob responde 404.
+    'purpose_desatendido' => env('FIRMAGOB_PURPOSE_DESATENDIDO', 'Desatendido'),
     'timeout'       => env('FIRMAGOB_TIMEOUT', 30),
 ];

@@ -105,6 +105,7 @@ const UsuariosManage = () => {
     departamento_id: '',
     visador: false,
     puede_ver_registro_correspondencia: false,
+    firma_desatendida_habilitada: false,
   })
 
   useEffect(() => {
@@ -142,6 +143,7 @@ const UsuariosManage = () => {
         departamento_id: user.departamento_id?.toString() || '',
         visador: user.visador,
         puede_ver_registro_correspondencia: user.puede_ver_registro_correspondencia ?? false,
+        firma_desatendida_habilitada: user.firma_desatendida_habilitada ?? false,
       })
     } else {
       setEditingUser(null)
@@ -155,6 +157,7 @@ const UsuariosManage = () => {
         departamento_id: '',
         visador: false,
         puede_ver_registro_correspondencia: false,
+        firma_desatendida_habilitada: false,
       })
     }
     setDialogOpen(true)
@@ -664,6 +667,17 @@ const UsuariosManage = () => {
                   />
                 }
                 label="Puede ver el registro de correspondencia (solo lectura, todas)"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.firma_desatendida_habilitada}
+                    onChange={(e) => handleChange('firma_desatendida_habilitada', e.target.checked)}
+                  />
+                }
+                label="Permitir firma desatendida (firmar providencias sin código OTP)"
               />
             </Grid>
           </Grid>

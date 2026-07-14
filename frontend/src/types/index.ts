@@ -38,6 +38,8 @@ export interface User {
   visador: boolean
   activo: boolean
   puede_ver_registro_correspondencia?: boolean
+  firma_desatendida_habilitada?: boolean
+  firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean
   ultimo_acceso?: string | null
 }

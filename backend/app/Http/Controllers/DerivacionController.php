@@ -59,6 +59,7 @@ class DerivacionController extends Controller
             'acciones_para' => 'nullable|array',
             'acciones_para.*' => 'string',
             'otp'        => 'nullable|string',
+            'firma_desatendida' => 'nullable|boolean',
             'firma_y'    => 'nullable|integer|min:10|max:712',
             'firma_page' => 'nullable|string',
             'firma_col'  => 'nullable|integer|in:0,1,2',
@@ -136,8 +137,19 @@ class DerivacionController extends Controller
             $folio = $resolved['folio'];
             $codigoVerificacion = $resolved['codigo_verificacion'];
 
-            // Firmar con FirmaGob si viene OTP
-            if ($request->filled('otp') && config('firmagob.enabled')) {
+            // Firma desatendida (sin OTP): solo si el usuario la tiene habilitada.
+            $desatendida = $request->boolean('firma_desatendida');
+            if ($desatendida && !$user->firma_desatendida_habilitada) {
+                return $this->errorResponse(
+                    'No tienes habilitada la firma desatendida. Solicítala al administrador.',
+                    403
+                );
+            }
+
+            // Firmar con FirmaGob si viene OTP (atendida) o si es desatendida.
+            $debeFirmar = ($request->filled('otp') || $desatendida) && config('firmagob.enabled');
+            if ($debeFirmar) {
+                $this->recordarModoFirma($user, $desatendida);
                 try {
                     $firmaService = app(FirmaGobService::class);
                     $coords = $this->calcularCoordenadas(
@@ -149,14 +161,18 @@ class DerivacionController extends Controller
                         $pdfContent,
                         'Providencia ' . $folio,
                         $user->rut,
-                        $request->otp,
+                        $desatendida ? null : $request->otp,
                         $user->nombre,
                         $user->cargoFirma() ?? 'Alcalde',
                         $coords,
-                        $firmaPage
+                        $firmaPage,
+                        $desatendida ? config('firmagob.purpose_desatendido') : null
                     );
                     $pdfContent = $signed['content'];
-                    Log::info('Providencia firmada con FirmaGob', ['folio' => $folio]);
+                    Log::info('Providencia firmada con FirmaGob', [
+                        'folio' => $folio,
+                        'modo'  => $desatendida ? 'desatendida' : 'atendida',
+                    ]);
                 } catch (FirmaGobException $e) {
                     return $this->errorResponse($e->getMessage(), 422);
                 }
@@ -355,6 +371,18 @@ class DerivacionController extends Controller
         $colXCoords = [[71, 231], [233, 393], [395, 555]];
         [$llx, $urx] = $colXCoords[$firmaCol] ?? $colXCoords[2];
         return [$llx, $firmaY, $urx, $firmaY + 70];
+    }
+
+    /**
+     * Persiste el modo de firma elegido por el usuario para preseleccionarlo por
+     * defecto en las próximas firmas. Solo escribe si cambió.
+     */
+    private function recordarModoFirma(User $user, bool $desatendida): void
+    {
+        $modo = $desatendida ? 'desatendido' : 'atendido';
+        if ($user->firma_modo_preferido !== $modo) {
+            $user->update(['firma_modo_preferido' => $modo]);
+        }
     }
 
     /**
@@ -693,13 +721,26 @@ class DerivacionController extends Controller
 
         // Si es Alcalde, generar y firmar una Providencia (dirigida a Alcaldía por defecto) con FirmaGob
         if ($user->isAlcalde()) {
+            // Firma desatendida (sin OTP): solo si el usuario la tiene habilitada.
+            // El backend re-verifica el flag; nunca confía en el cliente.
+            $desatendida = $request->boolean('firma_desatendida');
+            if ($desatendida && !$user->firma_desatendida_habilitada) {
+                return $this->errorResponse(
+                    'No tienes habilitada la firma desatendida. Solicítala al administrador.',
+                    403
+                );
+            }
             $request->validate([
-                'otp'        => 'required|string',
+                'firma_desatendida' => 'nullable|boolean',
+                'otp'        => $desatendida ? 'nullable|string' : 'required|string',
                 'firma_y'    => 'nullable|integer|min:10|max:712',
                 'firma_page' => 'nullable|string',
                 'firma_col'  => 'nullable|integer|in:0,1,2',
                 'preview_token' => 'nullable|string',
             ]);
+
+            // Recordar el modo elegido para preseleccionarlo en las próximas firmas.
+            $this->recordarModoFirma($user, $desatendida);
 
             $correspondencia = $derivacion->correspondencia;
             $correspondencia->load(['departamento']);
@@ -735,14 +776,18 @@ class DerivacionController extends Controller
                         $pdfContent,
                         'Providencia ' . $folio,
                         $user->rut,
-                        $request->otp,
+                        $desatendida ? null : $request->otp,
                         $user->nombre,
                         $user->cargoFirma() ?? 'Alcalde',
                         $coords,
-                        $firmaPage
+                        $firmaPage,
+                        $desatendida ? config('firmagob.purpose_desatendido') : null
                     );
                     $pdfContent = $signed['content'];
-                    Log::info('Providencia (recepción) firmada con FirmaGob', ['folio' => $folio]);
+                    Log::info('Providencia (recepción) firmada con FirmaGob', [
+                        'folio' => $folio,
+                        'modo'  => $desatendida ? 'desatendida' : 'atendida',
+                    ]);
                 } catch (FirmaGobException $e) {
                     return $this->errorResponse($e->getMessage(), 422);
                 }

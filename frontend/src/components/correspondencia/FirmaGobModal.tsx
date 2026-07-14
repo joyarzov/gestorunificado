@@ -4,8 +4,9 @@ import {
   Button, TextField, Typography, Alert, CircularProgress, Box,
   ToggleButtonGroup, ToggleButton, Slider,
 } from '@mui/material'
-import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon } from '@mui/icons-material'
+import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon, Bolt as BoltIcon } from '@mui/icons-material'
 import { configuracionAPI } from '../../api/configuracion'
+import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api/axios'
 import FirmaPagePreview from '../common/FirmaPagePreview'
 
@@ -14,6 +15,7 @@ export interface FirmaParams {
   firmaY: number
   firmaPage: string
   firmaCol: number
+  desatendida: boolean
 }
 
 interface FirmaGobModalProps {
@@ -30,7 +32,13 @@ interface FirmaGobModalProps {
 const FirmaGobModal = ({
   open, titulo, descripcion, loading, error, onFirmar, onCancel, pdfUrl,
 }: FirmaGobModalProps) => {
+  const { user } = useAuth()
+  // La capacidad y el modo por defecto pertenecen al firmante real (el titular
+  // del certificado). Solo el Alcalde con la firma desatendida habilitada ve el toggle.
+  const desatendidaHabilitada = !!user?.firma_desatendida_habilitada
+
   const [otp, setOtp] = useState('')
+  const [desatendida, setDesatendida] = useState(false)
   const [firmaYPos, setFirmaYPos] = useState(27) // slider 0-100; default = sobre la línea de firma (bloque fijo)
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST'>('LAST')
   const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(0) // default izquierda (donde está el bloque de firma)
@@ -40,6 +48,9 @@ const FirmaGobModal = ({
   useEffect(() => {
     if (!open) return
     setOtp('')
+    // Preseleccionar el modo que el usuario dejó guardado (persistido en el backend
+    // tras cada firma). Sin habilitación, siempre atendida.
+    setDesatendida(desatendidaHabilitada && user?.firma_modo_preferido === 'desatendido')
     setFirmaYPos(27)
     setFirmaPageMode('LAST')
     setFirmaCol(0)
@@ -60,13 +71,17 @@ const FirmaGobModal = ({
       if (url) URL.revokeObjectURL(url)
       setSelloUrl(null)
     }
-  }, [open])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, desatendidaHabilitada])
+
+  // Con firma desatendida no se pide OTP; con atendida se exigen los 6 dígitos.
+  const puedeFirmar = desatendida || otp.length === 6
 
   const handleSubmit = () => {
-    if (otp.length !== 6) return
+    if (!puedeFirmar) return
     const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
     const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : '1'
-    onFirmar({ otp, firmaY, firmaPage, firmaCol })
+    onFirmar({ otp: desatendida ? '' : otp, firmaY, firmaPage, firmaCol, desatendida })
   }
 
   return (
@@ -96,6 +111,35 @@ const FirmaGobModal = ({
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
+        )}
+
+        {/* Tipo de firma: solo si el usuario tiene la firma desatendida habilitada.
+            La desatendida omite el OTP; la posición/altura del sello se mantienen igual. */}
+        {desatendidaHabilitada && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+              Tipo de firma
+            </Typography>
+            <ToggleButtonGroup
+              value={desatendida ? 'desatendida' : 'atendida'}
+              exclusive
+              onChange={(_, v) => { if (v) setDesatendida(v === 'desatendida') }}
+              size="small"
+              color="primary"
+            >
+              <ToggleButton value="atendida" sx={{ fontSize: 12, px: 2 }}>
+                Con código OTP
+              </ToggleButton>
+              <ToggleButton value="desatendida" sx={{ fontSize: 12, px: 2 }}>
+                <BoltIcon sx={{ fontSize: 16, mr: 0.5 }} /> Firma desatendida
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {desatendida && (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                Firmará sin ingresar código OTP. Esta preferencia queda guardada para las próximas firmas.
+              </Typography>
+            )}
+          </Box>
         )}
 
         {/* Selector de posición del sello */}
@@ -187,19 +231,21 @@ const FirmaGobModal = ({
                 </ToggleButtonGroup>
               </Box>
 
-              {/* OTP */}
-              <TextField
-                label="Código OTP (Google Authenticator)"
-                value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                fullWidth
-                autoFocus
-                disabled={loading}
-                inputProps={{ inputMode: 'numeric', maxLength: 6 }}
-                placeholder="000000"
-                helperText="Ingrese el código de 6 dígitos de Google Authenticator"
-                onKeyDown={e => e.key === 'Enter' && otp.length === 6 && !loading && handleSubmit()}
-              />
+              {/* OTP: solo en firma atendida */}
+              {!desatendida && (
+                <TextField
+                  label="Código OTP (Google Authenticator)"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  fullWidth
+                  autoFocus
+                  disabled={loading}
+                  inputProps={{ inputMode: 'numeric', maxLength: 6 }}
+                  placeholder="000000"
+                  helperText="Ingrese el código de 6 dígitos de Google Authenticator"
+                  onKeyDown={e => e.key === 'Enter' && otp.length === 6 && !loading && handleSubmit()}
+                />
+              )}
             </Box>
           </Box>
         </Box>
@@ -214,7 +260,7 @@ const FirmaGobModal = ({
           variant="contained"
           color={simulate ? 'warning' : 'primary'}
           onClick={handleSubmit}
-          disabled={loading || otp.length !== 6}
+          disabled={loading || !puedeFirmar}
           startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <FirmaIcon />}
         >
           {loading ? 'Firmando...' : simulate ? 'Firmar (simulado)' : 'Firmar'}

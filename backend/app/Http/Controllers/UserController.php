@@ -52,6 +52,7 @@ class UserController extends Controller
             'departamento_id' => 'nullable|exists:departamentos,id',
             'visador' => 'sometimes|boolean',
             'puede_ver_registro_correspondencia' => 'sometimes|boolean',
+            'firma_desatendida_habilitada' => 'sometimes|boolean',
         ]);
 
         $rut = User::formatRut($request->rut);
@@ -67,6 +68,7 @@ class UserController extends Controller
             'departamento_id' => $request->departamento_id,
             'visador' => $request->boolean('visador'),
             'puede_ver_registro_correspondencia' => $request->boolean('puede_ver_registro_correspondencia'),
+            'firma_desatendida_habilitada' => $request->boolean('firma_desatendida_habilitada'),
             'activo' => true,
         ]);
 
@@ -94,6 +96,7 @@ class UserController extends Controller
             'departamento_id' => 'nullable|exists:departamentos,id',
             'visador' => 'sometimes|boolean',
             'puede_ver_registro_correspondencia' => 'sometimes|boolean',
+            'firma_desatendida_habilitada' => 'sometimes|boolean',
         ]);
 
         $data = $request->only([
@@ -105,6 +108,7 @@ class UserController extends Controller
             'departamento_id',
             'visador',
             'puede_ver_registro_correspondencia',
+            'firma_desatendida_habilitada',
         ]);
 
         // Solo actualizar contraseña si viene con valor

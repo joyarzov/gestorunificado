@@ -20,7 +20,8 @@ class FirmaGobService
      * @param string $pdfContent  Contenido binario del PDF
      * @param string $description Descripción del documento
      * @param string $signerRun   RUT del firmante (formato: "12345678-9")
-     * @param string|null $otp    Código OTP de Google Authenticator (solo ATENDIDO)
+     * @param string|null $otp    Código OTP de Google Authenticator (solo ATENDIDO;
+     *                            en firma DESATENDIDA debe ir null y no se envía la cabecera OTP)
      * @param string|null $signerName Nombre completo del firmante para el sello visual
      * @param string|null $signerCargo Cargo del firmante para el sello visual
      * @return array ['content' => string, 'session_token' => string, 'metadata' => array, 'checksum_signed' => string]
@@ -62,7 +63,8 @@ class FirmaGobService
         ?string $signerName = null,
         ?string $signerCargo = null,
         array $coords = [30, 20, 210, 90],
-        string $page = 'LAST'
+        string $page = 'LAST',
+        ?string $purpose = null
     ): array {
         // Modo simulación: no llama al API, devuelve respuesta ficticia
         if ($this->isSimulate()) {
@@ -82,7 +84,7 @@ class FirmaGobService
 
         $checksum = hash('sha256', $pdfContent);
         $base64   = base64_encode($pdfContent);
-        $jwt      = $this->buildJwt($run);
+        $jwt      = $this->buildJwt($run, $purpose);
 
         $fileEntry = [
             'description'  => $description,
@@ -637,14 +639,14 @@ class FirmaGobService
     /**
      * Construye el JWT firmado con HMAC-SHA256 según especificación FirmaGob v.17.
      */
-    private function buildJwt(string $run): string
+    private function buildJwt(string $run, ?string $purpose = null): string
     {
         $header  = $this->base64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $payload = $this->base64UrlEncode(json_encode([
             'entity'     => config('firmagob.entity'),
             'run'        => $run,
             'expiration' => now()->timezone('America/Santiago')->addMinutes(28)->format('Y-m-d\TH:i:s'),
-            'purpose'    => config('firmagob.purpose'),
+            'purpose'    => $purpose ?: config('firmagob.purpose'),
         ]));
 
         $signature = $this->base64UrlEncode(

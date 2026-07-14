@@ -59,7 +59,7 @@ import { estadoCorrespondencia, TIPOS_DOCUMENTO_SALIDA } from '../../utils/estad
 const CorrespondenciaDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, actuandoComo, isAdmin, isOficial, isAlcalde } = useAuth()
+  const { user, actuandoComo, isAdmin, isOficial, isAlcalde, checkAuth } = useAuth()
   // Departamento "institucional": el del subrogado cuando hay actuando-como, el propio si no.
   const ctxDepartamentoId = actuandoComo?.departamento_id ?? user?.departamento_id
   // Id del contexto institucional (subrogado si actúa como; el propio si no).
@@ -457,7 +457,7 @@ const CorrespondenciaDetail = () => {
     setPreviewToken(null)
   }
 
-  const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol }: FirmaParams) => {
+  const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol, desatendida }: FirmaParams) => {
     const derivacion = derivacionPendienteParaAlcalde
     if (!derivacion) return
     setFirmaLoading(true)
@@ -470,7 +470,11 @@ const CorrespondenciaDetail = () => {
         firmaPage,
         firmaCol,
         previewToken ?? undefined,
+        desatendida,
       )
+      // Refrescar el user para que el modo de firma elegido quede preseleccionado
+      // la próxima vez (el backend ya persistió firma_modo_preferido).
+      checkAuth()
       setFirmaModalOpen(false)
       revokePreview()
       setAcuseDerivacionId(derivacion.id)

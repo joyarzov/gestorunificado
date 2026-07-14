@@ -27,6 +27,8 @@ class User extends Authenticatable
         'activo',
         'visador',
         'puede_ver_registro_correspondencia',
+        'firma_desatendida_habilitada',
+        'firma_modo_preferido',
         'debe_cambiar_password',
         'ultimo_acceso',
     ];
@@ -44,6 +46,7 @@ class User extends Authenticatable
         'activo' => 'boolean',
         'visador' => 'boolean',
         'puede_ver_registro_correspondencia' => 'boolean',
+        'firma_desatendida_habilitada' => 'boolean',
         'debe_cambiar_password' => 'boolean',
         'ultimo_acceso' => 'datetime',
         'subrogancia_activa' => 'boolean',

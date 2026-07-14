@@ -109,15 +109,25 @@ class LibroCorrespondenciaController extends Controller
             return $denied;
         }
 
+        // Firma desatendida (sin OTP): solo si el usuario la tiene habilitada.
+        $user = Auth::user();
+        $desatendida = $request->boolean('firma_desatendida');
+        if ($desatendida && !$user->firma_desatendida_habilitada) {
+            return $this->errorResponse(
+                'No tienes habilitada la firma desatendida. Solicítala al administrador.',
+                403
+            );
+        }
+
         $request->validate([
             'preview_token' => 'required|string',
-            'otp'        => 'nullable|string',
+            'firma_desatendida' => 'nullable|boolean',
+            'otp'        => $desatendida ? 'nullable|string' : 'nullable|string',
             'firma_y'    => 'nullable|integer|min:10|max:712',
             'firma_page' => 'nullable|string',
             'firma_col'  => 'nullable|integer|in:0,1,2',
         ]);
 
-        $user = Auth::user();
         $cached = Cache::get(self::PREVIEW_CACHE_PREFIX . $request->preview_token);
         if (!$cached || ($cached['user_id'] ?? null) !== $user->id) {
             return $this->errorResponse('La vista previa del libro expiró. Genera una nueva.', 422);
@@ -126,7 +136,14 @@ class LibroCorrespondenciaController extends Controller
         $pdfContent = base64_decode($cached['pdf_content']);
         $folio = $cached['folio'];
 
-        if ($request->filled('otp') && config('firmagob.enabled')) {
+        // Firmar si viene OTP (atendida) o si es desatendida.
+        $debeFirmar = ($request->filled('otp') || $desatendida) && config('firmagob.enabled');
+        if ($debeFirmar) {
+            // Recordar el modo elegido para preseleccionarlo en las próximas firmas.
+            $modo = $desatendida ? 'desatendido' : 'atendido';
+            if ($user->firma_modo_preferido !== $modo) {
+                $user->update(['firma_modo_preferido' => $modo]);
+            }
             try {
                 $colXCoords = [[71, 231], [233, 393], [395, 555]];
                 [$llx, $urx] = $colXCoords[$request->firma_col ?? 2] ?? [395, 555];
@@ -136,14 +153,18 @@ class LibroCorrespondenciaController extends Controller
                     $pdfContent,
                     'Libro de Correspondencia ' . $folio,
                     $user->rut,
-                    $request->otp,
+                    $desatendida ? null : $request->otp,
                     $user->nombre,
                     $user->cargoFirma() ?? 'Oficial de Partes',
                     [$llx, $firmaY, $urx, $firmaY + 70],
-                    $request->firma_page ?? 'LAST'
+                    $request->firma_page ?? 'LAST',
+                    $desatendida ? config('firmagob.purpose_desatendido') : null
                 );
                 $pdfContent = $signed['content'];
-                Log::info('Libro de correspondencia firmado con FirmaGob', ['folio' => $folio]);
+                Log::info('Libro de correspondencia firmado con FirmaGob', [
+                    'folio' => $folio,
+                    'modo'  => $desatendida ? 'desatendida' : 'atendida',
+                ]);
             } catch (FirmaGobException $e) {
                 return $this->errorResponse($e->getMessage(), 422);
             }
@@ -161,7 +182,7 @@ class LibroCorrespondenciaController extends Controller
             'generado_por' => $user->id,
             'codigo_verificacion' => $cached['codigo_verificacion'],
             'pdf_ruta' => 'libros/' . $filename,
-            'firmado' => $request->filled('otp') && config('firmagob.enabled'),
+            'firmado' => $debeFirmar,
         ]);
 
         Cache::forget(self::PREVIEW_CACHE_PREFIX . $request->preview_token);

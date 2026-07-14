@@ -83,6 +83,8 @@ class AuthController extends Controller
                 'departamento' => $user->departamento?->nombre,
                 'visador' => $user->visador,
                 'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+                'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
+                'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
                 'debe_cambiar_password' => (bool) $user->debe_cambiar_password,
                 'subrogados_activos' => $this->subrogadosActivos($user),
             ],
@@ -266,6 +268,8 @@ class AuthController extends Controller
             'subrogados_activos' => $this->subrogadosActivos($user),
             'visador' => $user->visador,
             'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+            'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
+            'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
             'debe_cambiar_password' => (bool) $user->debe_cambiar_password,
             'activo' => $user->activo,
         ]);
