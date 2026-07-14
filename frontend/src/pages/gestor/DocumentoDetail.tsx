@@ -121,7 +121,9 @@ const accionLabels: Record<string, string> = {
 // Tramos de "Altura del sello": el slider salta SOLO a estas posiciones (no es fluido),
 // alineadas a la grilla de apilado (cada 80pt desde y=20). Así, firmas de distintas
 // personas en el mismo documento que elijan el mismo tramo quedan en la MISMA línea.
-const ALTURA_TRAMOS = [20, 100, 180, 260, 340, 420, 500, 580, 660].map(
+// 18 tramos de altura (step 40pt, de 20 a 700) para ajuste fino del sello:
+// el doble de posiciones que los 9 tramos previos (step 80pt).
+const ALTURA_TRAMOS = Array.from({ length: 18 }, (_, i) => 20 + i * 40).map(
   (y) => ((y - 10) / 702) * 100,
 )
 
@@ -1132,7 +1134,7 @@ const DocumentoDetail = () => {
                               color="primary"
                             >
                               <ToggleButton value="atendida" sx={{ fontSize: 12, px: 2 }}>
-                                Con código OTP
+                                Firma atendida (OTP)
                               </ToggleButton>
                               <ToggleButton value="desatendida" sx={{ fontSize: 12, px: 2 }}>
                                 <BoltIcon sx={{ fontSize: 16, mr: 0.5 }} /> Firma desatendida

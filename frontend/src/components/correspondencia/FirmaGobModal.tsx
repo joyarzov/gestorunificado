@@ -128,7 +128,7 @@ const FirmaGobModal = ({
               color="primary"
             >
               <ToggleButton value="atendida" sx={{ fontSize: 12, px: 2 }}>
-                Con código OTP
+                Firma atendida (OTP)
               </ToggleButton>
               <ToggleButton value="desatendida" sx={{ fontSize: 12, px: 2 }}>
                 <BoltIcon sx={{ fontSize: 16, mr: 0.5 }} /> Firma desatendida
