@@ -118,14 +118,6 @@ const accionLabels: Record<string, string> = {
   asociado: 'Asociado a expediente',
 }
 
-// Tramos de "Altura del sello": el slider salta SOLO a estas posiciones (no es fluido),
-// alineadas a la grilla de apilado (cada 80pt desde y=20). Así, firmas de distintas
-// personas en el mismo documento que elijan el mismo tramo quedan en la MISMA línea.
-// 18 tramos de altura (step 40pt, de 20 a 700) para ajuste fino del sello:
-// el doble de posiciones que los 9 tramos previos (step 80pt).
-const ALTURA_TRAMOS = Array.from({ length: 18 }, (_, i) => 20 + i * 40).map(
-  (y) => ((y - 10) / 702) * 100,
-)
 
 const DocumentoDetail = () => {
   const { id } = useParams()
@@ -160,7 +152,7 @@ const DocumentoDetail = () => {
   const [firmaDesatendida, setFirmaDesatendida] = useState(false)
   const [firmaGobEnabled, setFirmaGobEnabled] = useState(false)
   const [firmaGobPurpose, setFirmaGobPurpose] = useState('')
-  const [firmaYPos, setFirmaYPos] = useState(ALTURA_TRAMOS[0])  // arranca en el tramo más bajo
+  const [firmaYPos, setFirmaYPos] = useState(27)  // slider continuo 0-100; default sobre el bloque de firma
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
   const [firmaPageNum, setFirmaPageNum] = useState(1)
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
@@ -1084,17 +1076,11 @@ const DocumentoDetail = () => {
                               onChange={(_, v) => setFirmaYPos(v as number)}
                               min={0}
                               max={100}
-                              step={null}
                               size="small"
-                              marks={ALTURA_TRAMOS.map((value, i) => ({
-                                value,
-                                label:
-                                  i === 0
-                                    ? 'Inferior'
-                                    : i === ALTURA_TRAMOS.length - 1
-                                    ? 'Superior'
-                                    : undefined,
-                              }))}
+                              marks={[
+                                { value: 0,   label: 'Inferior' },
+                                { value: 100, label: 'Superior' },
+                              ]}
                               sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                             />
                           </Box>
