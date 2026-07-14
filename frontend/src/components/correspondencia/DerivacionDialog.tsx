@@ -59,7 +59,7 @@ const DerivacionDialog = ({
   mode = 'alcalde',
   onSuccess,
 }: DerivacionDialogProps) => {
-  const { checkAuth } = useAuth()
+  const { checkAuth, user, actuandoComo } = useAuth()
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [usuarios, setUsuarios] = useState<User[]>([])
   const [selectedDepto, setSelectedDepto] = useState<Departamento | null>(null)
@@ -266,7 +266,13 @@ const DerivacionDialog = ({
   // correspondencia derivada a Alcaldía siempre es para el Alcalde, y ofrecer
   // al admin en el selector hace que se elija por error y se pierda de su
   // bandeja. Espeja el criterio operativo del backend (no es receptor).
-  const usuariosSeleccionables = usuarios.filter((u) => !(u.roles || []).includes('admin'))
+  // Tampoco el propio actor (ni el titular cuando subroga): nadie se auto-deriva
+  // — ya tiene la correspondencia y la auto-derivación queda pendiente y bloquea
+  // el cierre. El backend además lo garantiza (resolverDestinatarios).
+  const propiosIds = [user?.id, actuandoComo?.id].filter(Boolean)
+  const usuariosSeleccionables = usuarios.filter(
+    (u) => !(u.roles || []).includes('admin') && !propiosIds.includes(u.id)
+  )
 
   const filteredUsuarios = selectedDepto
     ? usuariosSeleccionables.filter((u) => u.departamento_id === selectedDepto.id)

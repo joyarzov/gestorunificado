@@ -314,15 +314,20 @@ class DerivacionController extends Controller
      * - usuario_destino_ids (y/o usuario_destino_id legado) → esos usuarios.
      * Vacío = derivación a nivel de departamento.
      *
+     * En cualquier caso se excluye al propio actor (y a su contexto institucional
+     * cuando subroga): nadie puede auto-derivarse — ya tiene la correspondencia, y
+     * una derivación a sí mismo queda pendiente y bloquea el cierre del proceso.
+     *
      * @return \Illuminate\Support\Collection<User>
      */
     private function resolverDestinatarios(Request $request)
     {
         $user = Auth::user();
+        $propios = array_filter([$user->id, $user->contexto()->id]);
 
         if ($request->boolean('derivar_a_todos')) {
             return User::where('activo', true)
-                ->whereNotIn('id', array_filter([$user->id, $user->contexto()->id]))
+                ->whereNotIn('id', $propios)
                 ->orderBy('nombre')
                 ->get();
         }
@@ -331,7 +336,9 @@ class DerivacionController extends Controller
         if ($request->usuario_destino_id) {
             $ids->push($request->usuario_destino_id);
         }
-        $ids = $ids->map(fn ($i) => (int) $i)->unique()->values();
+        $ids = $ids->map(fn ($i) => (int) $i)
+            ->reject(fn ($i) => in_array($i, $propios, true)) // sin auto-derivación
+            ->unique()->values();
 
         return $ids->isEmpty() ? collect() : User::whereIn('id', $ids)->get();
     }
