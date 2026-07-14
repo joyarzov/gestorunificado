@@ -43,6 +43,7 @@ import {
   Verified as VerifiedIcon,
   Download as DownloadIcon,
   Folder as FolderIcon,
+  Bolt as BoltIcon,
 } from '@mui/icons-material'
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
@@ -127,7 +128,9 @@ const ALTURA_TRAMOS = [20, 100, 180, 260, 340, 420, 500, 580, 660].map(
 const DocumentoDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, actuandoComo } = useAuth()
+  const { user, actuandoComo, checkAuth } = useAuth()
+  // La capacidad y el modo por defecto pertenecen al firmante real (titular del cert).
+  const desatendidaHabilitada = !!user?.firma_desatendida_habilitada
   // Id del contexto institucional (subrogado si actúa como; el propio si no).
   // Espeja al backend (User::contexto()->id).
   const ctxUserId = actuandoComo?.id ?? user?.id
@@ -152,6 +155,7 @@ const DocumentoDetail = () => {
   const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false)
   const [rechazoMotivo, setRechazoMotivo] = useState('')
   const [otpCode, setOtpCode] = useState('')
+  const [firmaDesatendida, setFirmaDesatendida] = useState(false)
   const [firmaGobEnabled, setFirmaGobEnabled] = useState(false)
   const [firmaGobPurpose, setFirmaGobPurpose] = useState('')
   const [firmaYPos, setFirmaYPos] = useState(ALTURA_TRAMOS[0])  // arranca en el tramo más bajo
@@ -312,7 +316,9 @@ const DocumentoDetail = () => {
       const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
-      await documentosAPI.firmar(parseInt(id), undefined, otpCode || undefined, firmaY, firmaPage, firmaCol)
+      await documentosAPI.firmar(parseInt(id), undefined, firmaDesatendida ? undefined : (otpCode || undefined), firmaY, firmaPage, firmaCol, firmaDesatendida)
+      // Refrescar el user para preseleccionar el modo elegido la próxima vez.
+      checkAuth()
       setSnackbar({ open: true, message: 'Documento firmado exitosamente', severity: 'success' })
       setOtpCode('')
     } catch (err: any) {
@@ -592,7 +598,11 @@ const DocumentoDetail = () => {
                 variant="contained"
                 color="success"
                 startIcon={<FirmarIcon />}
-                onClick={() => setFirmarDialogOpen(true)}
+                onClick={() => {
+                  // Preseleccionar el modo que el usuario dejó guardado.
+                  setFirmaDesatendida(desatendidaHabilitada && user?.firma_modo_preferido === 'desatendido')
+                  setFirmarDialogOpen(true)
+                }}
                 disabled={actionLoading}
               >
                 Firmar
@@ -1106,8 +1116,38 @@ const DocumentoDetail = () => {
                           </ToggleButtonGroup>
                         </Box>
 
+                        {/* Tipo de firma: solo si el usuario tiene la firma desatendida
+                            habilitada. La desatendida omite el OTP; la posición/altura se
+                            mantienen igual. */}
+                        {desatendidaHabilitada && firmaGobPurpose !== 'Desatendido' && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                              Tipo de firma
+                            </Typography>
+                            <ToggleButtonGroup
+                              value={firmaDesatendida ? 'desatendida' : 'atendida'}
+                              exclusive
+                              onChange={(_, v) => { if (v) setFirmaDesatendida(v === 'desatendida') }}
+                              size="small"
+                              color="primary"
+                            >
+                              <ToggleButton value="atendida" sx={{ fontSize: 12, px: 2 }}>
+                                Con código OTP
+                              </ToggleButton>
+                              <ToggleButton value="desatendida" sx={{ fontSize: 12, px: 2 }}>
+                                <BoltIcon sx={{ fontSize: 16, mr: 0.5 }} /> Firma desatendida
+                              </ToggleButton>
+                            </ToggleButtonGroup>
+                            {firmaDesatendida && (
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                                Firmará sin ingresar código OTP. Esta preferencia queda guardada para las próximas firmas.
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+
                         {/* Código OTP - bajo el selector de posición */}
-                        {firmaGobPurpose !== 'Desatendido' && (
+                        {!firmaDesatendida && firmaGobPurpose !== 'Desatendido' && (
                           <TextField
                             fullWidth
                             label="Código OTP (Google Authenticator)"

@@ -626,13 +626,30 @@ class DocumentoController extends Controller
             return $this->errorResponse('No tiene permisos para firmar este documento', 400);
         }
 
+        // Firma desatendida (sin OTP): solo si el usuario la tiene habilitada.
+        // El backend re-verifica el flag; nunca confía en el cliente.
+        $desatendida = $request->boolean('firma_desatendida');
+        if ($desatendida && !$user->firma_desatendida_habilitada) {
+            return $this->errorResponse(
+                'No tiene habilitada la firma desatendida. Solicítela al administrador.',
+                403
+            );
+        }
+
         $request->validate([
             'observaciones' => 'nullable|string|max:500',
+            'firma_desatendida' => 'nullable|boolean',
             'otp'           => 'nullable|string|max:10',
             'firma_y'       => 'nullable|integer|min:10|max:712',
             'firma_page'    => 'nullable|string',
             'firma_col'     => 'nullable|integer|in:0,1,2',
         ]);
+
+        // Recordar el modo elegido para preseleccionarlo en las próximas firmas.
+        $modoFirma = $desatendida ? 'desatendido' : 'atendido';
+        if ($user->firma_modo_preferido !== $modoFirma) {
+            $user->update(['firma_modo_preferido' => $modoFirma]);
+        }
 
         // Columna: usar la elegida por el usuario o auto-calcular según firmas existentes
         $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
@@ -660,11 +677,12 @@ class DocumentoController extends Controller
                     $pdfContent,
                     "Documento {$documento->numero}",
                     $user->rut,
-                    $request->otp,
+                    $desatendida ? null : $request->otp,
                     $user->nombre,
                     $user->cargoFirma(),
                     $coords,
-                    $request->firma_page ?? 'LAST'
+                    $request->firma_page ?? 'LAST',
+                    $desatendida ? config('firmagob.purpose_desatendido') : null
                 );
                 $firmaGobSignedContent = $result['content'];
                 $firmaGobData = [
