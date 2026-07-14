@@ -651,11 +651,14 @@ class DocumentoController extends Controller
             $user->update(['firma_modo_preferido' => $modoFirma]);
         }
 
-        // Columna: usar la elegida por el usuario o auto-calcular según firmas existentes
+        // Posición WYSIWYG: se respeta EXACTO la altura y columna que el usuario
+        // eligió y vio en la previsualización (igual que en correspondencia). Sin
+        // apilado automático por fila — el usuario ve las firmas existentes en el
+        // preview y elige un hueco libre. El apilado con offset causaba que el sello
+        // real quedara a distinta altura que la vista previa.
         $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
         $col  = $request->has('firma_col') ? (int)$request->firma_col : $existingCount % 3;
-        $row  = (int)floor($existingCount / 3);
-        $lly  = ($request->firma_y ?? 20) + $row * 80;
+        $lly  = $request->firma_y ?? 20;
         $ury  = $lly + 70;
         $colXCoords = [[71, 231], [233, 393], [395, 555]]; // alineado con márgenes del doc (2.5cm izq, 2cm der)
         [$llx, $urx] = $colXCoords[$col];

@@ -1024,7 +1024,6 @@ const DocumentoDetail = () => {
                     firmaY: (f.firma_gob_data as any)?.firma_y ?? 20,
                     nombre: f.usuario?.nombre ?? '',
                   }))
-                const newSlot = existingFirmaPositions.length
 
                 return (
                   <Box sx={{ mb: 2 }}>
@@ -1038,7 +1037,7 @@ const DocumentoDetail = () => {
                         pdfUrl={pdfUrl}
                         firmaYPos={firmaYPos}
                         existingFirmas={existingFirmaPositions}
-                        newRow={Math.floor(newSlot / 3)}
+                        newRow={0}
                         newCol={firmaCol}
                         selloUrl={selloUrl}
                         previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
