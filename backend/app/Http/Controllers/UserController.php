@@ -36,6 +36,29 @@ class UserController extends Controller
             ->orderBy('nombre')
             ->get(['id', 'rut', 'nombre', 'cargo', 'departamento_id', 'roles']);
 
+        // Subrogancias vigentes hoy, agrupadas por subrogante. El selector de
+        // firmantes las usa para ofrecer "firma en subrogancia de X": sin esto
+        // la calidad tendría que adivinarse y el "(S)" quedaría sin respaldo.
+        $now = now();
+        $porSubrogante = User::whereNotNull('subrogante_id')
+            ->where('subrogancia_activa', true)
+            ->where('activo', true)
+            ->where(fn ($q) => $q->whereNull('subrogancia_desde')->orWhere('subrogancia_desde', '<=', $now))
+            ->where(fn ($q) => $q->whereNull('subrogancia_hasta')->orWhere('subrogancia_hasta', '>=', $now))
+            ->get(['id', 'nombre', 'cargo', 'subrogante_id', 'subrogancia_hasta'])
+            ->groupBy('subrogante_id');
+
+        $funcionarios->each(function ($f) use ($porSubrogante) {
+            $f->subrogaciones_vigentes = $porSubrogante->get($f->id, collect())
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'nombre' => $t->nombre,
+                    'cargo' => $t->cargo,
+                    'subrogancia_hasta' => $t->subrogancia_hasta,
+                ])
+                ->values();
+        });
+
         return $this->successResponse($funcionarios);
     }
 

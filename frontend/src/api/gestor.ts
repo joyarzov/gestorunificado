@@ -53,6 +53,8 @@ export interface CreateDocumentoData {
   palabras_clave?: string
   firmante_asignado_id?: number
   firmantes_asignados?: number[]
+  /** Calidad de cada firmante: { [firmante_id]: titular_id } cuando firma en subrogancia. */
+  firmantes_subrogancia?: Record<number, number>
   firmas_requeridas?: number
   emitido_en_nombre_de_id?: number
 }
@@ -91,6 +93,7 @@ export interface SubirDocumentoData {
   firmas_externas?: FirmaExternaDetectada[]
   accion: AccionSubida
   firmantes_asignados?: number[]
+  firmantes_subrogancia?: Record<number, number>
 }
 
 // API de Expedientes

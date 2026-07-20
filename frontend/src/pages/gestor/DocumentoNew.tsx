@@ -51,6 +51,7 @@ import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
 import { DocumentoPlantilla, PlantillaPersonal, PlantillaPersonalContenido, Expediente, User, Departamento } from '../../types'
 import { buildPreviewDoc } from '../../utils/previewDoc'
+import SelectorFirmantes from '../../components/gestor/SelectorFirmantes'
 import { useAuth } from '../../contexts/AuthContext'
 
 // Nombres de artículos en español
@@ -195,6 +196,8 @@ const DocumentoNew = () => {
   const [nivelAcceso, setNivelAcceso] = useState(1)
   const [palabrasClave, setPalabrasClave] = useState('')
   const [firmantesSeleccionados, setFirmantesSeleccionados] = useState<User[]>([])
+  // Calidad de cada firmante: { [firmante_id]: titular_id } si firma en subrogancia.
+  const [firmantesSubrogancia, setFirmantesSubrogancia] = useState<Record<number, number>>({})
   const [variables, setVariables] = useState<Record<string, string>>({})
   // Delegación de emisión: titulares en cuyo nombre este usuario puede emitir
   // (ej. la secretaria emite como el Alcalde). Vacío para la mayoría de usuarios.
@@ -389,6 +392,14 @@ const DocumentoNew = () => {
       setPalabrasClave(doc.palabras_clave || '')
       setExpedientesSeleccionados(doc.expedientes || [])
       setFirmantesSeleccionados(doc.firmantes_asignados || [])
+      // Recuperar la calidad declarada (viaja en el pivot de cada firmante).
+      setFirmantesSubrogancia(
+        Object.fromEntries(
+          (doc.firmantes_asignados || [])
+            .filter((f) => f.pivot?.subrogando_a_user_id)
+            .map((f) => [f.id, f.pivot!.subrogando_a_user_id as number])
+        )
+      )
 
       const cj = doc.contenido_json || {}
       const generadas = ['articulos_html', 'firmas_html', 'distribucion_html']
@@ -605,16 +616,25 @@ const DocumentoNew = () => {
 
     return filas.map(fila => `
       <div style="display: flex; justify-content: flex-start; gap: 0; margin: 40px 0;">
-        ${fila.map(user => `
+        ${fila.map(user => {
+          // El preview debe mostrar el mismo texto que quedará en el sello: si
+          // firma en subrogancia, va el cargo SUBROGADO con "(S)".
+          const titularId = firmantesSubrogancia[user.id]
+          const titular = user.subrogaciones_vigentes?.find(t => t.id === titularId)
+          const cargo = titularId
+            ? `${titular?.cargo || user.cargo || ''} (S)`.trim()
+            : (user.cargo || '')
+          return `
           <div style="text-align: left; width: 33.33%; padding-right: 24px; box-sizing: border-box;">
             <div style="border-bottom: 1px solid #000; width: 80%; margin-bottom: 6px;"></div>
             <p style="margin: 0 0 2px 0;"><strong>${user.nombre}</strong></p>
             <p style="margin: 0; font-size: 10pt; color: #666;">${user.rut}</p>
+            ${cargo ? `<p style="margin: 0; font-size: 10pt; color: #666;">${cargo}</p>` : ''}
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     `).join('')
-  }, [firmantesSeleccionados])
+  }, [firmantesSeleccionados, firmantesSubrogancia])
 
   // Generar HTML de distribución
   const generarDistribucionHtml = useCallback(() => {
@@ -746,6 +766,7 @@ const DocumentoNew = () => {
           palabras_clave: palabrasClave || undefined,
           expedientes_ids: expedientesSeleccionados.map(e => e.id),
           firmantes_asignados: firmantesSeleccionados.map(f => f.id),
+          firmantes_subrogancia: firmantesSubrogancia,
           firmas_requeridas: firmantesSeleccionados.length || undefined,
         })
 
@@ -780,6 +801,7 @@ const DocumentoNew = () => {
         contenido_json: variablesFinales,
         palabras_clave: palabrasClave || undefined,
         firmantes_asignados: firmantesSeleccionados.map(f => f.id),
+        firmantes_subrogancia: firmantesSubrogancia,
         firmas_requeridas: firmantesSeleccionados.length || undefined,
         emitido_en_nombre_de_id: emitidoEnNombreDe || undefined,
       }
@@ -1335,29 +1357,14 @@ const DocumentoNew = () => {
         </Grid>
 
         <Grid item xs={12}>
-          <Autocomplete
-            multiple
-            options={funcionarios}
-            getOptionLabel={(option) => `${option.nombre} (${option.rut})`}
-            value={firmantesSeleccionados}
-            onChange={(_, newValue) => setFirmantesSeleccionados(newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Seleccionar firmantes"
-                placeholder="Buscar funcionario..."
-                helperText="Firmarán en el orden en que los agregas (firma secuencial: cada uno firma cuando el anterior ya firmó)."
-              />
-            )}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  label={`${index + 1}. ${option.nombre}`}
-                  {...getTagProps({ index })}
-                  key={option.id}
-                />
-              ))
-            }
+          <SelectorFirmantes
+            funcionarios={funcionarios}
+            firmantes={firmantesSeleccionados}
+            subrogancias={firmantesSubrogancia}
+            onChange={(nuevos, calidades) => {
+              setFirmantesSeleccionados(nuevos)
+              setFirmantesSubrogancia(calidades)
+            }}
           />
         </Grid>
 

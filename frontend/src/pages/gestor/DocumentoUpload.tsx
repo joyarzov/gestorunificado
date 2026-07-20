@@ -16,7 +16,6 @@ import {
   Step,
   StepLabel,
   Paper,
-  Chip,
   Autocomplete,
   Stack,
   Divider,
@@ -48,6 +47,7 @@ import { documentosAPI, expedientesAPI, tiposDocumentalesAPI, AnalisisUpload, Ac
 import { usersAPI } from '../../api/common'
 import { Expediente, TipoDocumental, User } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
+import SelectorFirmantes from '../../components/gestor/SelectorFirmantes'
 
 const NIVELES_ACCESO = [
   { value: 1, label: 'Público' },
@@ -93,6 +93,8 @@ const DocumentoUpload = () => {
   // Acción (paso 3)
   const [accion, setAccion] = useState<AccionSubida>('guardar_borrador')
   const [firmantesSel, setFirmantesSel] = useState<User[]>([])
+  // Calidad de cada firmante: { [firmante_id]: titular_id } si firma en subrogancia.
+  const [firmantesSubrogancia, setFirmantesSubrogancia] = useState<Record<number, number>>({})
 
   useEffect(() => {
     Promise.all([
@@ -221,6 +223,7 @@ const DocumentoUpload = () => {
         firmas_externas: analisis.has_signatures ? analisis.signatures : undefined,
         accion,
         firmantes_asignados: accion === 'enviar_firma' ? firmantesSel.map((f) => f.id) : undefined,
+        firmantes_subrogancia: accion === 'enviar_firma' ? firmantesSubrogancia : undefined,
       })
       if (res.success && res.data) {
         // Redirigir según acción
@@ -564,21 +567,14 @@ const DocumentoUpload = () => {
             {accion === 'enviar_firma' && (
               <Box sx={{ mt: 3 }}>
                 <FormLabel sx={{ mb: 1, display: 'block' }}>Firmantes asignados</FormLabel>
-                <Autocomplete
-                  multiple
-                  options={funcionarios}
-                  value={firmantesSel}
-                  onChange={(_, val) => setFirmantesSel(val)}
-                  getOptionLabel={(opt) => `${opt.nombre}${opt.cargo ? ` — ${opt.cargo}` : ''}`}
-                  isOptionEqualToValue={(opt, val) => opt.id === val.id}
-                  renderTags={(value, getTagProps) =>
-                    value.map((opt, idx) => (
-                      <Chip label={opt.nombre} {...getTagProps({ index: idx })} key={opt.id} />
-                    ))
-                  }
-                  renderInput={(params) => (
-                    <TextField {...params} placeholder="Selecciona uno o más funcionarios..." />
-                  )}
+                <SelectorFirmantes
+                  funcionarios={funcionarios}
+                  firmantes={firmantesSel}
+                  subrogancias={firmantesSubrogancia}
+                  onChange={(nuevos, calidades) => {
+                    setFirmantesSel(nuevos)
+                    setFirmantesSubrogancia(calidades)
+                  }}
                 />
               </Box>
             )}

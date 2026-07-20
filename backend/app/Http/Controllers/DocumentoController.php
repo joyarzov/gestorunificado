@@ -12,7 +12,9 @@ use App\Models\Correlativo;
 use App\Models\Notificacion;
 use App\Services\NotificacionService;
 use App\Models\TipoDocumental;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -82,6 +84,76 @@ class DocumentoController extends Controller
     /**
      * Crear documento desde plantilla
      */
+    /**
+     * Valida la calidad declarada para cada firmante y la deja lista para el
+     * pivot: [user_id => titular_id|null]. `null` = firma en calidad propia.
+     *
+     * Se valida en backend y no solo en la UI: declarar una subrogancia que no
+     * existe produciría un sello "(S)" sin respaldo administrativo.
+     *
+     * @param  array  $firmantes  ids de los firmantes asignados, en orden
+     * @param  array  $calidad    mapa crudo {user_id: titular_id} del request
+     * @throws ValidationException
+     */
+    private function resolverCalidadFirmantes(array $firmantes, array $calidad): array
+    {
+        $resuelta = [];
+
+        foreach ($firmantes as $firmanteId) {
+            $titularId = $calidad[$firmanteId] ?? $calidad[(string) $firmanteId] ?? null;
+
+            if (!$titularId) {
+                $resuelta[(int) $firmanteId] = null;
+                continue;
+            }
+
+            if ((int) $titularId === (int) $firmanteId) {
+                throw ValidationException::withMessages([
+                    'firmantes_subrogancia' => 'Un firmante no puede subrogarse a sí mismo.',
+                ]);
+            }
+
+            $titular = User::find($titularId);
+            $firmante = User::find($firmanteId);
+
+            if (!$titular || !$firmante) {
+                throw ValidationException::withMessages([
+                    'firmantes_subrogancia' => 'El titular subrogado no existe.',
+                ]);
+            }
+
+            // La subrogancia debe estar declarada Y vigente hoy: el subrogante
+            // designado del titular es quien puede firmar en su nombre.
+            if ((int) $titular->subrogante_id !== (int) $firmante->id || !$titular->tieneSubroganciaActiva()) {
+                throw ValidationException::withMessages([
+                    'firmantes_subrogancia' => "{$firmante->nombre} no tiene una subrogancia vigente de {$titular->nombre}.",
+                ]);
+            }
+
+            $resuelta[(int) $firmanteId] = (int) $titular->id;
+        }
+
+        return $resuelta;
+    }
+
+    /**
+     * Reemplaza los firmantes asignados respetando el orden y la calidad.
+     */
+    private function sincronizarFirmantes(Documento $documento, array $firmantes, array $calidad): void
+    {
+        $resuelta = $this->resolverCalidadFirmantes($firmantes, $calidad);
+
+        $documento->firmantesAsignados()->detach();
+        foreach (array_values($firmantes) as $index => $userId) {
+            $documento->firmantesAsignados()->attach($userId, [
+                'orden' => $index + 1,
+                'subrogando_a_user_id' => $resuelta[(int) $userId] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -97,6 +169,8 @@ class DocumentoController extends Controller
             'firmante_asignado_id' => 'nullable|exists:users,id',
             'firmantes_asignados' => 'nullable|array',
             'firmantes_asignados.*' => 'exists:users,id',
+            'firmantes_subrogancia' => 'nullable|array',
+            'firmantes_subrogancia.*' => 'nullable|exists:users,id',
             'firmas_requeridas' => 'nullable|integer|min:1',
             'emitido_en_nombre_de_id' => 'nullable|exists:users,id',
         ]);
@@ -168,13 +242,11 @@ class DocumentoController extends Controller
 
             // Asignar múltiples firmantes si se proporcionaron
             if ($request->has('firmantes_asignados') && !empty($request->firmantes_asignados)) {
-                foreach ($request->firmantes_asignados as $index => $userId) {
-                    $documento->firmantesAsignados()->attach($userId, [
-                        'orden' => $index + 1,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                }
+                $this->sincronizarFirmantes(
+                    $documento,
+                    $request->firmantes_asignados,
+                    $request->firmantes_subrogancia ?? []
+                );
             }
 
             // Asociar expedientes (many-to-many)
@@ -209,6 +281,11 @@ class DocumentoController extends Controller
                 201
             );
 
+        } catch (ValidationException $e) {
+            // Los errores de validación (ej. subrogancia no vigente) deben llegar
+            // al usuario como 422 con su mensaje, no como un 500 genérico.
+            DB::rollBack();
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al crear documento: ' . $e->getMessage());
@@ -264,6 +341,8 @@ class DocumentoController extends Controller
             'nivel_acceso' => 'sometimes|integer|in:1,2,3,4',
             'firmantes_asignados' => 'nullable|array',
             'firmantes_asignados.*' => 'exists:users,id',
+            'firmantes_subrogancia' => 'nullable|array',
+            'firmantes_subrogancia.*' => 'nullable|exists:users,id',
             'firmas_requeridas' => 'nullable|integer|min:1',
             'expedientes_ids' => 'nullable|array',
             'expedientes_ids.*' => 'exists:expedientes,id',
@@ -299,15 +378,11 @@ class DocumentoController extends Controller
 
         // Sincronizar firmantes asignados (solo borradores; el documento aún no fue enviado a firma)
         if ($request->has('firmantes_asignados')) {
-            $sync = [];
-            foreach ($request->firmantes_asignados as $index => $userId) {
-                $sync[$userId] = [
-                    'orden' => $index + 1,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-            $documento->firmantesAsignados()->sync($sync);
+            $this->sincronizarFirmantes(
+                $documento,
+                $request->firmantes_asignados,
+                $request->firmantes_subrogancia ?? []
+            );
             // Mantener firmas_requeridas en sincronía con los firmantes reales
             $documento->update(['firmas_requeridas' => count($request->firmantes_asignados) ?: null]);
         }
@@ -540,11 +615,17 @@ class DocumentoController extends Controller
         // "Ya firmé" sigue siendo contra el actor real (Jose), no el subrogado.
         $ctx  = $user->contexto();
 
+        // Se traen los documentos asignados al contexto institucional Y los
+        // asignados al actor real: una asignación "firma en subrogancia de X"
+        // apunta a la persona, y debe verla esté o no con el modo subrogante
+        // encendido. El filtro de turno de abajo descarta lo que no le toca.
+        $idsPosibles = array_unique([$ctx->id, $user->id]);
+
         $candidatos = Documento::where('estado', Documento::ESTADO_PENDIENTE_FIRMA)
-            ->where(function ($query) use ($ctx) {
-                $query->where('firmante_asignado_id', $ctx->id)
-                    ->orWhereHas('firmantesAsignados', function ($q) use ($ctx) {
-                        $q->where('user_id', $ctx->id);
+            ->where(function ($query) use ($idsPosibles) {
+                $query->whereIn('firmante_asignado_id', $idsPosibles)
+                    ->orWhereHas('firmantesAsignados', function ($q) use ($idsPosibles) {
+                        $q->whereIn('user_id', $idsPosibles);
                     });
             })
             ->whereDoesntHave('firmas', function ($q) use ($user) {
@@ -555,10 +636,18 @@ class DocumentoController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Firma secuencial: solo aparecen los documentos en los que es el turno del usuario.
-        $enTurno = $candidatos->filter(function ($doc) use ($ctx) {
-            return optional($doc->firmanteEnTurno())->id === $ctx->id;
-        })->values();
+        // Firma secuencial: solo aparecen los documentos en los que es el turno
+        // del usuario. Se usa la misma regla que autoriza la firma, para que la
+        // bandeja no muestre nada que después el backend vaya a rechazar.
+        $enTurno = $candidatos
+            ->filter(fn ($doc) => $doc->puedeSerFirmadoPor($user))
+            ->each(function ($doc) use ($user) {
+                // Para que la bandeja pueda destacar lo que lleva días detenido
+                // y en qué calidad le toca firmar a este usuario.
+                $doc->dias_esperando = $doc->diasEsperandoFirma();
+                $doc->firmo_en_subrogancia_de = $doc->calidadFirmaDe($user)['subrogado_id'];
+            })
+            ->values();
 
         $perPage = (int) $request->input('per_page', 10);
         $page = (int) $request->input('page', 1);
@@ -664,6 +753,10 @@ class DocumentoController extends Controller
         [$llx, $urx] = $colXCoords[$col];
         $coords = [$llx, $lly, $urx, $ury];
 
+        // Calidad de la firma (propia o en subrogancia de un titular): la fija la
+        // asignación, no el header de sesión. De aquí sale el cargo del sello.
+        $calidadFirma = $documento->calidadFirmaDe($user);
+
         // Integración FirmaGob: llamar ANTES de abrir la transacción (llamada de red)
         $firmaGobService     = app(FirmaGobService::class);
         $firmaGobData        = null;
@@ -674,15 +767,16 @@ class DocumentoController extends Controller
                 $pdfContent = $this->obtenerPdfContent($documento);
 
                 // Firma siempre con el RUT/nombre real (quien teclea el OTP).
-                // El cargo lleva sufijo "(S)" automáticamente si está subrogando;
-                // la trazabilidad del subrogado queda en documento_firmas.actuando_como_user_id.
+                // El cargo lleva sufijo "(S)" si la asignación declaró subrogancia;
+                // la trazabilidad del subrogado queda en documento_firmas.actuando_como_user_id
+                // y el texto exacto del sello en documento_firmas.cargo_firmado.
                 $result = $firmaGobService->sign(
                     $pdfContent,
                     "Documento {$documento->numero}",
                     $user->rut,
                     $desatendida ? null : $request->otp,
                     $user->nombre,
-                    $user->cargoFirma(),
+                    $calidadFirma['cargo'],
                     $coords,
                     $request->firma_page ?? 'LAST',
                     $desatendida ? config('firmagob.purpose_desatendido') : null
@@ -716,9 +810,16 @@ class DocumentoController extends Controller
                 $documento->update(['archivo_pdf' => $path]);
             }
 
-            DocumentoTrazabilidad::registrar($documento->id, 'firmado', "Documento firmado por {$user->nombre}", [
+            $subrogado = $calidadFirma['subrogado_id'] ? User::find($calidadFirma['subrogado_id']) : null;
+            $glosaFirma = $subrogado
+                ? "Documento firmado por {$user->nombre} en subrogancia de {$subrogado->nombre}"
+                : "Documento firmado por {$user->nombre}";
+
+            DocumentoTrazabilidad::registrar($documento->id, 'firmado', $glosaFirma, [
                 'observaciones'     => $request->observaciones,
                 'firma_electronica' => $firmaGobService->isEnabled(),
+                'cargo_firmado'     => $calidadFirma['cargo'],
+                'subrogado_id'      => $calidadFirma['subrogado_id'],
             ]);
 
             // Registrar actividad si hay expediente
@@ -1108,6 +1209,8 @@ class DocumentoController extends Controller
             'accion' => 'required|in:guardar_borrador,cerrar_firmado,firmar_propio,enviar_firma',
             'firmantes_asignados' => 'nullable|array',
             'firmantes_asignados.*' => 'exists:users,id',
+            'firmantes_subrogancia' => 'nullable|array',
+            'firmantes_subrogancia.*' => 'nullable|exists:users,id',
         ]);
 
         $token = $request->token;
@@ -1190,9 +1293,13 @@ class DocumentoController extends Controller
                     break;
 
                 case 'firmar_propio':
-                    // Asignar al usuario actual como único firmante
+                    // Asignar al usuario actual como único firmante. Si está
+                    // operando como subrogante, la calidad se declara aquí para
+                    // que el sello salga con "(S)" aunque la subrogancia venza
+                    // antes de firmar.
                     $documento->firmantesAsignados()->attach(Auth::id(), [
                         'orden' => 1,
+                        'subrogando_a_user_id' => Auth::user()->getActuandoComo()?->id,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -1204,12 +1311,12 @@ class DocumentoController extends Controller
                     break;
 
                 case 'enviar_firma':
-                    foreach ($request->firmantes_asignados as $idx => $userId) {
-                        $documento->firmantesAsignados()->attach($userId, [
-                            'orden' => $idx + 1,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
+                    $this->sincronizarFirmantes(
+                        $documento,
+                        $request->firmantes_asignados,
+                        $request->firmantes_subrogancia ?? []
+                    );
+                    foreach ($request->firmantes_asignados as $userId) {
                         NotificacionService::enviar(
                             $userId,
                             'cero_papel',
@@ -1240,6 +1347,14 @@ class DocumentoController extends Controller
             $documento->load('tipoDocumental', 'expedientes', 'firmantesAsignados', 'firmas');
 
             return $this->successResponse($documento, 'Documento subido exitosamente', 201);
+        } catch (ValidationException $e) {
+            // Ej.: se declaró una subrogancia que ya no está vigente. Debe llegar
+            // como 422 con su mensaje, no como un 500 genérico.
+            DB::rollBack();
+            if (isset($finalRelative) && Storage::disk('public')->exists($finalRelative)) {
+                Storage::disk('public')->move($finalRelative, $tempRelative);
+            }
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             // Si algo falló después de mover el archivo, restaurarlo a temp para reintentar

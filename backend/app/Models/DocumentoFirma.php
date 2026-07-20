@@ -15,6 +15,7 @@ class DocumentoFirma extends Model
         'documento_id',
         'usuario_id',
         'actuando_como_user_id',
+        'cargo_firmado',
         'tipo_firma',
         'orden',
         'estado',

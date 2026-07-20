@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('oirs:notificar-proximas-vencer')->dailyAt('08:00');
+        $schedule->command('documentos:alertar-estancados')->weekdays()->dailyAt('08:30');
     }
 
     /**

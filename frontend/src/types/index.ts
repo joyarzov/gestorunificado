@@ -6,6 +6,14 @@ export interface Departamento {
   activo: boolean
 }
 
+/** Titular al que un funcionario subroga hoy. Habilita firmar "en subrogancia de". */
+export interface SubroganciaVigente {
+  id: number
+  nombre: string
+  cargo?: string | null
+  subrogancia_hasta?: string | null
+}
+
 export interface SubrogadoActivo {
   id: number
   nombre: string
@@ -35,6 +43,8 @@ export interface User {
   subrogancia_desde?: string | null
   subrogancia_hasta?: string | null
   subrogados_activos?: SubrogadoActivo[]
+  /** Titulares que este funcionario subroga hoy (para elegir la calidad al asignarlo como firmante). */
+  subrogaciones_vigentes?: SubroganciaVigente[]
   visador: boolean
   activo: boolean
   puede_ver_registro_correspondencia?: boolean
@@ -42,6 +52,12 @@ export interface User {
   firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean
   ultimo_acceso?: string | null
+  /** Presente cuando el usuario viene de una relación pivot (ej. firmantes asignados). */
+  pivot?: {
+    orden?: number
+    /** Titular subrogado si fue asignado para firmar en subrogancia. */
+    subrogando_a_user_id?: number | null
+  }
 }
 
 export interface AuthState {
@@ -370,6 +386,10 @@ export interface Documento {
   firmante_asignado?: User
   firmantes_asignados?: User[]
   firmas_requeridas?: number
+  /** Días que lleva detenido esperando firma (solo en la bandeja de pendientes). */
+  dias_esperando?: number | null
+  /** Si al usuario actual le toca firmarlo en subrogancia, id del titular subrogado. */
+  firmo_en_subrogancia_de?: number | null
   completado: boolean
   fecha_creacion: string
   mecanismo_incorporacion: number

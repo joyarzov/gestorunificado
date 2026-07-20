@@ -149,7 +149,7 @@ class Documento extends Model
     public function firmantesAsignados()
     {
         return $this->belongsToMany(User::class, 'documento_firmantes_asignados', 'documento_id', 'user_id')
-            ->withPivot('orden')
+            ->withPivot('orden', 'subrogando_a_user_id')
             ->withTimestamps()
             ->orderBy('orden');
     }
@@ -339,8 +339,48 @@ class Documento extends Model
     }
 
     /**
+     * Quién debe firmar realmente por una asignación, considerando su calidad.
+     *
+     * Si la asignación se hizo en subrogancia y ésta ya NO está vigente (el
+     * titular volvió, o venció el plazo), el turno vuelve al titular: el cargo
+     * siempre fue suyo y firmar con "(S)" fuera del período de subrogancia no
+     * tendría respaldo administrativo. Así ningún documento queda esperando a
+     * alguien que ya perdió la calidad para firmarlo.
+     */
+    private function firmanteEfectivo(User $asignado): User
+    {
+        $titularId = $asignado->pivot?->subrogando_a_user_id;
+        if (!$titularId) {
+            return $asignado;
+        }
+
+        $titular = $this->cacheTitulares[$titularId] ??= User::find($titularId);
+        if (!$titular) {
+            return $asignado;
+        }
+
+        $vigente = $titular->tieneSubroganciaActiva()
+            && (int) $titular->subrogante_id === (int) $asignado->id;
+
+        return $vigente ? $asignado : $titular;
+    }
+
+    /**
+     * Cache de titulares subrogados, por instancia (evita N+1 al evaluar la
+     * cadena de firmas del mismo documento).
+     *
+     * NO debe ser estático: los workers de cola y el scheduler viven horas, y
+     * una subrogancia que vence a mitad de proceso quedaría cacheada como
+     * vigente para siempre.
+     */
+    private array $cacheTitulares = [];
+
+    /**
      * Firmante (User) a quien le toca firmar ahora: el de menor orden que aún no
      * ha firmado. Devuelve null si ya firmaron todos. La firma es SECUENCIAL.
+     *
+     * Cuando el turno corresponde a una asignación en subrogancia vigente, el
+     * User devuelto conserva su `pivot` — de ahí sale el "(S)" del sello.
      */
     public function firmanteEnTurno(): ?User
     {
@@ -355,21 +395,43 @@ class Documento extends Model
         }
 
         foreach ($ordenados as $firmante) {
-            if (!$this->firmanteYaFirmo($firmante->id)) {
-                return $firmante;
+            $efectivo = $this->firmanteEfectivo($firmante);
+            if (!$this->firmanteYaFirmo($efectivo->id)) {
+                return $efectivo;
             }
         }
         return null;
     }
 
+    /**
+     * Días que el documento lleva esperando sin avance: desde la última firma
+     * estampada o, si aún no hay ninguna, desde que se envió a firma. Devuelve
+     * null si no está pendiente de firma.
+     */
+    public function diasEsperandoFirma(): ?int
+    {
+        if ($this->estado !== self::ESTADO_PENDIENTE_FIRMA) {
+            return null;
+        }
+
+        $desde = $this->firmas()->where('estado', 'firmado')->max('fecha_firma');
+        $desde = $desde ? \Illuminate\Support\Carbon::parse($desde) : null;
+
+        $desde ??= $this->trazabilidades()
+            ->where('accion', 'enviado_a_firma')
+            ->latest('created_at')
+            ->value('created_at');
+
+        $desde ??= $this->updated_at;
+
+        // absolute=false para que el signo sea explícito en Carbon 2 y 3 por igual.
+        return (int) $desde->diffInDays(now(), false);
+    }
+
     public function puedeSerFirmadoPor(User $user): bool
     {
-        // El "firmante institucional" es el subrogado si hay actuando-como activo;
-        // si no, el propio usuario. La firma electrónica la ejecuta siempre $user.
-        $ctx = $user->contexto();
-
         // Firma secuencial: solo puede firmar quien tiene el turno (el firmante de
-        // menor orden que aún no ha firmado). Respeta subrogancia.
+        // menor orden que aún no ha firmado).
         $enTurno = $this->firmanteEnTurno();
         if (!$enTurno) {
             return false;
@@ -384,17 +446,60 @@ class Documento extends Model
             return false;
         }
 
-        return (int) $enTurno->id === (int) $ctx->id;
+        // Si la asignación declaró que esa persona firma EN SUBROGANCIA de un
+        // titular, firma exactamente ella: la calidad quedó fijada al enviar a
+        // firma y no depende de quién tenga el header X-Actuando-Como puesto.
+        if ($enTurno->pivot?->subrogando_a_user_id) {
+            return (int) $enTurno->id === (int) $user->id;
+        }
+
+        // Asignación en calidad propia: el firmante institucional es el subrogado
+        // si hay actuando-como activo. La firma la ejecuta siempre $user.
+        return (int) $enTurno->id === (int) $user->contexto()->id;
+    }
+
+    /**
+     * Calidad en que $user firmaría este documento ahora: a nombre de quién y
+     * con qué cargo se estampa el sello.
+     *
+     * Manda lo declarado en la asignación (`subrogando_a_user_id`). Solo si la
+     * asignación no declaró nada se cae al header de sesión, que es como
+     * operaban los documentos anteriores a esta funcionalidad.
+     *
+     * @return array{subrogado_id: int|null, cargo: string|null}
+     */
+    public function calidadFirmaDe(User $user): array
+    {
+        $subrogadoId = $this->firmanteEnTurno()?->pivot?->subrogando_a_user_id
+            ?? $user->getActuandoComo()?->id;
+
+        $enSubrogancia = $subrogadoId && (int) $subrogadoId !== (int) $user->id;
+
+        if (!$enSubrogancia) {
+            return ['subrogado_id' => null, 'cargo' => $user->cargo ?: null];
+        }
+
+        // El sello lleva el cargo SUBROGADO con sufijo "(S)": se firma el cargo
+        // que se está subrogando, no el propio. Si el Jefe de Contabilidad
+        // subroga al Director de Control, el sello dice "Director de Control (S)".
+        $titular = $this->cacheTitulares[$subrogadoId] ??= User::find($subrogadoId);
+        $cargo = $titular?->cargo ?: $user->cargo;
+
+        return [
+            'subrogado_id' => (int) $subrogadoId,
+            'cargo' => $cargo ? $cargo . ' (S)' : null,
+        ];
     }
 
     public function registrarFirma(User $user, ?string $observacion = null, ?array $firmaGobData = null): DocumentoFirma
     {
-        $actuandoComo = $user->getActuandoComo();
+        $calidad = $this->calidadFirmaDe($user);
 
         $fields = [
             'documento_id' => $this->id,
             'usuario_id' => $user->id,
-            'actuando_como_user_id' => $actuandoComo?->id,
+            'actuando_como_user_id' => $calidad['subrogado_id'],
+            'cargo_firmado' => $calidad['cargo'],
             'fecha_firma' => now(),
             'observacion' => $observacion,
             'estado' => 'firmado',
