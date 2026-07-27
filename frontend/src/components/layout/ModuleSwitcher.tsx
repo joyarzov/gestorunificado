@@ -11,9 +11,16 @@ import {
 import {
   Apps as AppsIcon,
   Home as HomeIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
-import { MODULES, getModuleByPath, isModuloDeshabilitado } from '../../config/modules'
+import {
+  MODULES,
+  getModuleByPath,
+  isModuloDeshabilitado,
+  EXTERNAL_APPS,
+  abrirAppExterna,
+} from '../../config/modules'
 
 const ModuleSwitcher = () => {
   const navigate = useNavigate()
@@ -153,6 +160,64 @@ const ModuleSwitcher = () => {
                   }}
                 >
                   {mod.nombre}
+                </Typography>
+              </Box>
+            )
+          })}
+
+          {/* Plataformas externas: abren en otra pestaña */}
+          {EXTERNAL_APPS.map((app) => {
+            const Icon = app.icono
+            return (
+              <Box
+                key={app.id}
+                title={`${app.descripcion} — se abre en otra pestaña`}
+                onClick={() => {
+                  handleClose()
+                  abrirAppExterna(app.url)
+                }}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  p: 1.5,
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  border: '1px solid transparent',
+                  transition: 'background-color 0.15s, border-color 0.15s',
+                  '&:hover': { bgcolor: `${app.color}14` },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 2,
+                    bgcolor: `${app.color}1A`,
+                    color: app.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon />
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    fontSize: 11.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.25,
+                  }}
+                >
+                  {app.nombre}
+                  <OpenInNewIcon sx={{ fontSize: 11, color: 'text.disabled' }} />
                 </Typography>
               </Box>
             )

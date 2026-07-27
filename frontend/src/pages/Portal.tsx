@@ -22,9 +22,10 @@ import {
   AccessTime as TimeIcon,
   ExitToApp as LogoutIcon,
   SwapHoriz as SwapRoleIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
-import { isModuloDeshabilitado } from '../config/modules'
+import { isModuloDeshabilitado, EXTERNAL_APPS, abrirAppExterna } from '../config/modules'
 import { useHoraOficial } from '../hooks/useHoraOficial'
 import NotificacionesBell from '../components/layout/NotificacionesBell'
 import { version as APP_VERSION } from '../../package.json'
@@ -287,7 +288,56 @@ const Portal = () => {
             </Grid>
             )
           })}
-          {modulos.length === 0 && (
+
+          {/* Accesos directos a plataformas externas (se abren en otra pestaña) */}
+          {EXTERNAL_APPS.map((app) => {
+            const Icon = app.icono
+            return (
+              <Grid item xs={12} sm={6} md={3} key={app.id}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 },
+                    borderTop: `4px solid ${app.color}`,
+                  }}
+                  elevation={2}
+                >
+                  <CardActionArea
+                    onClick={() => abrirAppExterna(app.url)}
+                    sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', p: 3 }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 64,
+                        height: 64,
+                        borderRadius: '50%',
+                        bgcolor: `${app.color}12`,
+                        color: app.color,
+                        mb: 1.5,
+                      }}
+                    >
+                      <Icon sx={{ fontSize: 40 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" textAlign="center">
+                        {app.nombre}
+                      </Typography>
+                      <OpenInNewIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 0.5 }}>
+                      {app.descripcion}
+                    </Typography>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            )
+          })}
+
+          {modulos.length === 0 && EXTERNAL_APPS.length === 0 && (
             <Grid item xs={12}>
               <Paper sx={{ p: 4, textAlign: 'center' }}>
                 <Typography color="text.secondary">No tienes aplicaciones asignadas</Typography>

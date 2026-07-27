@@ -23,6 +23,7 @@ import {
   MenuBook as LibroIcon,
   Outbox as SalidaIcon,
   MoveToInbox as BandejaExpIcon,
+  SmartToy as FuncionarioIaIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -124,6 +125,35 @@ export const MODULES: ModuleDefinition[] = [
     urlPrefixes: ['/cambiar-password'],
   },
 ]
+
+/**
+ * Aplicaciones externas: no son módulos de esta plataforma (no tienen rutas
+ * internas ni sidebar), solo accesos directos que se abren en otra pestaña.
+ * Se muestran junto a los módulos en el portal y en el selector de módulos.
+ */
+export interface ExternalAppDefinition {
+  id: string
+  nombre: string
+  descripcion: string
+  color: string
+  icono: ComponentType<SvgIconProps>
+  url: string
+}
+
+export const EXTERNAL_APPS: ExternalAppDefinition[] = [
+  {
+    id: 'funcionario_ia',
+    nombre: 'Funcionario IA',
+    descripcion: 'Asistente de inteligencia artificial municipal',
+    color: '#7C4DFF',
+    icono: FuncionarioIaIcon,
+    url: 'http://192.168.0.121:3000/',
+  },
+]
+
+export const abrirAppExterna = (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 
 // Módulos temporalmente deshabilitados: siguen visibles en el portal y el
 // selector, pero no permiten entrar. Agregar aquí los ids a bloquear.
