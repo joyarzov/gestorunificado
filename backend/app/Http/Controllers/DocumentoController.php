@@ -406,9 +406,9 @@ class DocumentoController extends Controller
     }
 
     /**
-     * Actualizar solo los metadatos (título, tipo documental, nivel de acceso) sin pasar
-     * por el editor de plantilla. Pensado para documentos subidos/externos (PDF), que no
-     * tienen contenido editable dentro del sistema.
+     * Actualizar solo los metadatos (título, número, tipo documental, nivel de acceso)
+     * sin pasar por el editor de plantilla. Pensado para documentos subidos/externos
+     * (PDF), que no tienen contenido editable dentro del sistema.
      */
     public function actualizarMetadatos(Request $request, Documento $documento)
     {
@@ -418,13 +418,23 @@ class DocumentoController extends Controller
 
         $request->validate([
             'titulo' => 'sometimes|required|string|max:500',
+            'numero' => 'sometimes|nullable|string|max:100',
             'tipo_documental_id' => 'sometimes|nullable|exists:tipos_documentales,id',
             'nivel_acceso' => 'sometimes|integer|in:1,2,3,4',
         ]);
 
-        $documento->update(
-            $request->only(['titulo', 'tipo_documental_id', 'nivel_acceso']) + ['actualizado_por' => Auth::id()]
-        );
+        $datos = $request->only(['titulo', 'tipo_documental_id', 'nivel_acceso']);
+
+        // Mismo formato que al subir: un número suelto se completa con el año.
+        if ($request->has('numero')) {
+            $numero = trim((string) $request->numero) ?: null;
+            if ($numero && !str_contains($numero, '/')) {
+                $numero .= '/' . now()->year;
+            }
+            $datos['numero'] = $numero;
+        }
+
+        $documento->update($datos + ['actualizado_por' => Auth::id()]);
 
         DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Datos del documento actualizados');
 
@@ -1212,6 +1222,7 @@ class DocumentoController extends Controller
             'token' => 'required|string|size:32',
             'titulo' => 'required|string|max:500',
             'tipo_documental_id' => 'required|exists:tipos_documentales,id',
+            'numero' => 'nullable|string|max:100',
             'descripcion' => 'nullable|string|max:1000',
             'palabras_clave' => 'nullable|string|max:500',
             'nivel_acceso' => 'required|integer|in:1,2,3,4',
@@ -1252,8 +1263,17 @@ class DocumentoController extends Controller
                 default => Documento::ESTADO_BORRADOR,
             };
 
+            // Número oficial del documento digitalizado. Mismo formato que los
+            // emitidos por la plataforma (N/AÑO); si el usuario ya escribió el año,
+            // se respeta lo que puso.
+            $numero = trim((string) $request->numero) ?: null;
+            if ($numero && !str_contains($numero, '/')) {
+                $numero .= '/' . now()->year;
+            }
+
             $documento = Documento::create([
                 'identificador' => $identificador,
+                'numero' => $numero,
                 'titulo' => $request->titulo,
                 'descripcion' => $request->descripcion,
                 'tipo_documental_id' => $request->tipo_documental_id,

@@ -86,6 +86,8 @@ export interface SubirDocumentoData {
   token: string
   titulo: string
   tipo_documental_id: number
+  /** Número oficial del documento digitalizado (se guarda como N/AÑO). */
+  numero?: string
   descripcion?: string
   palabras_clave?: string
   nivel_acceso: number
@@ -405,7 +407,7 @@ export const documentosAPI = {
   },
 
   // Actualizar solo metadatos (título, tipo, nivel) — para documentos subidos/externos
-  actualizarMetadatos: async (id: number, data: { titulo?: string; tipo_documental_id?: number | null; nivel_acceso?: number }) => {
+  actualizarMetadatos: async (id: number, data: { titulo?: string; numero?: string | null; tipo_documental_id?: number | null; nivel_acceso?: number }) => {
     const response = await api.put<ApiResponse<Documento>>(`/documentos/${id}/metadatos`, data)
     return response.data
   },

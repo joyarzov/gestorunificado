@@ -89,6 +89,14 @@ const DocumentoUpload = () => {
   const [palabrasClave, setPalabrasClave] = useState('')
   const [nivelAcceso, setNivelAcceso] = useState<number>(1)
   const [expedienteSel, setExpedienteSel] = useState<Expediente | null>(null)
+  // Número oficial del documento que se está digitalizando (ej. Decreto 1234).
+  // Va en el mismo formato que los documentos emitidos por la plataforma: N/AÑO.
+  const [numero, setNumero] = useState('')
+  // Espeja la normalización del backend: un número suelto se completa con el año;
+  // si el usuario ya escribió el año (1234/2025), se respeta tal cual.
+  const numeroFormateado = numero.includes('/')
+    ? numero.trim()
+    : `${numero.trim()}/${new Date().getFullYear()}`
 
   // Acción (paso 3)
   const [accion, setAccion] = useState<AccionSubida>('guardar_borrador')
@@ -219,6 +227,7 @@ const DocumentoUpload = () => {
         descripcion: descripcion.trim() || undefined,
         palabras_clave: palabrasClave.trim() || undefined,
         nivel_acceso: nivelAcceso,
+        numero: numero.trim() || undefined,
         expediente_id: expedienteSel?.id,
         firmas_externas: analisis.has_signatures ? analisis.signatures : undefined,
         accion,
@@ -423,7 +432,7 @@ const DocumentoUpload = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <FormControl fullWidth required>
                   <InputLabel>Tipo documental</InputLabel>
                   <Select
@@ -440,7 +449,22 @@ const DocumentoUpload = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Número del documento"
+                  value={numero}
+                  onChange={(e) => setNumero(e.target.value)}
+                  placeholder="Ej: 1234"
+                  helperText={
+                    numero.trim()
+                      ? `Se guardará como ${numeroFormateado}`
+                      : 'El número oficial que ya tiene el documento. Si aún no tiene, déjalo vacío.'
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   select

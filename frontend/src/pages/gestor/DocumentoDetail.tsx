@@ -141,6 +141,7 @@ const DocumentoDetail = () => {
   // Editar metadatos (documentos subidos/externos)
   const [openEditMeta, setOpenEditMeta] = useState(false)
   const [editTitulo, setEditTitulo] = useState('')
+  const [editNumero, setEditNumero] = useState('')
   const [editTipoId, setEditTipoId] = useState<number | ''>('')
   const [editNivel, setEditNivel] = useState(1)
   const [editLoading, setEditLoading] = useState(false)
@@ -458,6 +459,7 @@ const DocumentoDetail = () => {
   const abrirEditarMetadatos = () => {
     if (!documento) return
     setEditTitulo(documento.titulo || '')
+    setEditNumero(documento.numero || '')
     setEditTipoId(documento.tipo_documental?.id ?? '')
     setEditNivel(documento.nivel_acceso || 1)
     if (tiposDocumentales.length === 0) {
@@ -472,6 +474,7 @@ const DocumentoDetail = () => {
     try {
       await documentosAPI.actualizarMetadatos(parseInt(id), {
         titulo: editTitulo.trim(),
+        numero: editNumero.trim() || null,
         tipo_documental_id: Number(editTipoId),
         nivel_acceso: editNivel,
       })
@@ -1280,7 +1283,7 @@ const DocumentoDetail = () => {
         <DialogTitle>Editar documento</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Este es un documento subido (PDF). Puedes editar su nombre, tipo y nivel de acceso.
+            Este es un documento subido (PDF). Puedes editar su nombre, número, tipo y nivel de acceso.
           </Typography>
           <TextField
             label="Nombre del documento"
@@ -1288,6 +1291,15 @@ const DocumentoDetail = () => {
             onChange={(e) => setEditTitulo(e.target.value)}
             fullWidth
             required
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Número del documento"
+            value={editNumero}
+            onChange={(e) => setEditNumero(e.target.value)}
+            fullWidth
+            placeholder="Ej: 1234"
+            helperText="Número oficial del documento. Si escribes solo el número, se completa con el año."
             sx={{ mb: 2 }}
           />
           <TextField
