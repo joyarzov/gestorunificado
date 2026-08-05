@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo-dev \
     fonts-dejavu-core \
     poppler-utils \
+    ghostscript \
     zip \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \

@@ -48,6 +48,14 @@ class FirmaGobService
     /** Ancho estándar del sello en puntos, sobre página carta (≈5,6 cm). */
     private const SELLO_ANCHO_PT = 160;
 
+    /**
+     * Peso máximo del PDF que acepta FirmaGob. Medido contra el servicio real
+     * (2026-08-05): el cuerpo de la petición corta en 5 MB, y el PDF viaja en
+     * base64 (+33%) junto al JWT y la imagen del sello. Un PDF de 3,5 MB pasó;
+     * uno de 3,75 MB fue rechazado con 400. Se deja margen bajo ese corte.
+     */
+    private const PDF_MAX_BYTES = 3_400_000;
+
     /** Límites del tamaño configurable, en % del ancho estándar. */
     public const ESCALA_MIN = 80;
     public const ESCALA_MAX = 200;
@@ -103,6 +111,67 @@ class FirmaGobService
         return [[$llx, $lly, $urx, $lly + 70], $pageH];
     }
 
+    /**
+     * Deja el PDF bajo el peso que acepta FirmaGob, comprimiéndolo si hace falta.
+     *
+     * Ghostscript rebaja la resolución de las imágenes incrustadas (que es lo que
+     * infla los PDFs escaneados o con fotos) y conserva el texto vectorial, así
+     * que el documento se ve igual. Lo que se firma es esta versión: es la que
+     * queda archivada como oficial.
+     *
+     * @throws FirmaGobException si ni comprimido cabe (el mensaje explica qué hacer)
+     */
+    private function comprimirSiExcede(string $pdfContent): string
+    {
+        if (strlen($pdfContent) <= self::PDF_MAX_BYTES) {
+            return $pdfContent;
+        }
+
+        $original = strlen($pdfContent);
+        $entrada = tempnam(sys_get_temp_dir(), 'firmagob_in_');
+        $salida  = tempnam(sys_get_temp_dir(), 'firmagob_out_');
+        file_put_contents($entrada, $pdfContent);
+
+        // /ebook ≈ 150 dpi: legible en pantalla y en impresión de oficina.
+        $comando = sprintf(
+            'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook '
+            . '-dDetectDuplicateImages=true -dNOPAUSE -dQUIET -dBATCH -sOutputFile=%s %s 2>&1',
+            escapeshellarg($salida),
+            escapeshellarg($entrada)
+        );
+        exec($comando, $salidaCmd, $codigo);
+
+        $comprimido = ($codigo === 0 && is_file($salida)) ? (string) file_get_contents($salida) : '';
+        @unlink($entrada);
+        @unlink($salida);
+
+        if ($comprimido !== '' && strlen($comprimido) < $original) {
+            Log::info('PDF comprimido para firma', [
+                'bytes_original'   => $original,
+                'bytes_comprimido' => strlen($comprimido),
+            ]);
+            $pdfContent = $comprimido;
+        } elseif ($codigo !== 0) {
+            Log::warning('No se pudo comprimir el PDF antes de firmar', [
+                'codigo' => $codigo,
+                'salida' => implode(' ', array_slice($salidaCmd, 0, 3)),
+            ]);
+        }
+
+        if (strlen($pdfContent) > self::PDF_MAX_BYTES) {
+            $pesa   = number_format(strlen($pdfContent) / 1048576, 1, ',', '.');
+            $maximo = number_format(self::PDF_MAX_BYTES / 1048576, 1, ',', '.');
+
+            throw new FirmaGobException(
+                "El documento pesa {$pesa} MB y el servicio de firma electrónica acepta hasta "
+                . "{$maximo} MB. Reduce el peso del PDF (menos imágenes o a menor resolución) "
+                . 'y vuelve a subirlo.'
+            );
+        }
+
+        return $pdfContent;
+    }
+
     public function isSimulate(): bool
     {
         // La BD tiene prioridad sobre el .env
@@ -135,6 +204,11 @@ class FirmaGobService
                 'checksum_signed' => hash('sha256', $pdfContent . $signerRun . time()),
             ];
         }
+
+        // El PDF viaja en base64 dentro del JSON: si pesa de más, el gateway de
+        // FirmaGob rechaza la petición con un 400 y una página de error (no JSON),
+        // que llega al funcionario como un "verifique los datos" incomprensible.
+        $pdfContent = $this->comprimirSiExcede($pdfContent);
 
         // En modo sandbox usamos el run fijo; en producción el RUT real del firmante
         $run = config('firmagob.sandbox_mode')
