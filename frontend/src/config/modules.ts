@@ -24,6 +24,7 @@ import {
   Outbox as SalidaIcon,
   MoveToInbox as BandejaExpIcon,
   SmartToy as FuncionarioIaIcon,
+  Category as TipoDocIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -263,6 +264,8 @@ export const getSidebarItems = (
         { text: 'Organigrama', path: '/organigrama', icon: OrganigramaIcon },
         { text: 'Usuarios', path: '/usuarios', icon: PeopleIcon },
         { text: 'Departamentos', path: '/departamentos', icon: BusinessIcon },
+        { text: 'Tipos de documento', path: '/tipos-documentales', icon: TipoDocIcon },
+        { text: 'Plantillas', path: '/plantillas', icon: GestorIcon },
         { text: 'Firma y sellos', path: '/firma-sellos', icon: GestureIcon },
         { text: 'Configuración', path: '/configuracion', icon: TuneIcon },
       ]
