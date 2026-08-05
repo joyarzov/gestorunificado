@@ -11,6 +11,7 @@ import {
   Upload as UploadIcon,
 } from '@mui/icons-material'
 import { firmaSelloAPI } from '../../api/firmaSello'
+import { configuracionAPI } from '../../api/configuracion'
 import { FirmaSello } from '../../types'
 
 const STORAGE_URL = '/storage/'
@@ -88,6 +89,36 @@ const FirmaSelloForm = () => {
   const [esActivo, setEsActivo] = useState(false)
   const [misDatos, setMisDatos] = useState(true)
   const [sobrePagina, setSobrePagina] = useState(false)
+  // Tamaño del sello EN EL DOCUMENTO: no es un campo del sello sino una política
+  // global (clave firma_sello_escala), pero se ajusta aquí porque es donde se ve
+  // el efecto sobre la hoja.
+  const [escala, setEscala] = useState(100)
+  const [escalaSaving, setEscalaSaving] = useState(false)
+  const [escalaMsg, setEscalaMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    configuracionAPI.listar()
+      .then(res => setEscala(Number(res.data?.firma_sello_escala?.valor) || 100))
+      .catch(() => {})
+  }, [])
+
+  const guardarEscala = async (valor: number) => {
+    setEscalaSaving(true); setEscalaMsg(null)
+    try {
+      await configuracionAPI.actualizar('firma_sello_escala', String(valor))
+      setEscala(valor)
+      setEscalaMsg(`Guardado: el sello ocupará ${valor}% en los documentos firmados.`)
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setEscalaMsg((e as any)?.response?.data?.message || 'Error al guardar el tamaño')
+    } finally {
+      setEscalaSaving(false)
+    }
+  }
+
+  // Medidas resultantes en la hoja (160pt de ancho al 100%; el alto sale del
+  // aspecto real del sello, ~3,9:1).
+  const anchoCm = (160 * (escala / 100)) / 28.35
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -555,7 +586,12 @@ const FirmaSelloForm = () => {
                       component="img"
                       src={previewUrl}
                       alt="Sello sobre página"
-                      sx={{ position: 'absolute', left: '11%', bottom: '8%', width: '27%', height: 'auto' }}
+                      sx={{
+                        position: 'absolute', left: '11%', bottom: '8%',
+                        width: `${(160 / 612) * 100 * (escala / 100)}%`,
+                        height: 'auto',
+                        transition: 'width 0.15s ease',
+                      }}
                     />
                   </Box>
                 ) : (
@@ -588,6 +624,49 @@ const FirmaSelloForm = () => {
                 Se actualiza al cambiar cualquier campo. "Mis datos" usa tu nombre/cargo/RUT reales;
                 "Sobre página" muestra el sello a escala sobre una hoja carta. El damero indica las zonas transparentes.
               </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Tamaño del sello en el documento: se guarda al soltar y rige
+                  para TODOS los sellos (el firmante no lo puede cambiar). */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                  <Typography variant="subtitle2" sx={{ flex: 1 }}>
+                    Tamaño en el documento
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {escalaSaving ? 'Guardando…' : `${escala}% — ${anchoCm.toFixed(1)} cm de ancho`}
+                  </Typography>
+                </Box>
+                <Box sx={{ px: 1 }}>
+                  <Slider
+                    value={escala}
+                    onChange={(_, v) => { setEscala(v as number); setSobrePagina(true) }}
+                    onChangeCommitted={(_, v) => guardarEscala(v as number)}
+                    min={80}
+                    max={200}
+                    step={5}
+                    disabled={escalaSaving}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(v) => `${v}%`}
+                    marks={[
+                      { value: 80, label: 'Chico' },
+                      { value: 100, label: 'Normal' },
+                      { value: 200, label: 'Grande' },
+                    ]}
+                    sx={{ '& .MuiSlider-markLabel': { fontSize: 11 } }}
+                  />
+                </Box>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Cuánto ocupa el sello en la hoja al firmar. Actívalo con "Sobre página" para verlo
+                  en vivo. Es un ajuste global: rige para todos los sellos y funcionarios.
+                </Typography>
+                {escalaMsg && (
+                  <Alert severity="info" sx={{ mt: 1, py: 0 }} onClose={() => setEscalaMsg(null)}>
+                    {escalaMsg}
+                  </Alert>
+                )}
+              </Box>
             </CardContent>
           </Card>
         </Grid>
