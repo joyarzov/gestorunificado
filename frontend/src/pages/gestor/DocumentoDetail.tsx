@@ -48,7 +48,10 @@ import {
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
-import FirmaPagePreview, { calcularRectFirma, PAGINA_CARTA, type TamanoPagina } from '../../components/common/FirmaPagePreview'
+import FirmaPagePreview, {
+  calcularRectFirma, PAGINA_CARTA, ESCALA_MIN, ESCALA_MAX, ESCALA_POR_DEFECTO,
+  leerEscalaGuardada, guardarEscala, type TamanoPagina,
+} from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
 import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, TipoDocumental, User } from '../../types'
 
@@ -158,6 +161,7 @@ const DocumentoDetail = () => {
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
   // Tamaño real (pt) de la página que se previsualiza; la reporta FirmaPagePreview
   const [firmaPageSize, setFirmaPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
+  const [firmaEscala, setFirmaEscala] = useState(ESCALA_POR_DEFECTO)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -230,6 +234,7 @@ const DocumentoDetail = () => {
     if (firmarDialogOpen) {
       const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
       setFirmaCol(existingCount % 3)
+      setFirmaEscala(leerEscalaGuardada())
     }
   }, [firmarDialogOpen, pdfUrl])
 
@@ -311,7 +316,8 @@ const DocumentoDetail = () => {
     try {
       // Coordenadas sobre la página REAL (un PDF subido puede ser A4, oficio o
       // un escaneo con caja mayor): así el sello queda donde muestra la vista previa.
-      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol)
+      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala)
+      guardarEscala(firmaEscala)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
       await documentosAPI.firmar(
@@ -1047,6 +1053,7 @@ const DocumentoDetail = () => {
                         selloUrl={selloUrl}
                         previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
                         onPageSize={setFirmaPageSize}
+                        escala={firmaEscala}
                       />
 
                       {/* Controles a la derecha */}
@@ -1094,6 +1101,29 @@ const DocumentoDetail = () => {
                               marks={[
                                 { value: 0,   label: 'Inferior' },
                                 { value: 100, label: 'Superior' },
+                              ]}
+                              sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
+                            />
+                          </Box>
+                        </Box>
+
+                        {/* Tamaño del sello */}
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                            Tamaño del sello — {firmaEscala}%
+                          </Typography>
+                          <Box sx={{ px: 1 }}>
+                            <Slider
+                              value={firmaEscala}
+                              onChange={(_, v) => setFirmaEscala(v as number)}
+                              min={ESCALA_MIN}
+                              max={ESCALA_MAX}
+                              step={5}
+                              size="small"
+                              marks={[
+                                { value: ESCALA_MIN, label: 'Chico' },
+                                { value: ESCALA_POR_DEFECTO, label: 'Normal' },
+                                { value: ESCALA_MAX, label: 'Grande' },
                               ]}
                               sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                             />

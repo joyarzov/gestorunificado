@@ -29,6 +29,8 @@ export interface FirmaPagePreviewProps {
   selloUrl?: string | null
   /** Página a previsualizar (la misma donde irá el sello). */
   previewPage?: 'first' | 'last' | number
+  /** Tamaño del sello en % (100 = estándar). Se refleja en vivo en la vista previa. */
+  escala?: number
   /**
    * Tamaño real (en puntos) de la página previsualizada. El padre lo necesita
    * para calcular las coordenadas del sello con `calcularRectFirma`: un PDF
@@ -50,6 +52,7 @@ const RANGO_Y_REL = 702 / 792
 const STAMP_H_REL = 70 / 792
 const COL_X_REL = [71 / 612, 233 / 612, 395 / 612]
 const COL_W_REL = 160 / 612
+const MARGEN_DER_REL = 57 / 612 // margen derecho del documento (2 cm)
 const ROW_OFFSET_REL = 80 / 792
 
 const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los controles
@@ -64,26 +67,54 @@ export interface RectFirma {
   ury: number
 }
 
+/** Tamaño del sello en % del ancho estándar (100 = 160pt en carta ≈ 5,6 cm). */
+export const ESCALA_MIN = 80
+export const ESCALA_MAX = 200
+export const ESCALA_POR_DEFECTO = 100
+
+const ESCALA_STORAGE_KEY = 'firma_sello_escala'
+
+/** Último tamaño que eligió el usuario: se reusa en todas sus firmas. */
+export function leerEscalaGuardada(): number {
+  const guardada = Number(localStorage.getItem(ESCALA_STORAGE_KEY))
+  if (!guardada || Number.isNaN(guardada)) return ESCALA_POR_DEFECTO
+  return Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, guardada))
+}
+
+export function guardarEscala(escala: number): void {
+  localStorage.setItem(ESCALA_STORAGE_KEY, String(escala))
+}
+
 /**
- * Traduce la posición elegida en el deslizador (0-100) y la columna a
- * coordenadas PDF de la página REAL. Usada por la vista previa y por quien
+ * Traduce la posición elegida en el deslizador (0-100), la columna y el tamaño
+ * a coordenadas PDF de la página REAL. Usada por la vista previa y por quien
  * dispara la firma, para que ambos hablen exactamente de la misma caja.
+ *
+ * Solo se escala el ANCHO: FirmaGob deriva el alto del aspecto real del sello,
+ * así que la imagen crece proporcionalmente sin deformarse.
  */
 export function calcularRectFirma(
   page: TamanoPagina,
   firmaYPos: number,
   col: number,
+  escala = ESCALA_POR_DEFECTO,
   row = 0,
 ): RectFirma {
   const lly = Math.round(
     (MARGEN_INF_REL + (firmaYPos / 100) * RANGO_Y_REL + row * ROW_OFFSET_REL) * page.h,
   )
-  const llx = Math.round(COL_X_REL[col % 3] * page.w)
+  // El sello no puede pasarse de los márgenes del documento: si al agrandarlo se
+  // sale por la derecha, se corre hacia la izquierda en vez de quedar cortado.
+  const bordeIzq = Math.round(COL_X_REL[0] * page.w)
+  const bordeDer = Math.round((1 - MARGEN_DER_REL) * page.w)
+  const ancho = Math.min(Math.round(COL_W_REL * page.w * (escala / 100)), bordeDer - bordeIzq)
+  const llx = Math.min(Math.round(COL_X_REL[col % 3] * page.w), bordeDer - ancho)
+
   return {
     llx,
     lly,
-    urx: Math.round(llx + COL_W_REL * page.w),
-    ury: Math.round(lly + STAMP_H_REL * page.h),
+    urx: llx + ancho,
+    ury: Math.round(lly + STAMP_H_REL * page.h * (escala / 100)),
   }
 }
 
@@ -96,6 +127,7 @@ export default function FirmaPagePreview({
   selloUrl,
   previewPage = 'last',
   onPageSize,
+  escala = ESCALA_POR_DEFECTO,
 }: FirmaPagePreviewProps) {
   // Render de la página elegida del PDF en el canvas
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -167,13 +199,16 @@ export default function FirmaPagePreview({
   const stampH = Math.round(STAMP_H_REL * pageSize.h * scale)
   const colXPx = COL_X_REL.map(x => Math.round(x * pageSize.w * scale))
 
-  const llyToCssTop = (lly: number) => Math.round(previewH - lly * scale - stampH)
+  const llyToCssTop = (lly: number, altoCaja = stampH) =>
+    Math.round(previewH - lly * scale - altoCaja)
 
-  // Posición del sello nuevo, calculada con la MISMA función que usa el padre
-  // al firmar: lo que se ve aquí es lo que se manda a FirmaGob.
-  const nuevoRect = calcularRectFirma(pageSize, firmaYPos, newCol, newRow)
-  const newCssTop = llyToCssTop(nuevoRect.lly)
-  const newCssLeft = colXPx[newCol % 3]
+  // Posición y tamaño del sello nuevo, calculados con la MISMA función que usa
+  // el padre al firmar: lo que se ve aquí es lo que se manda a FirmaGob.
+  const nuevoRect = calcularRectFirma(pageSize, firmaYPos, newCol, escala, newRow)
+  const newStampW = Math.round((nuevoRect.urx - nuevoRect.llx) * scale)
+  const newStampH = Math.round((nuevoRect.ury - nuevoRect.lly) * scale)
+  const newCssTop = llyToCssTop(nuevoRect.lly, newStampH)
+  const newCssLeft = Math.round(nuevoRect.llx * scale)
 
   return (
     <Box sx={{ flexShrink: 0 }}>
@@ -262,8 +297,8 @@ export default function FirmaPagePreview({
                 position: 'absolute',
                 left: newCssLeft,
                 top: newCssTop,
-                width: stampW,
-                height: stampH,
+                width: newStampW,
+                height: newStampH,
                 transition: 'all 0.15s ease',
                 pointerEvents: 'none',
               }}
@@ -292,8 +327,8 @@ export default function FirmaPagePreview({
                 position: 'absolute',
                 left: newCssLeft,
                 top: newCssTop,
-                width: stampW,
-                height: stampH,
+                width: newStampW,
+                height: newStampH,
                 bgcolor: 'rgba(0, 113, 188, 0.55)',
                 border: '1px solid rgba(0, 90, 150, 0.7)',
                 borderRadius: '2px',

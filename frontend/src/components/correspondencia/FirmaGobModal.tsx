@@ -8,7 +8,10 @@ import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon, B
 import { configuracionAPI } from '../../api/configuracion'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api/axios'
-import FirmaPagePreview, { calcularRectFirma, PAGINA_CARTA, type TamanoPagina } from '../common/FirmaPagePreview'
+import FirmaPagePreview, {
+  calcularRectFirma, PAGINA_CARTA, ESCALA_MIN, ESCALA_MAX, ESCALA_POR_DEFECTO,
+  leerEscalaGuardada, guardarEscala, type TamanoPagina,
+} from '../common/FirmaPagePreview'
 
 export interface FirmaParams {
   otp: string
@@ -51,6 +54,7 @@ const FirmaGobModal = ({
   const [simulate, setSimulate] = useState(false)
   const [selloUrl, setSelloUrl] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
+  const [escala, setEscala] = useState(ESCALA_POR_DEFECTO)
 
   useEffect(() => {
     if (!open) return
@@ -61,6 +65,7 @@ const FirmaGobModal = ({
     setFirmaYPos(27)
     setFirmaPageMode('LAST')
     setFirmaCol(0)
+    setEscala(leerEscalaGuardada())
     configuracionAPI.firmagobEstado()
       .then(res => setSimulate(res.data.simulate))
       .catch(() => setSimulate(false))
@@ -86,7 +91,8 @@ const FirmaGobModal = ({
 
   const handleSubmit = () => {
     if (!puedeFirmar) return
-    const rect = calcularRectFirma(pageSize, firmaYPos, firmaCol)
+    const rect = calcularRectFirma(pageSize, firmaYPos, firmaCol, escala)
+    guardarEscala(escala)
     const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : '1'
     onFirmar({
       otp: desatendida ? '' : otp,
@@ -174,6 +180,7 @@ const FirmaGobModal = ({
                 selloUrl={selloUrl}
                 previewPage={firmaPageMode === 'FIRST' ? 'first' : 'last'}
                 onPageSize={setPageSize}
+                escala={escala}
               />
               {pdfUrl && (
                 <Button
@@ -223,6 +230,29 @@ const FirmaGobModal = ({
                     marks={[
                       { value: 0,   label: 'Inferior' },
                       { value: 100, label: 'Superior' },
+                    ]}
+                    sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Tamaño del sello */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                  Tamaño del sello — {escala}%
+                </Typography>
+                <Box sx={{ px: 1 }}>
+                  <Slider
+                    value={escala}
+                    onChange={(_, v) => setEscala(v as number)}
+                    min={ESCALA_MIN}
+                    max={ESCALA_MAX}
+                    step={5}
+                    size="small"
+                    marks={[
+                      { value: ESCALA_MIN, label: 'Chico' },
+                      { value: ESCALA_POR_DEFECTO, label: 'Normal' },
+                      { value: ESCALA_MAX, label: 'Grande' },
                     ]}
                     sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                   />
