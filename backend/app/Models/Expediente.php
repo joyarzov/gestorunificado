@@ -150,6 +150,30 @@ class Expediente extends Model
         return $query->whereIn('estado', [self::ESTADO_CERRADO, self::ESTADO_ARCHIVADO]);
     }
 
+    /**
+     * Expedientes que le pertenecen al usuario: los que creó, los que tiene a su
+     * cargo y los que le llegaron por derivación (a él, o a su departamento cuando
+     * la derivación fue sin destinatario nombrado).
+     *
+     * Pertenecer al departamento NO basta: si no participó, no lo ve.
+     */
+    public function scopeVisiblesPara($query, $user)
+    {
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        return $query->where(function ($q) use ($user, $ctx) {
+            $q->where('creado_por', $user->id)
+                ->orWhere('responsable_actual_usuario_id', $ctx->id)
+                ->orWhereHas('derivaciones', function ($d) use ($ctx) {
+                    $d->where('usuario_destino_id', $ctx->id)
+                        ->orWhere(function ($d2) use ($ctx) {
+                            $d2->whereNull('usuario_destino_id')
+                                ->where('departamento_destino_id', $ctx->departamento_id);
+                        });
+                });
+        });
+    }
+
     public function estaCerrado(): bool
     {
         return in_array($this->estado, [self::ESTADO_CERRADO, self::ESTADO_ARCHIVADO]);

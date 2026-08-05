@@ -296,27 +296,19 @@ class ExpedienteController extends Controller
 
     public function misExpedientes(Request $request)
     {
-        $user = Auth::user();
-        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
-
-        // Visibilidad personal: el creador, el responsable actual, y quien haya tenido el
-        // expediente por una derivación (a sí mismo, o a su depto cuando fue sin usuario).
-        // NO se incluyen todos los expedientes del departamento por el solo hecho de pertenecer a él.
+        // Visibilidad personal: creador, responsable actual o destinatario de una
+        // derivación (ver Expediente::scopeVisiblesPara).
         $query = Expediente::with(['creador', 'departamento', 'responsableActual'])
-            ->where(function ($q) use ($user, $ctx) {
-                $q->where('creado_por', $user->id)
-                    ->orWhere('responsable_actual_usuario_id', $ctx->id)
-                    ->orWhereHas('derivaciones', function ($d) use ($ctx) {
-                        $d->where('usuario_destino_id', $ctx->id)
-                            ->orWhere(function ($d2) use ($ctx) {
-                                $d2->whereNull('usuario_destino_id')
-                                    ->where('departamento_destino_id', $ctx->departamento_id);
-                            });
-                    });
-            });
+            ->visiblesPara(Auth::user());
 
+        // "abierto" es un alias para "expedientes donde aún se puede trabajar"
+        // (borrador + en trámite): lo usan los selectores de documento.
         if ($request->filled('estado')) {
-            $query->where('estado', $request->estado);
+            if ($request->estado === 'abierto') {
+                $query->abiertos();
+            } else {
+                $query->where('estado', $request->estado);
+            }
         }
 
         if ($request->filled('search')) {

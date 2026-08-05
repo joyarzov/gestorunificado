@@ -307,7 +307,7 @@ const DocumentoNew = () => {
     try {
       const [plantillasRes, expsRes, funcsRes, deptosRes] = await Promise.all([
         documentosAPI.getPlantillas(),
-        expedientesAPI.listar({ estado: 'abierto', per_page: 100 }),
+        expedientesAPI.misExpedientes({ estado: 'abierto', per_page: 100 }),
         usersAPI.funcionarios(),
         departamentosAPI.listar(),
       ])

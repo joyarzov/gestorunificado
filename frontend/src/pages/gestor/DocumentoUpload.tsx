@@ -99,7 +99,7 @@ const DocumentoUpload = () => {
   useEffect(() => {
     Promise.all([
       tiposDocumentalesAPI.listar(),
-      expedientesAPI.listar({ estado: 'abierto', per_page: 100 }),
+      expedientesAPI.misExpedientes({ estado: 'abierto', per_page: 100 }),
       usersAPI.funcionarios(),
     ])
       .then(([tipos, exps, funcs]) => {
