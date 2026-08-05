@@ -8,6 +8,7 @@ import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon, B
 import { configuracionAPI } from '../../api/configuracion'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api/axios'
+import FirmandoOverlay from '../common/FirmandoOverlay'
 import FirmaPagePreview, {
   calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
 } from '../common/FirmaPagePreview'
@@ -119,7 +120,8 @@ const FirmaGobModal = ({
         <FirmaIcon color={simulate ? 'warning' : 'primary'} />
         {titulo}
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ position: 'relative' }}>
+        <FirmandoOverlay activo={loading} />
         {simulate && (
           <Alert severity="warning" icon={<WarnIcon />} sx={{ mb: 2 }}>
             <strong>Modo simulación activo.</strong> Esta firma NO tiene validez legal.

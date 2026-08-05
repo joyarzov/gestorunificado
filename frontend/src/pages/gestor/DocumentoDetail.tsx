@@ -48,6 +48,7 @@ import {
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
+import FirmandoOverlay from '../../components/common/FirmandoOverlay'
 import FirmaPagePreview, {
   calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
 } from '../../components/common/FirmaPagePreview'
@@ -336,6 +337,7 @@ const DocumentoDetail = () => {
       checkAuth()
       setSnackbar({ open: true, message: 'Documento firmado exitosamente', severity: 'success' })
       setOtpCode('')
+      setFirmarDialogOpen(false)
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al firmar'
       setSnackbar({ open: true, message: msg, severity: 'error' })
@@ -1007,12 +1009,13 @@ const DocumentoDetail = () => {
       {/* Diálogo de confirmación de firma */}
       <Dialog
         open={firmarDialogOpen}
-        onClose={() => { setFirmarDialogOpen(false); setOtpCode('') }}
+        onClose={() => { if (!actionLoading) { setFirmarDialogOpen(false); setOtpCode('') } }}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>Confirmar Firma</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ position: 'relative' }}>
+          <FirmandoOverlay activo={actionLoading} />
           <Typography variant="body2" sx={{ mb: 1 }}>
             Está a punto de firmar electrónicamente el documento <strong>{documento.numero || documento.identificador}</strong>.
           </Typography>
@@ -1177,18 +1180,15 @@ const DocumentoDetail = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFirmarDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={() => setFirmarDialogOpen(false)} disabled={actionLoading}>Cancelar</Button>
           <Button
             variant="contained"
             color="success"
             startIcon={actionLoading ? <CircularProgress size={20} /> : <FirmarIcon />}
-            onClick={() => {
-              setFirmarDialogOpen(false)
-              handleFirmar()
-            }}
+            onClick={handleFirmar}
             disabled={actionLoading}
           >
-            Confirmar Firma
+            {actionLoading ? 'Firmando…' : 'Confirmar Firma'}
           </Button>
         </DialogActions>
       </Dialog>
