@@ -319,7 +319,16 @@ export const documentosAPI = {
     return response.data
   },
 
-  firmar: async (id: number, observaciones?: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number, desatendida?: boolean) => {
+  firmar: async (
+    id: number,
+    observaciones?: string,
+    otp?: string,
+    firmaY?: number,
+    firmaPage?: string,
+    firmaCol?: number,
+    desatendida?: boolean,
+    firmaRect?: { llx: number; urx: number; ury: number; pageH: number },
+  ) => {
     const response = await api.post<ApiResponse<Documento>>(`/documentos/${id}/firmar`, {
       observaciones,
       otp,
@@ -327,6 +336,11 @@ export const documentosAPI = {
       firma_y: firmaY,
       firma_page: firmaPage,
       firma_col: firmaCol,
+      // Caja del sello en puntos de la página real (PDFs subidos que no son carta)
+      firma_x: firmaRect?.llx,
+      firma_x2: firmaRect?.urx,
+      firma_y2: firmaRect?.ury,
+      firma_page_h: firmaRect?.pageH,
     })
     return response.data
   },

@@ -45,6 +45,35 @@ class FirmaGobService
         ];
     }
 
+    /**
+     * Traduce los parámetros de posición del sello que envía el frontend a la
+     * caja [llx, lly, urx, ury] y el alto de la página, ambos en puntos PDF.
+     *
+     * El frontend mide la página con pdf.js y manda la caja completa: un PDF
+     * subido puede ser A4, oficio o un escaneo con caja mucho mayor, y ahí las
+     * coordenadas fijas de página carta dejaban el sello a distinta altura que
+     * la vista previa. Si la caja no viene (cliente antiguo) se cae a la
+     * geometría carta, que es la que genera la propia plataforma.
+     *
+     * @return array{0: array<int>, 1: int} [[llx, lly, urx, ury], altoPagina]
+     */
+    public static function rectDesdeParametros(array $p, int $colPorDefecto = 0): array
+    {
+        $pageH = isset($p['firma_page_h']) ? (int) $p['firma_page_h'] : 792;
+        $col   = isset($p['firma_col']) ? (int) $p['firma_col'] : $colPorDefecto;
+        $lly   = isset($p['firma_y']) ? (int) $p['firma_y'] : 20;
+
+        if (isset($p['firma_x'], $p['firma_x2'], $p['firma_y2'])) {
+            return [[(int) $p['firma_x'], $lly, (int) $p['firma_x2'], (int) $p['firma_y2']], $pageH];
+        }
+
+        // Columnas alineadas a los márgenes del documento (2,5 cm izq. / 2 cm der.)
+        $colXCoords = [[71, 231], [233, 393], [395, 555]];
+        [$llx, $urx] = $colXCoords[$col % 3];
+
+        return [[$llx, $lly, $urx, $lly + 70], $pageH];
+    }
+
     public function isSimulate(): bool
     {
         // La BD tiene prioridad sobre el .env
@@ -64,7 +93,8 @@ class FirmaGobService
         ?string $signerCargo = null,
         array $coords = [30, 20, 210, 90],
         string $page = 'LAST',
-        ?string $purpose = null
+        ?string $purpose = null,
+        ?int $pageHeight = null
     ): array {
         // Modo simulación: no llama al API, devuelve respuesta ficticia
         if ($this->isSimulate()) {
@@ -91,7 +121,7 @@ class FirmaGobService
             'checksum'     => $checksum,
             'content'      => $base64,
             'content-type' => 'application/pdf',
-            'layout'       => $this->buildLayout($signerName, $signerCargo, $signerRun, $coords, $page),
+            'layout'       => $this->buildLayout($signerName, $signerCargo, $signerRun, $coords, $page, $pageHeight),
         ];
 
         $payload = [
@@ -162,25 +192,28 @@ class FirmaGobService
         ?string $signerCargo,
         ?string $signerRun,
         array $coords = [30, 20, 210, 90],
-        string $page = 'LAST'
+        string $page = 'LAST',
+        ?int $pageHeight = null
     ): string {
         $stampBase64 = $this->generateStampImage($signerName, $signerCargo, $signerRun);
 
         // Ajustamos la caja para que calce con el aspecto real del sello (su ancho
         // depende del nombre/textos). Conservamos el ancho —alineado a los márgenes
         // del documento— y derivamos la altura; así FirmaGob no deforma la imagen al
-        // estirarla a la caja. Anclamos al borde inferior o superior según la posición.
+        // estirarla a la caja. El sello SIEMPRE se ancla por su borde inferior (lly),
+        // que es la altura que el usuario eligió y vio en la vista previa; solo si no
+        // cabe hacia arriba se baja lo justo para que entre en la página.
         [$llx, $lly, $urx, $ury] = [$coords[0], $coords[1], $coords[2], $coords[3]];
         $im = @imagecreatefromstring(base64_decode($stampBase64));
         if ($im) {
             $aspect = imagesx($im) / max(1, imagesy($im));
             imagedestroy($im);
             $newH = ($urx - $llx) / max(0.1, $aspect);
-            if ($lly < 396) {              // posición inferior → anclar abajo
-                $ury = (int) round($lly + $newH);
-            } else {                        // posición superior → anclar arriba
-                $lly = (int) round($ury - $newH);
+            $topeSuperior = ($pageHeight ?: 792) - 10;
+            if ($lly + $newH > $topeSuperior) {
+                $lly = (int) round(max(0, $topeSuperior - $newH));
             }
+            $ury = (int) round($lly + $newH);
         }
 
         return '<AgileSignerConfig>'

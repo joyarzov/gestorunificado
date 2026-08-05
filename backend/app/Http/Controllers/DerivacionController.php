@@ -60,9 +60,13 @@ class DerivacionController extends Controller
             'acciones_para.*' => 'string',
             'otp'        => 'nullable|string',
             'firma_desatendida' => 'nullable|boolean',
-            'firma_y'    => 'nullable|integer|min:10|max:712',
+            'firma_y'    => 'nullable|integer|min:0|max:20000',
             'firma_page' => 'nullable|string',
             'firma_col'  => 'nullable|integer|in:0,1,2',
+            'firma_x'    => 'nullable|integer|min:0|max:20000',
+            'firma_x2'   => 'nullable|integer|min:0|max:20000',
+            'firma_y2'   => 'nullable|integer|min:0|max:20000',
+            'firma_page_h' => 'nullable|integer|min:100|max:20000',
             'preview_token' => 'nullable|string',
         ]);
 
@@ -152,10 +156,7 @@ class DerivacionController extends Controller
                 $this->recordarModoFirma($user, $desatendida);
                 try {
                     $firmaService = app(FirmaGobService::class);
-                    $coords = $this->calcularCoordenadas(
-                        $request->firma_y   ?? 20,
-                        $request->firma_col ?? 2
-                    );
+                    [$coords, $pageH] = $this->calcularCoordenadas($request);
                     $firmaPage = $request->firma_page ?? 'LAST';
                     $signed = $firmaService->sign(
                         $pdfContent,
@@ -166,7 +167,8 @@ class DerivacionController extends Controller
                         $user->cargoFirma() ?? 'Alcalde',
                         $coords,
                         $firmaPage,
-                        $desatendida ? config('firmagob.purpose_desatendido') : null
+                        $desatendida ? config('firmagob.purpose_desatendido') : null,
+                        $pageH
                     );
                     $pdfContent = $signed['content'];
                     Log::info('Providencia firmada con FirmaGob', [
@@ -373,11 +375,18 @@ class DerivacionController extends Controller
     /**
      * Calcula las coordenadas del sello [llx, lly, urx, ury] a partir de Y y columna.
      */
-    private function calcularCoordenadas(int $firmaY, int $firmaCol): array
+    /**
+     * Caja del sello y alto de la página, tal como los midió el frontend sobre
+     * el PDF real que se previsualizó.
+     *
+     * @return array{0: array<int>, 1: int} [[llx, lly, urx, ury], altoPagina]
+     */
+    private function calcularCoordenadas(Request $request): array
     {
-        $colXCoords = [[71, 231], [233, 393], [395, 555]];
-        [$llx, $urx] = $colXCoords[$firmaCol] ?? $colXCoords[2];
-        return [$llx, $firmaY, $urx, $firmaY + 70];
+        return FirmaGobService::rectDesdeParametros(
+            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+            2 // por defecto, columna derecha (donde va el timbre de la providencia)
+        );
     }
 
     /**
@@ -740,9 +749,13 @@ class DerivacionController extends Controller
             $request->validate([
                 'firma_desatendida' => 'nullable|boolean',
                 'otp'        => $desatendida ? 'nullable|string' : 'required|string',
-                'firma_y'    => 'nullable|integer|min:10|max:712',
+                'firma_y'    => 'nullable|integer|min:0|max:20000',
                 'firma_page' => 'nullable|string',
                 'firma_col'  => 'nullable|integer|in:0,1,2',
+                'firma_x'    => 'nullable|integer|min:0|max:20000',
+                'firma_x2'   => 'nullable|integer|min:0|max:20000',
+                'firma_y2'   => 'nullable|integer|min:0|max:20000',
+                'firma_page_h' => 'nullable|integer|min:100|max:20000',
                 'preview_token' => 'nullable|string',
             ]);
 
@@ -774,10 +787,7 @@ class DerivacionController extends Controller
             if (config('firmagob.enabled')) {
                 try {
                     $firmaService = app(FirmaGobService::class);
-                    $coords = $this->calcularCoordenadas(
-                        $request->firma_y   ?? 20,
-                        $request->firma_col ?? 2
-                    );
+                    [$coords, $pageH] = $this->calcularCoordenadas($request);
                     $firmaPage = $request->firma_page ?? 'LAST';
                     $signed = $firmaService->sign(
                         $pdfContent,
@@ -788,7 +798,8 @@ class DerivacionController extends Controller
                         $user->cargoFirma() ?? 'Alcalde',
                         $coords,
                         $firmaPage,
-                        $desatendida ? config('firmagob.purpose_desatendido') : null
+                        $desatendida ? config('firmagob.purpose_desatendido') : null,
+                        $pageH
                     );
                     $pdfContent = $signed['content'];
                     Log::info('Providencia (recepción) firmada con FirmaGob', [

@@ -457,7 +457,7 @@ const CorrespondenciaDetail = () => {
     setPreviewToken(null)
   }
 
-  const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol, desatendida }: FirmaParams) => {
+  const handleFirmarRecepcion = async ({ otp, firmaY, firmaPage, firmaCol, desatendida, firmaRect }: FirmaParams) => {
     const derivacion = derivacionPendienteParaAlcalde
     if (!derivacion) return
     setFirmaLoading(true)
@@ -471,6 +471,7 @@ const CorrespondenciaDetail = () => {
         firmaCol,
         previewToken ?? undefined,
         desatendida,
+        firmaRect,
       )
       // Refrescar el user para que el modo de firma elegido quede preseleccionado
       // la próxima vez (el backend ya persistió firma_modo_preferido).

@@ -8,7 +8,7 @@ import { Verified as FirmaIcon, Warning as WarnIcon, Download as DownloadIcon, B
 import { configuracionAPI } from '../../api/configuracion'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api/axios'
-import FirmaPagePreview from '../common/FirmaPagePreview'
+import FirmaPagePreview, { calcularRectFirma, PAGINA_CARTA, type TamanoPagina } from '../common/FirmaPagePreview'
 
 export interface FirmaParams {
   otp: string
@@ -16,6 +16,12 @@ export interface FirmaParams {
   firmaPage: string
   firmaCol: number
   desatendida: boolean
+  /**
+   * Caja exacta del sello en puntos de la página real. Va aparte de `firmaY`
+   * porque un PDF puede no ser carta y ahí las coordenadas fijas del backend
+   * dejarían el sello a otra altura que la vista previa.
+   */
+  firmaRect?: { llx: number; urx: number; ury: number; pageH: number }
 }
 
 interface FirmaGobModalProps {
@@ -44,6 +50,7 @@ const FirmaGobModal = ({
   const [firmaCol, setFirmaCol] = useState<0 | 1 | 2>(0) // default izquierda (donde está el bloque de firma)
   const [simulate, setSimulate] = useState(false)
   const [selloUrl, setSelloUrl] = useState<string | null>(null)
+  const [pageSize, setPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
 
   useEffect(() => {
     if (!open) return
@@ -79,9 +86,16 @@ const FirmaGobModal = ({
 
   const handleSubmit = () => {
     if (!puedeFirmar) return
-    const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
+    const rect = calcularRectFirma(pageSize, firmaYPos, firmaCol)
     const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : '1'
-    onFirmar({ otp: desatendida ? '' : otp, firmaY, firmaPage, firmaCol, desatendida })
+    onFirmar({
+      otp: desatendida ? '' : otp,
+      firmaY: rect.lly,
+      firmaPage,
+      firmaCol,
+      desatendida,
+      firmaRect: { llx: rect.llx, urx: rect.urx, ury: rect.ury, pageH: Math.round(pageSize.h) },
+    })
   }
 
   return (
@@ -159,6 +173,7 @@ const FirmaGobModal = ({
                 newCol={firmaCol}
                 selloUrl={selloUrl}
                 previewPage={firmaPageMode === 'FIRST' ? 'first' : 'last'}
+                onPageSize={setPageSize}
               />
               {pdfUrl && (
                 <Button

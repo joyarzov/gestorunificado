@@ -48,7 +48,7 @@ import {
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
-import FirmaPagePreview from '../../components/common/FirmaPagePreview'
+import FirmaPagePreview, { calcularRectFirma, PAGINA_CARTA, type TamanoPagina } from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
 import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, TipoDocumental, User } from '../../types'
 
@@ -156,6 +156,8 @@ const DocumentoDetail = () => {
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
   const [firmaPageNum, setFirmaPageNum] = useState(1)
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
+  // Tamaño real (pt) de la página que se previsualiza; la reporta FirmaPagePreview
+  const [firmaPageSize, setFirmaPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -307,10 +309,21 @@ const DocumentoDetail = () => {
     if (!id) return
     setActionLoading(true)
     try {
-      const firmaY = Math.round(10 + (firmaYPos / 100) * 702)
+      // Coordenadas sobre la página REAL (un PDF subido puede ser A4, oficio o
+      // un escaneo con caja mayor): así el sello queda donde muestra la vista previa.
+      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
-      await documentosAPI.firmar(parseInt(id), undefined, firmaDesatendida ? undefined : (otpCode || undefined), firmaY, firmaPage, firmaCol, firmaDesatendida)
+      await documentosAPI.firmar(
+        parseInt(id),
+        undefined,
+        firmaDesatendida ? undefined : (otpCode || undefined),
+        rect.lly,
+        firmaPage,
+        firmaCol,
+        firmaDesatendida,
+        { llx: rect.llx, urx: rect.urx, ury: rect.ury, pageH: Math.round(firmaPageSize.h) },
+      )
       // Refrescar el user para preseleccionar el modo elegido la próxima vez.
       checkAuth()
       setSnackbar({ open: true, message: 'Documento firmado exitosamente', severity: 'success' })
@@ -1033,6 +1046,7 @@ const DocumentoDetail = () => {
                         newCol={firmaCol}
                         selloUrl={selloUrl}
                         previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
+                        onPageSize={setFirmaPageSize}
                       />
 
                       {/* Controles a la derecha */}

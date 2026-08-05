@@ -123,9 +123,13 @@ class LibroCorrespondenciaController extends Controller
             'preview_token' => 'required|string',
             'firma_desatendida' => 'nullable|boolean',
             'otp'        => $desatendida ? 'nullable|string' : 'nullable|string',
-            'firma_y'    => 'nullable|integer|min:10|max:712',
+            'firma_y'    => 'nullable|integer|min:0|max:20000',
             'firma_page' => 'nullable|string',
             'firma_col'  => 'nullable|integer|in:0,1,2',
+            'firma_x'    => 'nullable|integer|min:0|max:20000',
+            'firma_x2'   => 'nullable|integer|min:0|max:20000',
+            'firma_y2'   => 'nullable|integer|min:0|max:20000',
+            'firma_page_h' => 'nullable|integer|min:100|max:20000',
         ]);
 
         $cached = Cache::get(self::PREVIEW_CACHE_PREFIX . $request->preview_token);
@@ -145,9 +149,11 @@ class LibroCorrespondenciaController extends Controller
                 $user->update(['firma_modo_preferido' => $modo]);
             }
             try {
-                $colXCoords = [[71, 231], [233, 393], [395, 555]];
-                [$llx, $urx] = $colXCoords[$request->firma_col ?? 2] ?? [395, 555];
-                $firmaY = $request->firma_y ?? 20;
+                // Caja del sello medida sobre la página real que se previsualizó.
+                [$coords, $pageH] = FirmaGobService::rectDesdeParametros(
+                    $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+                    2
+                );
 
                 $signed = app(FirmaGobService::class)->sign(
                     $pdfContent,
@@ -156,9 +162,10 @@ class LibroCorrespondenciaController extends Controller
                     $desatendida ? null : $request->otp,
                     $user->nombre,
                     $user->cargoFirma() ?? 'Oficial de Partes',
-                    [$llx, $firmaY, $urx, $firmaY + 70],
+                    $coords,
                     $request->firma_page ?? 'LAST',
-                    $desatendida ? config('firmagob.purpose_desatendido') : null
+                    $desatendida ? config('firmagob.purpose_desatendido') : null,
+                    $pageH
                 );
                 $pdfContent = $signed['content'];
                 Log::info('Libro de correspondencia firmado con FirmaGob', [

@@ -33,8 +33,26 @@ export interface CreateDerivacionData {
   firma_y?: number
   firma_page?: string
   firma_col?: number
+  // Caja exacta del sello en puntos de la página real (ver FirmaRect)
+  firma_x?: number
+  firma_x2?: number
+  firma_y2?: number
+  firma_page_h?: number
   preview_token?: string
 }
+
+/** Caja del sello en puntos de la página que se previsualizó (no siempre es carta). */
+export interface FirmaRect {
+  llx: number
+  urx: number
+  ury: number
+  pageH: number
+}
+
+/** Campos del rect tal como los espera el backend (o vacío si no hay rect). */
+const rectPayload = (rect?: FirmaRect) => rect
+  ? { firma_x: rect.llx, firma_x2: rect.urx, firma_y2: rect.ury, firma_page_h: rect.pageH }
+  : {}
 
 export interface PreviewDerivarData {
   correspondencia_id: number
@@ -302,7 +320,7 @@ export const correspondenciaAPI = {
     return { blob: response.data as Blob, token }
   },
 
-  libroFirmar: async (previewToken: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number, desatendida?: boolean) => {
+  libroFirmar: async (previewToken: string, otp?: string, firmaY?: number, firmaPage?: string, firmaCol?: number, desatendida?: boolean, firmaRect?: FirmaRect) => {
     const response = await api.post<ApiResponse<LibroCorrespondencia>>('/correspondencia/libros/firmar', {
       preview_token: previewToken,
       otp,
@@ -310,6 +328,7 @@ export const correspondenciaAPI = {
       firma_y: firmaY,
       firma_page: firmaPage,
       firma_col: firmaCol,
+      ...rectPayload(firmaRect),
     })
     return response.data
   },
@@ -370,6 +389,7 @@ export const correspondenciaAPI = {
     firmaCol?: number,
     previewToken?: string,
     desatendida?: boolean,
+    firmaRect?: FirmaRect,
   ) => {
     // El Alcalde firma (atendida con OTP o desatendida sin OTP); el funcionario
     // solo acusa recibo (payload vacío).
@@ -383,6 +403,7 @@ export const correspondenciaAPI = {
             firma_y: firmaY,
             firma_page: firmaPage,
             firma_col: firmaCol,
+            ...rectPayload(firmaRect),
             preview_token: previewToken,
           }
         : {}

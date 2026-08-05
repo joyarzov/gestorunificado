@@ -729,9 +729,15 @@ class DocumentoController extends Controller
             'observaciones' => 'nullable|string|max:500',
             'firma_desatendida' => 'nullable|boolean',
             'otp'           => 'nullable|string|max:10',
-            'firma_y'       => 'nullable|integer|min:10|max:712',
+            'firma_y'       => 'nullable|integer|min:0|max:20000',
             'firma_page'    => 'nullable|string',
             'firma_col'     => 'nullable|integer|in:0,1,2',
+            // Caja exacta del sello en puntos de la página real (la manda el
+            // frontend tras medir el PDF con pdf.js). Ver más abajo.
+            'firma_x'       => 'nullable|integer|min:0|max:20000',
+            'firma_x2'      => 'nullable|integer|min:0|max:20000',
+            'firma_y2'      => 'nullable|integer|min:0|max:20000',
+            'firma_page_h'  => 'nullable|integer|min:100|max:20000',
         ]);
 
         // Recordar el modo elegido para preseleccionarlo en las próximas firmas.
@@ -740,18 +746,17 @@ class DocumentoController extends Controller
             $user->update(['firma_modo_preferido' => $modoFirma]);
         }
 
-        // Posición WYSIWYG: se respeta EXACTO la altura y columna que el usuario
-        // eligió y vio en la previsualización (igual que en correspondencia). Sin
-        // apilado automático por fila — el usuario ve las firmas existentes en el
-        // preview y elige un hueco libre. El apilado con offset causaba que el sello
-        // real quedara a distinta altura que la vista previa.
+        // Posición WYSIWYG: se respeta EXACTO la caja que el usuario eligió y vio
+        // en la previsualización, medida sobre la página REAL del PDF (que en un
+        // documento subido puede no ser carta). Sin apilado automático por fila —
+        // el usuario ve las firmas existentes en el preview y elige un hueco libre.
         $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
-        $col  = $request->has('firma_col') ? (int)$request->firma_col : $existingCount % 3;
-        $lly  = $request->firma_y ?? 20;
-        $ury  = $lly + 70;
-        $colXCoords = [[71, 231], [233, 393], [395, 555]]; // alineado con márgenes del doc (2.5cm izq, 2cm der)
-        [$llx, $urx] = $colXCoords[$col];
-        $coords = [$llx, $lly, $urx, $ury];
+        $col = $request->has('firma_col') ? (int) $request->firma_col : $existingCount % 3;
+        [$coords, $pageH] = FirmaGobService::rectDesdeParametros(
+            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+            $col
+        );
+        $lly = $coords[1];
 
         // Calidad de la firma (propia o en subrogancia de un titular): la fija la
         // asignación, no el header de sesión. De aquí sale el cargo del sello.
@@ -779,7 +784,8 @@ class DocumentoController extends Controller
                     $calidadFirma['cargo'],
                     $coords,
                     $request->firma_page ?? 'LAST',
-                    $desatendida ? config('firmagob.purpose_desatendido') : null
+                    $desatendida ? config('firmagob.purpose_desatendido') : null,
+                    $pageH
                 );
                 $firmaGobSignedContent = $result['content'];
                 $firmaGobData = [
@@ -791,6 +797,8 @@ class DocumentoController extends Controller
                         'firma_y'         => $lly,
                         'firma_col'       => $col,
                         'firma_page'      => $request->firma_page ?? 'LAST',
+                        'firma_rect'      => $coords,
+                        'firma_page_h'    => $pageH,
                     ],
                 ];
             } catch (FirmaGobException $e) {

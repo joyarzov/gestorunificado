@@ -8,6 +8,13 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 // alineada 1:1 con las coordenadas del sello.
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
+export interface TamanoPagina {
+  /** Ancho de la página en puntos PDF. */
+  w: number
+  /** Alto de la página en puntos PDF. */
+  h: number
+}
+
 export interface FirmaPagePreviewProps {
   pdfUrl?: string | null
   firmaYPos: number
@@ -22,23 +29,62 @@ export interface FirmaPagePreviewProps {
   selloUrl?: string | null
   /** Página a previsualizar (la misma donde irá el sello). */
   previewPage?: 'first' | 'last' | number
+  /**
+   * Tamaño real (en puntos) de la página previsualizada. El padre lo necesita
+   * para calcular las coordenadas del sello con `calcularRectFirma`: un PDF
+   * subido puede ser A4, oficio o un escaneo con caja enorme, no solo carta.
+   */
+  onPageSize?: (size: TamanoPagina) => void
 }
 
-const PAGE_W_PT = 612
-const PAGE_H_PT = 792
-const STAMP_W_PT = 160 // (612 - 71left - 57right) / 3 ≈ 160pt per column
-const STAMP_H_PT = 70
+/** Página carta: el tamaño que genera la propia plataforma y el respaldo si el PDF no carga. */
+export const PAGINA_CARTA: TamanoPagina = { w: 612, h: 792 }
+
+// Geometría del sello expresada en FRACCIONES de la página, no en puntos fijos.
+// Con carta (612x792) da exactamente los valores históricos (margen 10pt, rango
+// 702pt, columnas en 71/233/395 con 160pt de ancho, alto de caja 70pt); con
+// cualquier otro tamaño de página escala en proporción, que es lo que hace que
+// la vista previa y el PDF firmado coincidan.
+const MARGEN_INF_REL = 10 / 792
+const RANGO_Y_REL = 702 / 792
+const STAMP_H_REL = 70 / 792
+const COL_X_REL = [71 / 612, 233 / 612, 395 / 612]
+const COL_W_REL = 160 / 612
+const ROW_OFFSET_REL = 80 / 792
+
 const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los controles
+const PREVIEW_H_MAX_PX = Math.round(PAGINA_CARTA.h * (PREVIEW_W_PX / PAGINA_CARTA.w))
 
-const scale = PREVIEW_W_PX / PAGE_W_PT
-const previewH = Math.round(PAGE_H_PT * scale)
+export interface RectFirma {
+  /** Coordenada X izquierda del sello, en puntos de la página. */
+  llx: number
+  /** Borde INFERIOR del sello (lo que el backend recibe como `firma_y`). */
+  lly: number
+  urx: number
+  ury: number
+}
 
-const colXPx = [71, 233, 395].map(x => Math.round(x * scale)) // aligned with 2.5cm left margin
-const stampW = Math.round(STAMP_W_PT * scale)
-const stampH = Math.round(STAMP_H_PT * scale)
-
-function llyToCssTop(lly: number): number {
-  return Math.round(previewH - lly * scale - stampH)
+/**
+ * Traduce la posición elegida en el deslizador (0-100) y la columna a
+ * coordenadas PDF de la página REAL. Usada por la vista previa y por quien
+ * dispara la firma, para que ambos hablen exactamente de la misma caja.
+ */
+export function calcularRectFirma(
+  page: TamanoPagina,
+  firmaYPos: number,
+  col: number,
+  row = 0,
+): RectFirma {
+  const lly = Math.round(
+    (MARGEN_INF_REL + (firmaYPos / 100) * RANGO_Y_REL + row * ROW_OFFSET_REL) * page.h,
+  )
+  const llx = Math.round(COL_X_REL[col % 3] * page.w)
+  return {
+    llx,
+    lly,
+    urx: Math.round(llx + COL_W_REL * page.w),
+    ury: Math.round(lly + STAMP_H_REL * page.h),
+  }
 }
 
 export default function FirmaPagePreview({
@@ -49,21 +95,26 @@ export default function FirmaPagePreview({
   newCol,
   selloUrl,
   previewPage = 'last',
+  onPageSize,
 }: FirmaPagePreviewProps) {
-  // Calculate new stamp position
-  const newFirmaY = Math.round(10 + (firmaYPos / 100) * 702)
-  const newLly = newFirmaY + newRow * 80
-  const newCssTop = llyToCssTop(newLly)
-  const newCssLeft = colXPx[newCol]
-
   // Render de la página elegida del PDF en el canvas
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [pdfListo, setPdfListo] = useState(false)
+  const [pageSize, setPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
+
+  // El callback se guarda en una ref para que el efecto de render no dependa de
+  // su identidad (el padre suele pasar una lambda nueva en cada render).
+  const onPageSizeRef = useRef(onPageSize)
+  onPageSizeRef.current = onPageSize
 
   useEffect(() => {
     let cancelado = false
     setPdfListo(false)
-    if (!pdfUrl) return
+    if (!pdfUrl) {
+      setPageSize(PAGINA_CARTA)
+      onPageSizeRef.current?.(PAGINA_CARTA)
+      return
+    }
 
     ;(async () => {
       try {
@@ -76,8 +127,16 @@ export default function FirmaPagePreview({
         const page = await doc.getPage(pagina)
 
         const dpr = window.devicePixelRatio || 1
+        // El viewport a escala 1 ya viene con la rotación de la página aplicada:
+        // es el tamaño que ve el lector y sobre el que se posiciona el sello.
         const base = page.getViewport({ scale: 1 })
-        const viewport = page.getViewport({ scale: (PREVIEW_W_PX * dpr) / base.width })
+        if (cancelado) return
+        const tamano = { w: base.width, h: base.height }
+        setPageSize(tamano)
+        onPageSizeRef.current?.(tamano)
+
+        const escalaPreview = Math.min(PREVIEW_W_PX / base.width, PREVIEW_H_MAX_PX / base.height)
+        const viewport = page.getViewport({ scale: escalaPreview * dpr })
 
         const canvas = canvasRef.current
         if (!canvas || cancelado) return
@@ -88,148 +147,171 @@ export default function FirmaPagePreview({
         await page.render({ canvas, canvasContext: ctx, viewport }).promise
         if (!cancelado) setPdfListo(true)
       } catch {
-        // queda el fondo simulado de respaldo
+        // queda el fondo simulado de respaldo, con geometría carta
+        if (!cancelado) {
+          setPageSize(PAGINA_CARTA)
+          onPageSizeRef.current?.(PAGINA_CARTA)
+        }
       }
     })()
 
     return () => { cancelado = true }
   }, [pdfUrl, previewPage])
 
+  // Escala de la vista previa: la página completa cabe dentro del recuadro sin
+  // deformarse, sea carta, A4, oficio o apaisada.
+  const scale = Math.min(PREVIEW_W_PX / pageSize.w, PREVIEW_H_MAX_PX / pageSize.h)
+  const previewW = Math.round(pageSize.w * scale)
+  const previewH = Math.round(pageSize.h * scale)
+  const stampW = Math.round(COL_W_REL * pageSize.w * scale)
+  const stampH = Math.round(STAMP_H_REL * pageSize.h * scale)
+  const colXPx = COL_X_REL.map(x => Math.round(x * pageSize.w * scale))
+
+  const llyToCssTop = (lly: number) => Math.round(previewH - lly * scale - stampH)
+
+  // Posición del sello nuevo, calculada con la MISMA función que usa el padre
+  // al firmar: lo que se ve aquí es lo que se manda a FirmaGob.
+  const nuevoRect = calcularRectFirma(pageSize, firmaYPos, newCol, newRow)
+  const newCssTop = llyToCssTop(nuevoRect.lly)
+  const newCssLeft = colXPx[newCol % 3]
+
   return (
     <Box sx={{ flexShrink: 0 }}>
-      <Box
-        sx={{
-          width: PREVIEW_W_PX,
-          height: previewH,
-          border: '1.5px solid',
-          borderColor: 'divider',
-          borderRadius: 1,
-          bgcolor: 'white',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Fondo simulado (visible mientras carga el PDF o si falla) */}
-        {!pdfListo && (
-          <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
-              <Box key={i} sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }} />
-            ))}
-          </Box>
-        )}
+      <Box sx={{ width: PREVIEW_W_PX, display: 'flex', justifyContent: 'center' }}>
+        <Box
+          sx={{
+            width: previewW,
+            height: previewH,
+            border: '1.5px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Fondo simulado (visible mientras carga el PDF o si falla) */}
+          {!pdfListo && (
+            <Box sx={{ p: '12px 14px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {[80, 65, 75, 50, 70, 60, 80, 55, 72, 48, 68, 58].map((w, i) => (
+                <Box key={i} sx={{ height: 2.5, bgcolor: 'grey.200', borderRadius: 1, width: `${w}%` }} />
+              ))}
+            </Box>
+          )}
 
-        {/* Página real del documento */}
-        {pdfUrl && (
-          <Box
-            component="canvas"
-            ref={canvasRef}
-            sx={{
-              position: 'absolute',
-              top: 0, left: 0,
-              width: '100%',
-              height: '100%',
-              display: pdfListo ? 'block' : 'none',
-            }}
-          />
-        )}
-
-        {/* Existing firm stamps (grey semi-transparent) */}
-        {existingFirmas.map((f, i) => (
-          <Box
-            key={i}
-            title={f.nombre}
-            sx={{
-              position: 'absolute',
-              left: colXPx[f.col % 3],
-              top: llyToCssTop(f.firmaY),
-              width: stampW,
-              height: stampH,
-              bgcolor: 'rgba(100, 100, 100, 0.45)',
-              border: '1px solid rgba(80, 80, 80, 0.5)',
-              borderRadius: '2px',
-              transition: 'all 0.15s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {f.nombre && (
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: 7,
-                  color: 'white',
-                  textAlign: 'center',
-                  lineHeight: 1.1,
-                  px: '2px',
-                  overflow: 'hidden',
-                  maxWidth: '100%',
-                }}
-              >
-                {f.nombre}
-              </Typography>
-            )}
-          </Box>
-        ))}
-
-        {/* Sello nuevo: miniatura REAL del sello si está disponible; si no,
-            el recuadro azul de respaldo. Anclado por su borde inferior (lly),
-            igual que lo posiciona FirmaGob en el PDF. */}
-        {selloUrl ? (
-          <Box
-            sx={{
-              position: 'absolute',
-              left: newCssLeft,
-              top: newCssTop,
-              width: stampW,
-              height: stampH,
-              transition: 'all 0.15s ease',
-              pointerEvents: 'none',
-            }}
-          >
+          {/* Página real del documento */}
+          {pdfUrl && (
             <Box
-              component="img"
-              src={selloUrl}
-              alt="Tu sello de firma"
+              component="canvas"
+              ref={canvasRef}
               sx={{
                 position: 'absolute',
-                bottom: 0,
-                left: 0,
+                top: 0, left: 0,
                 width: '100%',
-                height: 'auto',
-                display: 'block',
-                outline: '1.5px dashed rgba(0, 113, 188, 0.85)',
-                outlineOffset: 1,
-                borderRadius: '1px',
-                filter: 'drop-shadow(0 0 1px rgba(0,0,0,.2))',
+                height: '100%',
+                display: pdfListo ? 'block' : 'none',
               }}
             />
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              position: 'absolute',
-              left: newCssLeft,
-              top: newCssTop,
-              width: stampW,
-              height: stampH,
-              bgcolor: 'rgba(0, 113, 188, 0.55)',
-              border: '1px solid rgba(0, 90, 150, 0.7)',
-              borderRadius: '2px',
-              transition: 'all 0.15s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{ fontSize: 7, color: 'white', textAlign: 'center', lineHeight: 1.1, px: '2px' }}
+          )}
+
+          {/* Existing firm stamps (grey semi-transparent) */}
+          {existingFirmas.map((f, i) => (
+            <Box
+              key={i}
+              title={f.nombre}
+              sx={{
+                position: 'absolute',
+                left: colXPx[f.col % 3],
+                top: llyToCssTop(f.firmaY),
+                width: stampW,
+                height: stampH,
+                bgcolor: 'rgba(100, 100, 100, 0.45)',
+                border: '1px solid rgba(80, 80, 80, 0.5)',
+                borderRadius: '2px',
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              Tu firma
-            </Typography>
-          </Box>
-        )}
+              {f.nombre && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: 7,
+                    color: 'white',
+                    textAlign: 'center',
+                    lineHeight: 1.1,
+                    px: '2px',
+                    overflow: 'hidden',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {f.nombre}
+                </Typography>
+              )}
+            </Box>
+          ))}
+
+          {/* Sello nuevo: miniatura REAL del sello si está disponible; si no,
+              el recuadro azul de respaldo. Anclado por su borde inferior (lly),
+              igual que lo posiciona FirmaGob en el PDF. */}
+          {selloUrl ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                left: newCssLeft,
+                top: newCssTop,
+                width: stampW,
+                height: stampH,
+                transition: 'all 0.15s ease',
+                pointerEvents: 'none',
+              }}
+            >
+              <Box
+                component="img"
+                src={selloUrl}
+                alt="Tu sello de firma"
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                  outline: '1.5px dashed rgba(0, 113, 188, 0.85)',
+                  outlineOffset: 1,
+                  borderRadius: '1px',
+                  filter: 'drop-shadow(0 0 1px rgba(0,0,0,.2))',
+                }}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                position: 'absolute',
+                left: newCssLeft,
+                top: newCssTop,
+                width: stampW,
+                height: stampH,
+                bgcolor: 'rgba(0, 113, 188, 0.55)',
+                border: '1px solid rgba(0, 90, 150, 0.7)',
+                borderRadius: '2px',
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{ fontSize: 7, color: 'white', textAlign: 'center', lineHeight: 1.1, px: '2px' }}
+              >
+                Tu firma
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Box>
       <Typography
         variant="caption"

@@ -194,7 +194,7 @@ const DerivacionDialog = ({
     }
   }
 
-  const handleFirmarYDerivar = async ({ otp, firmaY, firmaPage, firmaCol, desatendida }: FirmaParams) => {
+  const handleFirmarYDerivar = async ({ otp, firmaY, firmaPage, firmaCol, desatendida, firmaRect }: FirmaParams) => {
     if (!pendingData) return
     setFirmaLoading(true)
     setFirmaError(null)
@@ -206,6 +206,10 @@ const DerivacionDialog = ({
         firma_y: firmaY,
         firma_page: firmaPage,
         firma_col: firmaCol,
+        firma_x: firmaRect?.llx,
+        firma_x2: firmaRect?.urx,
+        firma_y2: firmaRect?.ury,
+        firma_page_h: firmaRect?.pageH,
         preview_token: previewToken ?? undefined,
       })
       // Refrescar el user para preseleccionar el modo elegido en la próxima firma.
