@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Box, Typography, Button, Card, CardContent,
   Alert, CircularProgress, FormControlLabel, Switch, Divider, Chip,
-  TextField, MenuItem, Grid,
+  TextField, MenuItem, Grid, Slider,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -18,6 +18,10 @@ import { configuracionAPI } from '../../api/configuracion'
 const Configuracion = () => {
   const navigate = useNavigate()
   const [simulate, setSimulate] = useState(false)
+  // Tamaño del sello de firma (% del ancho estándar). Política institucional:
+  // rige para todos los firmantes; el modal de firma solo lo aplica.
+  const [selloEscala, setSelloEscala] = useState(100)
+  const [selloSaving, setSelloSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +42,7 @@ const Configuracion = () => {
       .then(res => {
         const data = res.data || {}
         setSimulate(data.firmagob_simulate?.valor === 'true')
+        setSelloEscala(Number(data.firma_sello_escala?.valor) || 100)
         const next = {} as Record<MailKey, string>
         MAIL_KEYS.forEach(k => { next[k] = data[k]?.valor ?? '' })
         setMail(next)
@@ -96,6 +101,25 @@ const Configuracion = () => {
       setSaving(false)
     }
   }
+
+  const handleGuardarEscala = async (valor: number) => {
+    setSelloSaving(true); setError(null); setSuccess(null)
+    try {
+      await configuracionAPI.actualizar('firma_sello_escala', String(valor))
+      setSelloEscala(valor)
+      setSuccess(`Tamaño del sello guardado en ${valor}%. Aplica a las próximas firmas de todos los funcionarios.`)
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((e as any)?.response?.data?.message || 'Error al guardar el tamaño del sello')
+    } finally {
+      setSelloSaving(false)
+    }
+  }
+
+  // Medidas del sello en la hoja, para que el admin sepa qué está eligiendo.
+  // 160pt de ancho al 100% sobre carta; el alto sale del aspecto real del sello (~3,9:1).
+  const anchoCm = (160 * (selloEscala / 100)) / 28.35
+  const altoCm = anchoCm / 3.9
 
   if (loading) return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -169,6 +193,47 @@ const Configuracion = () => {
                 Firma electrónica real activa. Los documentos firmados tienen validez legal mediante FirmaGob.
               </Alert>
             )}
+
+            <Divider />
+
+            {/* Tamaño del sello: un solo valor para toda la municipalidad */}
+            <Box>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Tamaño del sello de firma
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Define cuánto ocupa el sello en el documento firmado. Rige para todos los
+                funcionarios: en el modal de firma solo se elige la posición, no el tamaño.
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: 1, minWidth: 260, px: 1 }}>
+                  <Slider
+                    value={selloEscala}
+                    onChange={(_, v) => setSelloEscala(v as number)}
+                    onChangeCommitted={(_, v) => handleGuardarEscala(v as number)}
+                    min={80}
+                    max={200}
+                    step={5}
+                    disabled={selloSaving}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(v) => `${v}%`}
+                    marks={[
+                      { value: 80, label: 'Chico' },
+                      { value: 100, label: 'Normal' },
+                      { value: 200, label: 'Grande' },
+                    ]}
+                    sx={{ '& .MuiSlider-markLabel': { fontSize: 11 } }}
+                  />
+                </Box>
+                <Chip
+                  label={selloSaving
+                    ? 'Guardando…'
+                    : `${selloEscala}% — ${anchoCm.toFixed(1)} x ${altoCm.toFixed(1)} cm en la hoja`}
+                  color="primary"
+                  variant="outlined"
+                />
+              </Box>
+            </Box>
           </Box>
         </CardContent>
       </Card>

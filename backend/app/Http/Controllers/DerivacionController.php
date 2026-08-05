@@ -67,6 +67,7 @@ class DerivacionController extends Controller
             'firma_x2'   => 'nullable|integer|min:0|max:20000',
             'firma_y2'   => 'nullable|integer|min:0|max:20000',
             'firma_page_h' => 'nullable|integer|min:100|max:20000',
+            'firma_page_w' => 'nullable|integer|min:100|max:20000',
             'preview_token' => 'nullable|string',
         ]);
 
@@ -384,7 +385,7 @@ class DerivacionController extends Controller
     private function calcularCoordenadas(Request $request): array
     {
         return FirmaGobService::rectDesdeParametros(
-            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h', 'firma_page_w']),
             2 // por defecto, columna derecha (donde va el timbre de la providencia)
         );
     }
@@ -756,6 +757,7 @@ class DerivacionController extends Controller
                 'firma_x2'   => 'nullable|integer|min:0|max:20000',
                 'firma_y2'   => 'nullable|integer|min:0|max:20000',
                 'firma_page_h' => 'nullable|integer|min:100|max:20000',
+                'firma_page_w' => 'nullable|integer|min:100|max:20000',
                 'preview_token' => 'nullable|string',
             ]);
 

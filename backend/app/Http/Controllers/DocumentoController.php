@@ -738,6 +738,7 @@ class DocumentoController extends Controller
             'firma_x2'      => 'nullable|integer|min:0|max:20000',
             'firma_y2'      => 'nullable|integer|min:0|max:20000',
             'firma_page_h'  => 'nullable|integer|min:100|max:20000',
+            'firma_page_w'  => 'nullable|integer|min:100|max:20000',
         ]);
 
         // Recordar el modo elegido para preseleccionarlo en las próximas firmas.
@@ -753,7 +754,7 @@ class DocumentoController extends Controller
         $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
         $col = $request->has('firma_col') ? (int) $request->firma_col : $existingCount % 3;
         [$coords, $pageH] = FirmaGobService::rectDesdeParametros(
-            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+            $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h', 'firma_page_w']),
             $col
         );
         $lly = $coords[1];
@@ -1031,6 +1032,8 @@ class DocumentoController extends Controller
         return $this->successResponse([
             'firma_gob_enabled' => config('firmagob.enabled'),
             'firma_gob_purpose' => config('firmagob.purpose'),
+            // Tamaño del sello fijado por la administración (% del ancho estándar)
+            'firma_sello_escala' => FirmaGobService::escalaSello(),
         ]);
     }
 

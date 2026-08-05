@@ -45,6 +45,26 @@ class FirmaGobService
         ];
     }
 
+    /** Ancho estándar del sello en puntos, sobre página carta (≈5,6 cm). */
+    private const SELLO_ANCHO_PT = 160;
+
+    /** Límites del tamaño configurable, en % del ancho estándar. */
+    public const ESCALA_MIN = 80;
+    public const ESCALA_MAX = 200;
+    public const ESCALA_POR_DEFECTO = 100;
+
+    /**
+     * Tamaño del sello (% del ancho estándar) que fijó la administración. Es una
+     * política institucional: el firmante no la elige, y el backend recorta
+     * cualquier caja que llegue más ancha de lo permitido.
+     */
+    public static function escalaSello(): int
+    {
+        $valor = (int) \App\Models\Configuracion::get('firma_sello_escala', self::ESCALA_POR_DEFECTO);
+
+        return max(self::ESCALA_MIN, min(self::ESCALA_MAX, $valor ?: self::ESCALA_POR_DEFECTO));
+    }
+
     /**
      * Traduce los parámetros de posición del sello que envía el frontend a la
      * caja [llx, lly, urx, ury] y el alto de la página, ambos en puntos PDF.
@@ -60,11 +80,20 @@ class FirmaGobService
     public static function rectDesdeParametros(array $p, int $colPorDefecto = 0): array
     {
         $pageH = isset($p['firma_page_h']) ? (int) $p['firma_page_h'] : 792;
+        $pageW = isset($p['firma_page_w']) ? (int) $p['firma_page_w'] : 612;
         $col   = isset($p['firma_col']) ? (int) $p['firma_col'] : $colPorDefecto;
         $lly   = isset($p['firma_y']) ? (int) $p['firma_y'] : 20;
 
+        // Ancho permitido por la configuración, proporcional al tamaño de la página.
+        $anchoMax = (int) round(self::SELLO_ANCHO_PT * ($pageW / 612) * (self::escalaSello() / 100));
+
         if (isset($p['firma_x'], $p['firma_x2'], $p['firma_y2'])) {
-            return [[(int) $p['firma_x'], $lly, (int) $p['firma_x2'], (int) $p['firma_y2']], $pageH];
+            $llx = (int) $p['firma_x'];
+            // El tamaño lo manda la configuración, no el cliente: si la caja llega
+            // más ancha de lo permitido, se recorta.
+            $urx = min((int) $p['firma_x2'], $llx + $anchoMax);
+
+            return [[$llx, $lly, $urx, (int) $p['firma_y2']], $pageH];
         }
 
         // Columnas alineadas a los márgenes del documento (2,5 cm izq. / 2 cm der.)

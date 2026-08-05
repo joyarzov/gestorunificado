@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
+use App\Services\FirmaGobService;
 use App\Mail\NotificacionMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Mail;
 class ConfiguracionController extends Controller
 {
     // Claves de propósito general expuestas al panel
-    private const ADMIN_CLAVES = ['firmagob_simulate'];
+    private const ADMIN_CLAVES = ['firmagob_simulate', 'firma_sello_escala'];
 
     // Claves SMTP editables (la contraseña se enmascara al leer)
     private const MAIL_CLAVES = [
@@ -69,6 +70,19 @@ class ConfiguracionController extends Controller
         $esMail = in_array($clave, self::MAIL_CLAVES, true);
         $request->validate(['valor' => $esMail ? 'nullable|string' : 'required|string']);
 
+        // El tamaño del sello es una política institucional acotada: fuera de
+        // rango, el sello se saldría de los márgenes o quedaría ilegible.
+        if ($clave === 'firma_sello_escala') {
+            $escala = (int) $request->valor;
+            if ($escala < FirmaGobService::ESCALA_MIN || $escala > FirmaGobService::ESCALA_MAX) {
+                return $this->errorResponse(
+                    'El tamaño del sello debe estar entre ' . FirmaGobService::ESCALA_MIN
+                    . '% y ' . FirmaGobService::ESCALA_MAX . '%.',
+                    422
+                );
+            }
+        }
+
         // No sobrescribir la contraseña si llega vacía o con la máscara
         if ($clave === 'mail_password') {
             if (in_array($request->valor, [null, '', self::PASSWORD_MASK], true)) {
@@ -123,8 +137,9 @@ class ConfiguracionController extends Controller
         );
 
         return $this->successResponse([
-            'simulate' => $simulate,
-            'enabled'  => (bool) config('firmagob.enabled'),
+            'simulate'     => $simulate,
+            'enabled'      => (bool) config('firmagob.enabled'),
+            'sello_escala' => FirmaGobService::escalaSello(),
         ]);
     }
 }

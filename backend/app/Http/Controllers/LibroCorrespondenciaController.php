@@ -130,6 +130,7 @@ class LibroCorrespondenciaController extends Controller
             'firma_x2'   => 'nullable|integer|min:0|max:20000',
             'firma_y2'   => 'nullable|integer|min:0|max:20000',
             'firma_page_h' => 'nullable|integer|min:100|max:20000',
+            'firma_page_w' => 'nullable|integer|min:100|max:20000',
         ]);
 
         $cached = Cache::get(self::PREVIEW_CACHE_PREFIX . $request->preview_token);
@@ -151,7 +152,7 @@ class LibroCorrespondenciaController extends Controller
             try {
                 // Caja del sello medida sobre la página real que se previsualizó.
                 [$coords, $pageH] = FirmaGobService::rectDesdeParametros(
-                    $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h']),
+                    $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h', 'firma_page_w']),
                     2
                 );
 

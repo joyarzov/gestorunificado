@@ -9,8 +9,7 @@ import { configuracionAPI } from '../../api/configuracion'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api/axios'
 import FirmaPagePreview, {
-  calcularRectFirma, PAGINA_CARTA, ESCALA_MIN, ESCALA_MAX, ESCALA_POR_DEFECTO,
-  leerEscalaGuardada, guardarEscala, type TamanoPagina,
+  calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
 } from '../common/FirmaPagePreview'
 
 export interface FirmaParams {
@@ -24,7 +23,7 @@ export interface FirmaParams {
    * porque un PDF puede no ser carta y ahí las coordenadas fijas del backend
    * dejarían el sello a otra altura que la vista previa.
    */
-  firmaRect?: { llx: number; urx: number; ury: number; pageH: number }
+  firmaRect?: { llx: number; urx: number; ury: number; pageH: number; pageW: number }
 }
 
 interface FirmaGobModalProps {
@@ -54,6 +53,7 @@ const FirmaGobModal = ({
   const [simulate, setSimulate] = useState(false)
   const [selloUrl, setSelloUrl] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
+  // Tamaño del sello: lo fija la administración, no el firmante.
   const [escala, setEscala] = useState(ESCALA_POR_DEFECTO)
 
   useEffect(() => {
@@ -65,9 +65,11 @@ const FirmaGobModal = ({
     setFirmaYPos(27)
     setFirmaPageMode('LAST')
     setFirmaCol(0)
-    setEscala(leerEscalaGuardada())
     configuracionAPI.firmagobEstado()
-      .then(res => setSimulate(res.data.simulate))
+      .then(res => {
+        setSimulate(res.data.simulate)
+        setEscala(normalizarEscala(res.data.sello_escala))
+      })
       .catch(() => setSimulate(false))
 
     // Miniatura REAL del sello del firmante (con su nombre/cargo/RUT),
@@ -92,7 +94,6 @@ const FirmaGobModal = ({
   const handleSubmit = () => {
     if (!puedeFirmar) return
     const rect = calcularRectFirma(pageSize, firmaYPos, firmaCol, escala)
-    guardarEscala(escala)
     const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : '1'
     onFirmar({
       otp: desatendida ? '' : otp,
@@ -100,7 +101,10 @@ const FirmaGobModal = ({
       firmaPage,
       firmaCol,
       desatendida,
-      firmaRect: { llx: rect.llx, urx: rect.urx, ury: rect.ury, pageH: Math.round(pageSize.h) },
+      firmaRect: {
+        llx: rect.llx, urx: rect.urx, ury: rect.ury,
+        pageH: Math.round(pageSize.h), pageW: Math.round(pageSize.w),
+      },
     })
   }
 
@@ -230,29 +234,6 @@ const FirmaGobModal = ({
                     marks={[
                       { value: 0,   label: 'Inferior' },
                       { value: 100, label: 'Superior' },
-                    ]}
-                    sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
-                  />
-                </Box>
-              </Box>
-
-              {/* Tamaño del sello */}
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Tamaño del sello — {escala}%
-                </Typography>
-                <Box sx={{ px: 1 }}>
-                  <Slider
-                    value={escala}
-                    onChange={(_, v) => setEscala(v as number)}
-                    min={ESCALA_MIN}
-                    max={ESCALA_MAX}
-                    step={5}
-                    size="small"
-                    marks={[
-                      { value: ESCALA_MIN, label: 'Chico' },
-                      { value: ESCALA_POR_DEFECTO, label: 'Normal' },
-                      { value: ESCALA_MAX, label: 'Grande' },
                     ]}
                     sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                   />

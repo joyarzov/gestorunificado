@@ -38,6 +38,7 @@ export interface CreateDerivacionData {
   firma_x2?: number
   firma_y2?: number
   firma_page_h?: number
+  firma_page_w?: number
   preview_token?: string
 }
 
@@ -47,11 +48,15 @@ export interface FirmaRect {
   urx: number
   ury: number
   pageH: number
+  pageW: number
 }
 
 /** Campos del rect tal como los espera el backend (o vacío si no hay rect). */
 const rectPayload = (rect?: FirmaRect) => rect
-  ? { firma_x: rect.llx, firma_x2: rect.urx, firma_y2: rect.ury, firma_page_h: rect.pageH }
+  ? {
+      firma_x: rect.llx, firma_x2: rect.urx, firma_y2: rect.ury,
+      firma_page_h: rect.pageH, firma_page_w: rect.pageW,
+    }
   : {}
 
 export interface PreviewDerivarData {

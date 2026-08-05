@@ -327,7 +327,7 @@ export const documentosAPI = {
     firmaPage?: string,
     firmaCol?: number,
     desatendida?: boolean,
-    firmaRect?: { llx: number; urx: number; ury: number; pageH: number },
+    firmaRect?: { llx: number; urx: number; ury: number; pageH: number; pageW: number },
   ) => {
     const response = await api.post<ApiResponse<Documento>>(`/documentos/${id}/firmar`, {
       observaciones,
@@ -341,12 +341,17 @@ export const documentosAPI = {
       firma_x2: firmaRect?.urx,
       firma_y2: firmaRect?.ury,
       firma_page_h: firmaRect?.pageH,
+      firma_page_w: firmaRect?.pageW,
     })
     return response.data
   },
 
   firmaConfig: async () => {
-    const response = await api.get<ApiResponse<{ firma_gob_enabled: boolean; firma_gob_purpose: string }>>('/documentos/firma-config')
+    const response = await api.get<ApiResponse<{
+      firma_gob_enabled: boolean
+      firma_gob_purpose: string
+      firma_sello_escala: number
+    }>>('/documentos/firma-config')
     return response.data
   },
 

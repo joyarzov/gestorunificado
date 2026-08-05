@@ -10,6 +10,8 @@ export interface ConfiguracionItem {
 export interface FirmagobEstado {
   simulate: boolean
   enabled: boolean
+  /** Tamaño del sello en % del ancho estándar, fijado por la administración. */
+  sello_escala: number
 }
 
 export const configuracionAPI = {

@@ -49,8 +49,7 @@ import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmaPagePreview, {
-  calcularRectFirma, PAGINA_CARTA, ESCALA_MIN, ESCALA_MAX, ESCALA_POR_DEFECTO,
-  leerEscalaGuardada, guardarEscala, type TamanoPagina,
+  calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
 } from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
 import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, TipoDocumental, User } from '../../types'
@@ -161,6 +160,7 @@ const DocumentoDetail = () => {
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
   // Tamaño real (pt) de la página que se previsualiza; la reporta FirmaPagePreview
   const [firmaPageSize, setFirmaPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
+  // Tamaño del sello: lo fija la administración, no el firmante.
   const [firmaEscala, setFirmaEscala] = useState(ESCALA_POR_DEFECTO)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -201,6 +201,7 @@ const DocumentoDetail = () => {
       .then(r => {
         setFirmaGobEnabled(r.data?.firma_gob_enabled ?? false)
         setFirmaGobPurpose(r.data?.firma_gob_purpose ?? '')
+        setFirmaEscala(normalizarEscala(r.data?.firma_sello_escala))
       })
       .catch(() => {})
   }, [])
@@ -234,7 +235,6 @@ const DocumentoDetail = () => {
     if (firmarDialogOpen) {
       const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
       setFirmaCol(existingCount % 3)
-      setFirmaEscala(leerEscalaGuardada())
     }
   }, [firmarDialogOpen, pdfUrl])
 
@@ -317,7 +317,6 @@ const DocumentoDetail = () => {
       // Coordenadas sobre la página REAL (un PDF subido puede ser A4, oficio o
       // un escaneo con caja mayor): así el sello queda donde muestra la vista previa.
       const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala)
-      guardarEscala(firmaEscala)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
       await documentosAPI.firmar(
@@ -328,7 +327,10 @@ const DocumentoDetail = () => {
         firmaPage,
         firmaCol,
         firmaDesatendida,
-        { llx: rect.llx, urx: rect.urx, ury: rect.ury, pageH: Math.round(firmaPageSize.h) },
+        {
+          llx: rect.llx, urx: rect.urx, ury: rect.ury,
+          pageH: Math.round(firmaPageSize.h), pageW: Math.round(firmaPageSize.w),
+        },
       )
       // Refrescar el user para preseleccionar el modo elegido la próxima vez.
       checkAuth()
@@ -1101,29 +1103,6 @@ const DocumentoDetail = () => {
                               marks={[
                                 { value: 0,   label: 'Inferior' },
                                 { value: 100, label: 'Superior' },
-                              ]}
-                              sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
-                            />
-                          </Box>
-                        </Box>
-
-                        {/* Tamaño del sello */}
-                        <Box>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                            Tamaño del sello — {firmaEscala}%
-                          </Typography>
-                          <Box sx={{ px: 1 }}>
-                            <Slider
-                              value={firmaEscala}
-                              onChange={(_, v) => setFirmaEscala(v as number)}
-                              min={ESCALA_MIN}
-                              max={ESCALA_MAX}
-                              step={5}
-                              size="small"
-                              marks={[
-                                { value: ESCALA_MIN, label: 'Chico' },
-                                { value: ESCALA_POR_DEFECTO, label: 'Normal' },
-                                { value: ESCALA_MAX, label: 'Grande' },
                               ]}
                               sx={{ '& .MuiSlider-markLabel': { fontSize: 10 } }}
                             />

@@ -67,22 +67,19 @@ export interface RectFirma {
   ury: number
 }
 
-/** Tamaño del sello en % del ancho estándar (100 = 160pt en carta ≈ 5,6 cm). */
+/**
+ * Tamaño del sello en % del ancho estándar (100 = 160pt en carta ≈ 5,6 cm).
+ * Lo fija la administración en Admin → Configuración; el firmante no lo elige.
+ */
 export const ESCALA_MIN = 80
 export const ESCALA_MAX = 200
 export const ESCALA_POR_DEFECTO = 100
 
-const ESCALA_STORAGE_KEY = 'firma_sello_escala'
-
-/** Último tamaño que eligió el usuario: se reusa en todas sus firmas. */
-export function leerEscalaGuardada(): number {
-  const guardada = Number(localStorage.getItem(ESCALA_STORAGE_KEY))
-  if (!guardada || Number.isNaN(guardada)) return ESCALA_POR_DEFECTO
-  return Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, guardada))
-}
-
-export function guardarEscala(escala: number): void {
-  localStorage.setItem(ESCALA_STORAGE_KEY, String(escala))
+/** Normaliza el tamaño que llega del backend (política de la administración). */
+export function normalizarEscala(valor: unknown): number {
+  const escala = Number(valor)
+  if (!escala || Number.isNaN(escala)) return ESCALA_POR_DEFECTO
+  return Math.min(ESCALA_MAX, Math.max(ESCALA_MIN, Math.round(escala)))
 }
 
 /**
