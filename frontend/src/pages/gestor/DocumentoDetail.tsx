@@ -503,35 +503,71 @@ const DocumentoDetail = () => {
     (documento?.creado_por === user?.id || esTitularEmision || esFirmanteDelDocumento) &&
     (!tieneDestinatarioPreset || !yaEnviado)
 
+  /**
+   * Firma VIGENTE de un firmante. Un mismo firmante puede tener varios registros:
+   * si rechazó y después firmó, quedan los dos. Manda la firma efectiva; si no
+   * hay ninguna, el registro más reciente (el rechazo o el pendiente).
+   */
+  const firmaVigenteDe = (usuarioId?: number): DocumentoFirma | undefined => {
+    if (!usuarioId) return undefined
+    const propias = (documento?.firmas || []).filter(
+      f => f.usuario_id === usuarioId || f.firmante_id === usuarioId,
+    )
+    if (propias.length === 0) return undefined
+
+    // Más reciente primero: por fecha de firma y, si empatan, por id.
+    const masReciente = [...propias].sort((a, b) => {
+      const fa = a.fecha_firma ? new Date(a.fecha_firma).getTime() : 0
+      const fb = b.fecha_firma ? new Date(b.fecha_firma).getTime() : 0
+      return fb - fa || b.id - a.id
+    })
+
+    return masReciente.find(f => f.estado === 'firmado') ?? masReciente[0]
+  }
+
+  /** Rechazos anteriores a la firma vigente: se muestran como antecedente. */
+  const rechazosPreviosDe = (usuarioId?: number): DocumentoFirma[] =>
+    (documento?.firmas || []).filter(
+      f => (f.usuario_id === usuarioId || f.firmante_id === usuarioId) && f.estado === 'rechazado',
+    )
+
   // Build the list of firmantes with their status
   const getFirmantesConEstado = () => {
     if (!documento) return []
 
-    const firmantes: Array<{ user: User; estado: 'pendiente' | 'firmado' | 'rechazado'; fecha?: string; observacion?: string; firma_gob_id?: string }> = []
+    const firmantes: Array<{
+      user: User
+      estado: 'pendiente' | 'firmado' | 'rechazado'
+      fecha?: string
+      observacion?: string
+      firma_gob_id?: string
+      rechazoPrevio?: string
+    }> = []
+
+    const construir = (user: User) => {
+      const firma = firmaVigenteDe(user.id)
+      const previos = firma?.estado === 'firmado' ? rechazosPreviosDe(user.id) : []
+      firmantes.push({
+        user,
+        estado: firma?.estado || 'pendiente',
+        firma_gob_id: firma?.firma_gob_id,
+        fecha: firma?.fecha_firma,
+        observacion: firma?.observacion || firma?.observaciones,
+        rechazoPrevio: previos.length
+          ? (previos[0].observacion || previos[0].observaciones || 'sin motivo registrado')
+          : undefined,
+      })
+    }
 
     const asignados = documento.firmantes_asignados || []
     // If no firmantes_asignados but there's firmante_asignado, use that
     if (asignados.length === 0 && documento.firmante_asignado) {
-      const firma = documento.firmas?.find(f => f.usuario_id === documento.firmante_asignado_id || f.firmante_id === documento.firmante_asignado_id)
-      firmantes.push({
-        user: documento.firmante_asignado,
-        estado: firma?.estado || 'pendiente',
-        firma_gob_id: firma?.firma_gob_id,
-        fecha: firma?.fecha_firma,
-        observacion: firma?.observacion || firma?.observaciones,
-      })
+      construir(documento.firmante_asignado)
       return firmantes
     }
 
     for (const asignado of asignados) {
-      const firma = documento.firmas?.find(f => f.usuario_id === asignado.id || f.firmante_id === asignado.id)
-      firmantes.push({
-        user: asignado,
-        estado: firma?.estado || 'pendiente',
-        firma_gob_id: firma?.firma_gob_id,
-        fecha: firma?.fecha_firma,
-        observacion: firma?.observacion || firma?.observaciones,
-      })
+      construir(asignado)
     }
 
     return firmantes
@@ -844,11 +880,20 @@ const DocumentoDetail = () => {
                       <ListItemText
                         primary={item.user.nombre}
                         secondary={
-                          item.estado === 'firmado' && item.fecha
-                            ? `Firmado el ${format(new Date(item.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}`
-                            : item.estado === 'rechazado'
-                              ? `Rechazado${item.observacion ? ': ' + item.observacion : ''}`
-                              : 'Pendiente de firma'
+                          <>
+                            <Typography variant="caption" component="span" display="block">
+                              {item.estado === 'firmado' && item.fecha
+                                ? `Firmado el ${format(new Date(item.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}`
+                                : item.estado === 'rechazado'
+                                  ? `Rechazado${item.observacion ? ': ' + item.observacion : ''}`
+                                  : 'Pendiente de firma'}
+                            </Typography>
+                            {item.rechazoPrevio && (
+                              <Typography variant="caption" component="span" display="block" color="text.disabled">
+                                Antes lo había rechazado: {item.rechazoPrevio}
+                              </Typography>
+                            )}
+                          </>
                         }
                       />
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
