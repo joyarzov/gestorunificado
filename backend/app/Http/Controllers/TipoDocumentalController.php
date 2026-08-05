@@ -9,7 +9,8 @@ class TipoDocumentalController extends Controller
 {
     public function index(Request $request)
     {
-        $query = TipoDocumental::query();
+        // documentos_count decide si el tipo se puede deshabilitar o eliminar
+        $query = TipoDocumental::withCount('documentos');
 
         if ($request->filled('activo')) {
             $query->where('activo', $request->boolean('activo'));
@@ -67,6 +68,19 @@ class TipoDocumentalController extends Controller
             'activo' => 'boolean',
         ]);
 
+        // Un tipo con documentos emitidos no se puede deshabilitar: los documentos
+        // quedarían clasificados con un tipo que ya no existe para el resto del sistema.
+        if ($request->has('activo') && !$request->boolean('activo') && $tipoDocumental->activo) {
+            $enUso = $tipoDocumental->documentos()->count();
+            if ($enUso > 0) {
+                return $this->errorResponse(
+                    "No se puede deshabilitar \"{$tipoDocumental->nombre}\": tiene {$enUso} "
+                    . ($enUso === 1 ? 'documento asociado' : 'documentos asociados') . '.',
+                    422
+                );
+            }
+        }
+
         $tipoDocumental->update($request->only([
             'codigo',
             'nombre',
@@ -76,14 +90,19 @@ class TipoDocumentalController extends Controller
             'activo',
         ]));
 
-        return $this->successResponse($tipoDocumental, 'Tipo documental actualizado');
+        return $this->successResponse($tipoDocumental->loadCount('documentos'), 'Tipo documental actualizado');
     }
 
     public function destroy(TipoDocumental $tipoDocumental)
     {
-        // Verificar si tiene expedientes asociados
-        if ($tipoDocumental->expedientes()->exists()) {
-            return $this->errorResponse('No se puede eliminar: tiene expedientes asociados', 400);
+        // Ojo: antes se consultaba expedientes(), una relación que el modelo no
+        // tiene — cualquier intento de eliminar reventaba con un 500.
+        if ($tipoDocumental->documentos()->exists()) {
+            return $this->errorResponse('No se puede eliminar: tiene documentos asociados. Deshabilítalo si ya no se usa.', 422);
+        }
+
+        if ($tipoDocumental->plantillas()->exists()) {
+            return $this->errorResponse('No se puede eliminar: hay plantillas que usan este tipo.', 422);
         }
 
         $tipoDocumental->delete();

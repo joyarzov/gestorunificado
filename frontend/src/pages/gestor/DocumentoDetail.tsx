@@ -1015,10 +1015,13 @@ const DocumentoDetail = () => {
         onClose={() => { if (!actionLoading) { setFirmarDialogOpen(false); setOtpCode('') } }}
         maxWidth="md"
         fullWidth
+        PaperProps={{ sx: { position: 'relative', overflow: 'hidden' } }}
       >
+        {/* Cubre el diálogo completo —título y botones incluidos—: dentro del
+            contenido quedaba recortado por el scroll. */}
+        <FirmandoOverlay activo={actionLoading} />
         <DialogTitle>Confirmar Firma</DialogTitle>
-        <DialogContent sx={{ position: 'relative' }}>
-          <FirmandoOverlay activo={actionLoading} />
+        <DialogContent>
           <Typography variant="body2" sx={{ mb: 1 }}>
             Está a punto de firmar electrónicamente el documento <strong>{documento.numero || documento.identificador}</strong>.
           </Typography>

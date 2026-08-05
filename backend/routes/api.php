@@ -252,8 +252,16 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
     // MÓDULO GESTOR DOCUMENTAL
     // =====================================================
 
-    // Tipos documentales
-    Route::apiResource('tipos-documentales', TipoDocumentalController::class);
+    // Tipos documentales: consultarlos lo necesita cualquier funcionario (formularios),
+    // pero el mantenedor (crear / editar / habilitar / eliminar) es solo de admin.
+    Route::get('tipos-documentales', [TipoDocumentalController::class, 'index']);
+    Route::get('tipos-documentales/{tipoDocumental}', [TipoDocumentalController::class, 'show']);
+    Route::middleware('role:admin')->group(function () {
+        Route::post('tipos-documentales', [TipoDocumentalController::class, 'store']);
+        Route::put('tipos-documentales/{tipoDocumental}', [TipoDocumentalController::class, 'update']);
+        Route::patch('tipos-documentales/{tipoDocumental}', [TipoDocumentalController::class, 'update']);
+        Route::delete('tipos-documentales/{tipoDocumental}', [TipoDocumentalController::class, 'destroy']);
+    });
 
     // Correlativos
     Route::prefix('correlativos')->group(function () {

@@ -16,6 +16,7 @@ import {
   Archive as ArchiveIcon,
   Verified as SelloIcon,
   Description as PlantillaIcon,
+  Category as TipoDocIcon,
 } from '@mui/icons-material'
 import { adminAPI, AdminDashboardStats } from '../../api/common'
 
@@ -106,6 +107,13 @@ const Administracion = () => {
       icono: <PlantillaIcon sx={{ fontSize: 48 }} />,
       color: '#2DC700',
       ruta: '/plantillas',
+    },
+    {
+      titulo: 'Tipos de Documento',
+      descripcion: 'Clasificación de los documentos: crear, habilitar y deshabilitar',
+      icono: <TipoDocIcon sx={{ fontSize: 48 }} />,
+      color: '#28A9E3',
+      ruta: '/tipos-documentales',
     },
   ]
 

@@ -115,13 +115,14 @@ const FirmaGobModal = ({
       maxWidth="lg"
       fullWidth
       disableEscapeKeyDown={!onCancel}
+      PaperProps={{ sx: { position: 'relative', overflow: 'hidden' } }}
     >
+      <FirmandoOverlay activo={loading} />
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <FirmaIcon color={simulate ? 'warning' : 'primary'} />
         {titulo}
       </DialogTitle>
-      <DialogContent sx={{ position: 'relative' }}>
-        <FirmandoOverlay activo={loading} />
+      <DialogContent>
         {simulate && (
           <Alert severity="warning" icon={<WarnIcon />} sx={{ mb: 2 }}>
             <strong>Modo simulación activo.</strong> Esta firma NO tiene validez legal.

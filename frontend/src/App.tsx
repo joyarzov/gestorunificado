@@ -67,6 +67,7 @@ import FirmaSellosPage from './pages/admin/FirmaSellosPage'
 import FirmaSelloForm from './pages/admin/FirmaSelloForm'
 import Configuracion from './pages/admin/Configuracion'
 import PlantillasManage from './pages/admin/PlantillasManage'
+import TiposDocumentalesManage from './pages/admin/TiposDocumentalesManage'
 import Organigrama from './pages/admin/Organigrama'
 import ChangePassword from './pages/auth/ChangePassword'
 
@@ -150,6 +151,7 @@ function App() {
 
             {/* Administración */}
             <Route path="/administracion" element={<Administracion />} />
+            <Route path="/tipos-documentales" element={<TiposDocumentalesManage />} />
             <Route path="/usuarios" element={<UsuariosManage />} />
             <Route path="/departamentos" element={<DepartamentosManage />} />
             <Route path="/configuracion" element={<Configuracion />} />
