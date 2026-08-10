@@ -568,11 +568,17 @@ class DerivacionController extends Controller
             [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
             $destinatarios->loadMissing('departamento');
 
+            // ->toBase() NO es decorativo: map() sobre una colección de Eloquent
+            // VACÍA sigue devolviendo una colección de Eloquent (no hay elementos
+            // que la degraden a colección base), y merge() de Eloquent asume
+            // modelos — le pide getKey() a cada uno y revienta con estos strings.
+            // Pasa justo al derivar solo a departamento(s), que deja esta lista vacía.
             $departamentoDestino = $destinatarios
                 ->map(fn ($d) => $d->departamento?->nombre)
-                ->merge($departamentosDestino->pluck('nombre'))
+                ->toBase()
+                ->merge($departamentosDestino->pluck('nombre')->toBase())
                 ->filter()->unique()->implode(', ');
-            $usuarioDestino = $destinatarios->pluck('nombre')->implode(', ');
+            $usuarioDestino = $destinatarios->pluck('nombre')->toBase()->implode(', ');
         }
 
         return array_merge(
