@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material'
 import { departamentosAPI, usersAPI } from '../../api/common'
 import { correspondenciaAPI, CreateDerivacionData } from '../../api/correspondencia'
-import { Departamento, User } from '../../types'
+import { Departamento, Derivacion, User } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import FirmaGobModal, { FirmaParams } from './FirmaGobModal'
 
@@ -46,6 +46,8 @@ interface DerivacionDialogProps {
   prefillUsuarioId?: number
   readOnly?: boolean
   mode?: 'alcalde' | 'funcionario'
+  /** Derivaciones ya existentes, para avisar a quién no hace falta volver a derivar. */
+  derivacionesActuales?: Derivacion[]
   onSuccess: () => void
 }
 
@@ -57,6 +59,7 @@ const DerivacionDialog = ({
   prefillUsuarioId,
   readOnly = false,
   mode = 'alcalde',
+  derivacionesActuales = [],
   onSuccess,
 }: DerivacionDialogProps) => {
   const { checkAuth, user, actuandoComo } = useAuth()
@@ -307,6 +310,16 @@ const DerivacionDialog = ({
   )
   const nominalesEfectivos = selectedUsuarios.length - usuariosAbsorbidos.length
 
+  // Quién ya tiene la correspondencia (derivaciones vigentes; las de tránsito,
+  // ya cursadas, no cuentan). Al derivar de nuevo el alcalde no recuerda a quién
+  // mandó antes: elegir al mismo destino crea una segunda derivación y le exige
+  // acusar recibo dos veces.
+  const yaDerivados = derivacionesActuales
+    .filter((d) => d.estado === 'pendiente' || d.estado === 'recibido')
+    .map((d) => d.usuario_destino?.nombre || d.departamento_destino?.nombre)
+    .filter((n): n is string => !!n)
+    .filter((n, i, arr) => arr.indexOf(n) === i)
+
   // Desglose del alcance; solo aporta cuando hay departamentos de por medio
   // (con puros funcionarios el conteo ya lo dice todo).
   const detalleDestinos = selectedDeptos.length === 0
@@ -387,6 +400,14 @@ const DerivacionDialog = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {esModoFuncionario && !readOnly ? (
               <>
+                {yaDerivados.length > 0 && (
+                  <Alert severity="info">
+                    Esta correspondencia ya está derivada a <strong>{yaDerivados.join(', ')}</strong>.
+                    Elige solo a quien falte: volver a elegir el mismo destino crea una segunda
+                    derivación y le exige acusar recibo de nuevo.
+                  </Alert>
+                )}
+
                 <ToggleButtonGroup
                   exclusive
                   fullWidth

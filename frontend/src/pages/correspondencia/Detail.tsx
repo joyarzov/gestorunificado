@@ -44,7 +44,7 @@ import {
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { documentosAPI } from '../../api/gestor'
-import { Correspondencia, Adjunto, Documento } from '../../types'
+import { Correspondencia, Adjunto, Documento, Derivacion } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
@@ -354,6 +354,18 @@ const CorrespondenciaDetail = () => {
     correspondencia?.estado === 'pendiente' &&
     (!correspondencia?.derivaciones || correspondencia.derivaciones.length === 0)
 
+  // El Alcalde puede derivar lo que está en su despacho y TAMBIÉN lo que ya
+  // derivó, para sumar a alguien que se le olvidó. Espeja alcaldePuedeDerivar()
+  // del backend; cada derivación nueva genera su propia providencia firmada.
+  const puedeDerivarAlcalde = isAlcalde() && !!correspondencia
+    && ['derivada_alcaldia', 'derivada_funcionario', 'en_proceso', 'completada'].includes(correspondencia.estado)
+
+  // Providencias ya emitidas (una por derivación firmada). Antes se asumía una
+  // sola por correspondencia; al poder derivar de nuevo son varias.
+  const providencias = (correspondencia?.derivaciones ?? [])
+    .filter((d) => !!d.folio)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+
   const handleDerivarAlcalde = async () => {
     try {
       const res = await correspondenciaAPI.obtenerAlcaldeInfo()
@@ -371,6 +383,20 @@ const CorrespondenciaDetail = () => {
     setDerivDialogReadOnly(false)
     setDerivDialogMode('funcionario')
     setDerivDialogOpen(true)
+  }
+
+  /** Abre la providencia de UNA derivación (cada derivación firmada tiene la suya). */
+  const handleVerProvidenciaDerivacion = async (derivacion: Derivacion) => {
+    try {
+      const blob = await correspondenciaAPI.descargarPdfDerivacion(derivacion.id)
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))
+      setViewerName(`Providencia ${derivacion.folio ?? ''}`.trim())
+      setViewerUrl(url)
+      setViewerOpen(true)
+    } catch (err) {
+      console.error('Error al cargar providencia:', err)
+      setSnackbar({ open: true, message: 'Error al cargar la providencia' })
+    }
   }
 
   const handleVerProvidencia = async () => {
@@ -629,27 +655,29 @@ const CorrespondenciaDetail = () => {
               Derivar a Alcalde
             </Button>
           )}
-          {isAlcalde() && correspondencia?.estado === 'derivada_alcaldia' && (
-            <>
-              <Button
-                variant="contained"
-                startIcon={<DerivacionIcon />}
-                onClick={handleDerivarFuncionario}
-              >
-                Derivar a Funcionario
-              </Button>
-              {derivacionPendienteParaAlcalde && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={recibirLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
-                  onClick={handleMarcarRecibida}
-                  disabled={recibirLoading}
-                >
-                  {recibirLoading ? 'Procesando...' : 'Marcar como Recibida'}
-                </Button>
-              )}
-            </>
+          {puedeDerivarAlcalde && (
+            <Button
+              /* Ya derivada: es una acción secundaria (sumar a quien faltó), no
+                 el paso principal del despacho. */
+              variant={correspondencia?.estado === 'derivada_alcaldia' ? 'contained' : 'outlined'}
+              startIcon={<DerivacionIcon />}
+              onClick={handleDerivarFuncionario}
+            >
+              {correspondencia?.estado === 'derivada_alcaldia'
+                ? 'Derivar a Funcionario'
+                : 'Derivar a otro funcionario'}
+            </Button>
+          )}
+          {isAlcalde() && correspondencia?.estado === 'derivada_alcaldia' && derivacionPendienteParaAlcalde && (
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={recibirLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+              onClick={handleMarcarRecibida}
+              disabled={recibirLoading}
+            >
+              {recibirLoading ? 'Procesando...' : 'Marcar como Recibida'}
+            </Button>
           )}
           {(isAdmin() || isOficial()) && correspondencia.estado === 'pendiente' && (
             <Button
@@ -776,22 +804,53 @@ const CorrespondenciaDetail = () => {
         {/* Panel lateral */}
         <Grid item xs={12} md={4}>
           {/* Providencia */}
-          {correspondencia.providencia_generada && (
+          {(providencias.length > 0 || correspondencia.providencia_generada) && (
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   <PdfIcon sx={{ mr: 1, verticalAlign: 'middle', color: 'success.main' }} />
-                  Providencia
+                  {providencias.length > 1 ? 'Providencias' : 'Providencia'}
                 </Typography>
-                <Button
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  startIcon={<PdfIcon />}
-                  onClick={handleVerProvidencia}
-                >
-                  Ver Providencia
-                </Button>
+
+                {/* Una por derivación firmada, con su folio y a quién derivó.
+                    Fallback al PDF guardado en la correspondencia para los
+                    registros antiguos, anteriores a la providencia por derivación. */}
+                {providencias.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {providencias.map((prov) => (
+                      <Button
+                        key={prov.id}
+                        variant="contained"
+                        color="success"
+                        fullWidth
+                        startIcon={<PdfIcon />}
+                        onClick={() => handleVerProvidenciaDerivacion(prov)}
+                        sx={{ justifyContent: 'flex-start', textAlign: 'left', textTransform: 'none' }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                            {prov.folio}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.85 }}>
+                            {prov.usuario_destino?.nombre
+                              || prov.departamento_destino?.nombre
+                              || 'Sin destino'}
+                          </Typography>
+                        </Box>
+                      </Button>
+                    ))}
+                  </Box>
+                ) : (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    fullWidth
+                    startIcon={<PdfIcon />}
+                    onClick={handleVerProvidencia}
+                  >
+                    Ver Providencia
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1134,6 +1193,7 @@ const CorrespondenciaDetail = () => {
         prefillUsuarioId={alcaldeInfo?.user_id}
         readOnly={derivDialogReadOnly}
         mode={derivDialogMode}
+        derivacionesActuales={correspondencia.derivaciones}
         onSuccess={handleDerivacionSuccess}
       />
 

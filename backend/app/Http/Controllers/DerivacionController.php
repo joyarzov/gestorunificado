@@ -89,11 +89,12 @@ class DerivacionController extends Controller
                 422
             );
         }
-        $esAlcaldeDerivando = $user->isAlcalde() && $correspondencia->estado === 'derivada_alcaldia';
+        $esAlcaldeDerivando = $this->alcaldePuedeDerivar($user, $correspondencia);
 
         // Autorización para derivar:
         // - oficina de partes / admin: la primera derivación (estado pendiente);
-        // - alcalde: lo que está en su despacho (derivada_alcaldia);
+        // - alcalde: lo que está en su despacho, y también lo ya derivado, para
+        //   poder sumar a alguien que se olvidó (ver alcaldePuedeDerivar);
         // - funcionario: re-derivar solo lo que tiene activo en su bandeja
         //   (es destinatario de una derivación pendiente/recibida).
         if (!$correspondencia->esVisiblePara($user)) {
@@ -325,6 +326,34 @@ class DerivacionController extends Controller
                 : 'Derivación creada correctamente');
 
         return $this->successResponse($derivacion, $message, 201);
+    }
+
+    /**
+     * ¿El alcalde puede derivar esta correspondencia (generando providencia)?
+     *
+     * No solo la que está en su despacho (`derivada_alcaldia`): también la que ya
+     * derivó. Derivar es un acto que se puede repetir — si se olvidó de un
+     * destinatario, antes no había forma de sumarlo, porque el botón desaparecía
+     * y previewDerivar respondía 403; había que corregir la base de datos a mano.
+     * Cada derivación nueva genera su PROPIA providencia firmada (el folio PROV-
+     * es un correlativo independiente), sin tocar las anteriores, igual que en
+     * papel un oficio va acumulando providencias a medida que circula.
+     *
+     * Se excluye 'pendiente' (aún no pasa por oficina de partes: no le
+     * corresponde al alcalde saltarse el ingreso) y la archivada, que ya se
+     * bloquea antes por estar cerrada. Si la correspondencia estaba 'completada'
+     * (todos acusaron), sumar un destinatario la devuelve a 'derivada_funcionario':
+     * vuelve a haber un acuse pendiente.
+     */
+    private function alcaldePuedeDerivar(User $user, ?Correspondencia $correspondencia): bool
+    {
+        return $user->isAlcalde()
+            && $correspondencia
+            && in_array(
+                $correspondencia->estado,
+                ['derivada_alcaldia', 'derivada_funcionario', 'en_proceso', 'completada'],
+                true
+            );
     }
 
     /**
@@ -626,8 +655,11 @@ class DerivacionController extends Controller
         $user = Auth::user();
         $correspondencia = Correspondencia::find($request->correspondencia_id);
 
-        if (!$user->isAlcalde() || $correspondencia->estado !== 'derivada_alcaldia') {
-            return $this->errorResponse('Sólo el Alcalde puede generar una providencia desde una correspondencia derivada a Alcaldía', 403);
+        if ($correspondencia->estaArchivada()) {
+            return $this->errorResponse('El proceso está cerrado (archivada por el Alcalde): no admite nuevas derivaciones.', 422);
+        }
+        if (!$this->alcaldePuedeDerivar($user, $correspondencia)) {
+            return $this->errorResponse('Sólo el Alcalde puede generar una providencia, sobre una correspondencia que esté en su despacho o que ya haya derivado.', 403);
         }
 
         $correspondencia->load(['departamento']);
