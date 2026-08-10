@@ -330,7 +330,9 @@
                 @if(!empty($subrogante_rut))
                     <div class="firma-rut">{{ $subrogante_rut }}</div>
                 @endif
-                <div class="firma-cargo">{{ $subrogante_cargo ?? 'Funcionario' }} (S)</div>
+                {{-- Firma el cargo QUE SE SUBROGA ("Alcalde (S)"), no el propio.
+                     El cargo real del subrogante va en la leyenda. --}}
+                <div class="firma-cargo">{{ $cargo_titular ?? 'Alcalde' }} (S)</div>
                 <div class="firma-leyenda">
                     Subrogante del {{ $cargo_titular ?? 'Alcalde' }} {{ $usuario_origen }}.
                 </div>

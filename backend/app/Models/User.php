@@ -169,16 +169,26 @@ class User extends Authenticatable
     }
 
     /**
-     * Cargo para mostrar en bloques de firma electrónica: el cargo propio
-     * con sufijo "(S)" cuando el usuario está actuando como subrogado.
-     * Devuelve null si el usuario no tiene cargo declarado.
+     * Cargo para mostrar en bloques de firma electrónica.
+     *
+     * Al subrogar es el cargo DEL TITULAR con sufijo "(S)" — quien subroga firma
+     * el cargo que está ejerciendo: Johanna Cárdenas subrogando al Alcalde firma
+     * "Alcalde (S)", no "Directora SECPLAN (S)" (eso leería como si a ella la
+     * estuvieran subrogando en su propio cargo). Su cargo real no se pierde: va
+     * en la leyenda del bloque de firma. Mismo criterio que el módulo de
+     * documentos en el frontend (SelectorFirmantes.tsx).
+     *
+     * Devuelve null si no hay cargo declarado (el llamador pone su fallback).
      */
     public function cargoFirma(): ?string
     {
-        if (!$this->cargo) {
-            return null;
+        $titular = $this->actuandoComo;
+
+        if ($titular) {
+            return $titular->cargo ? $titular->cargo . ' (S)' : null;
         }
-        return $this->actuandoComo ? $this->cargo . ' (S)' : $this->cargo;
+
+        return $this->cargo ?: null;
     }
 
     /**
