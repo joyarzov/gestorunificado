@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Departamento;
 use App\Models\Derivacion;
 use App\Models\Correspondencia;
 use App\Models\Notificacion;
@@ -51,6 +52,8 @@ class DerivacionController extends Controller
         $request->validate([
             'correspondencia_id' => 'required|exists:correspondencia,id',
             'departamento_destino_id' => 'nullable|exists:departamentos,id',
+            'departamento_destino_ids' => 'nullable|array',
+            'departamento_destino_ids.*' => 'exists:departamentos,id',
             'usuario_destino_id' => 'nullable|exists:users,id',
             'usuario_destino_ids' => 'nullable|array',
             'usuario_destino_ids.*' => 'exists:users,id',
@@ -75,13 +78,14 @@ class DerivacionController extends Controller
         $ctx = $user->contexto();
         $correspondencia = Correspondencia::find($request->correspondencia_id);
 
-        // Destinatarios específicos (uno o varios funcionarios, o todos).
-        // Si queda vacío, la derivación es a nivel de departamento y entonces
-        // el departamento sí es obligatorio.
-        $destinatarios = $this->resolverDestinatarios($request);
-        if ($destinatarios->isEmpty() && !$request->departamento_destino_id) {
+        // Destinos: funcionarios específicos y/o departamentos completos. Ambas
+        // listas son independientes y se pueden combinar en una misma derivación
+        // (ej: al Director de Obras y, además, a todo SECPLAN). Ver resolverDestinos()
+        // para la normalización de quien queda cubierto por ambas vías.
+        [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
+        if ($destinatarios->isEmpty() && $departamentosDestino->isEmpty()) {
             return $this->errorResponse(
-                'Indica al menos un destino: funcionario(s), un departamento o todos los funcionarios.',
+                'Indica al menos un destino: funcionario(s), departamento(s) o todos los funcionarios.',
                 422
             );
         }
@@ -197,24 +201,25 @@ class DerivacionController extends Controller
             $this->descartarPreview($request->preview_token);
         }
 
-        // Crear las derivaciones: una por funcionario destinatario, o una sola
-        // a nivel de departamento. El departamento de cada derivación es el del
-        // destinatario (respaldo: el seleccionado, o el del propio origen).
+        // Crear las derivaciones: una por funcionario destinatario y una por
+        // departamento completo. El departamento de una derivación a funcionario
+        // es el suyo (respaldo: el del propio origen).
+        // El folio de providencia es ÚNICO en derivaciones, así que la providencia
+        // se asocia solo a la primera fila del lote.
         $derivaciones = collect();
-        if ($destinatarios->isNotEmpty()) {
-            foreach ($destinatarios as $i => $dest) {
-                $derivaciones->push(Derivacion::create($derivacionData + [
-                    'usuario_destino_id' => $dest->id,
-                    'departamento_destino_id' => $dest->departamento_id
-                        ?? $request->departamento_destino_id
-                        ?? $ctx->departamento_id,
-                ] + ($i === 0 ? ($providenciaData ?? []) : [])));
-            }
-        } else {
+        foreach ($destinatarios as $dest) {
+            $derivaciones->push(Derivacion::create($derivacionData + [
+                'usuario_destino_id' => $dest->id,
+                'departamento_destino_id' => $dest->departamento_id
+                    ?? $request->departamento_destino_id
+                    ?? $ctx->departamento_id,
+            ] + ($derivaciones->isEmpty() ? ($providenciaData ?? []) : [])));
+        }
+        foreach ($departamentosDestino as $depto) {
             $derivaciones->push(Derivacion::create($derivacionData + [
                 'usuario_destino_id' => null,
-                'departamento_destino_id' => $request->departamento_destino_id,
-            ] + ($providenciaData ?? [])));
+                'departamento_destino_id' => $depto->id,
+            ] + ($derivaciones->isEmpty() ? ($providenciaData ?? []) : [])));
         }
         $derivacion = $derivaciones->first();
 
@@ -240,14 +245,11 @@ class DerivacionController extends Controller
             // Check if derivation is to the alcalde (by user or department)
             $esDerivacionAAlcalde = $destinatarios->contains(fn ($d) => $d->isAlcalde());
 
-            // Also check if destination department has an alcalde user
-            if (!$esDerivacionAAlcalde && $request->departamento_destino_id) {
-                $alcaldeEnDestino = User::where('departamento_id', $request->departamento_destino_id)
+            // Also check if any destination department has an alcalde user
+            if (!$esDerivacionAAlcalde && $departamentosDestino->isNotEmpty()) {
+                $esDerivacionAAlcalde = User::whereIn('departamento_id', $departamentosDestino->pluck('id'))
                     ->whereJsonContains('roles', 'alcalde')
                     ->exists();
-                if ($alcaldeEnDestino) {
-                    $esDerivacionAAlcalde = true;
-                }
             }
 
             if ($esDerivacionAAlcalde) {
@@ -266,8 +268,11 @@ class DerivacionController extends Controller
             'departamentoDestino',
         ]);
 
-        // Notificar: a los destinatarios específicos, o a todo el departamento
-        // destino cuando la derivación es a nivel de departamento.
+        // Notificar a los destinatarios específicos y, por cada departamento
+        // destino, a sus funcionarios. Quien ya fue notificado como destinatario
+        // directo no se vuelve a notificar por su departamento.
+        $yaNotificados = $destinatarios->pluck('id')->all();
+
         if ($destinatarios->isNotEmpty()) {
             NotificacionService::enviar(
                 $destinatarios,
@@ -277,9 +282,11 @@ class DerivacionController extends Controller
                 "Se te ha derivado la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\".",
                 ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id]
             );
-        } else {
-            $deptoDestinoNombre = $derivacion->departamentoDestino->nombre ?? 'Destino';
-            $usuariosDestino = User::where('departamento_id', $request->departamento_destino_id)->get();
+        }
+
+        $derivacionesPorDepto = $derivaciones->whereNull('usuario_destino_id')->keyBy('departamento_destino_id');
+        foreach ($departamentosDestino as $depto) {
+            $usuariosDestino = User::where('departamento_id', $depto->id)->get();
 
             // Si el departamento destino tiene un alcalde, la derivación "a
             // Alcaldía" está dirigida al alcalde: se notifica SOLO a quienes
@@ -289,26 +296,67 @@ class DerivacionController extends Controller
             // normales (sin alcalde) se sigue notificando a todo el departamento.
             $alcaldesDestino = $usuariosDestino->filter(fn ($u) => $u->isAlcalde());
             if ($alcaldesDestino->isNotEmpty()) {
-                $usuariosDestino = $alcaldesDestino->values();
+                $usuariosDestino = $alcaldesDestino;
             }
 
+            $usuariosDestino = $usuariosDestino
+                ->reject(fn ($u) => in_array($u->id, $yaNotificados, true))
+                ->values();
+            if ($usuariosDestino->isEmpty()) {
+                continue;
+            }
+            $yaNotificados = array_merge($yaNotificados, $usuariosDestino->pluck('id')->all());
+
+            $derivacionDepto = $derivacionesPorDepto[$depto->id] ?? $derivacion;
             NotificacionService::enviar(
                 $usuariosDestino,
                 'correspondencia',
                 'correspondencia_recibida',
                 'Nueva correspondencia en tu bandeja',
-                "Se ha derivado la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" a {$deptoDestinoNombre}.",
-                ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacion->id, 'url' => '/correspondencia/' . $correspondencia->id]
+                "Se ha derivado la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" a {$depto->nombre}.",
+                ['correspondencia_id' => $correspondencia->id, 'derivacion_id' => $derivacionDepto->id, 'url' => '/correspondencia/' . $correspondencia->id]
             );
         }
 
         $message = $esAlcaldeDerivando
             ? 'Derivación creada con providencia generada'
             : ($derivaciones->count() > 1
-                ? "Derivación creada para {$derivaciones->count()} funcionarios"
+                ? "Derivación creada para {$derivaciones->count()} destinos"
                 : 'Derivación creada correctamente');
 
         return $this->successResponse($derivacion, $message, 201);
+    }
+
+    /**
+     * Resuelve los destinos definitivos de una derivación, ya normalizados:
+     * funcionarios con derivación nominal y departamentos derivados completos.
+     *
+     * Un funcionario elegido en persona cuyo departamento TAMBIÉN se deriva
+     * completo ya está incluido en la derivación del departamento: su fila
+     * nominal se descarta. Si no, se le crearían dos derivaciones y tendría que
+     * acusar recibo de las dos para que la correspondencia pasara a "En gestión"
+     * (recibir() exige que no quede ninguna pendiente) — un doble acuse que nadie
+     * espera y que traba el proceso.
+     *
+     * Es el ÚNICO punto donde se decide qué destinos existen: lo usan tanto la
+     * creación de las derivaciones como el cuerpo de la providencia, para que el
+     * PDF firmado y las filas creadas nunca se contradigan.
+     *
+     * @return array{0: \Illuminate\Support\Collection<User>, 1: \Illuminate\Support\Collection<Departamento>}
+     */
+    private function resolverDestinos(Request $request): array
+    {
+        $destinatarios = $this->resolverDestinatarios($request);
+        $departamentos = $this->resolverDepartamentosDestino($request, $destinatarios);
+
+        if ($destinatarios->isNotEmpty() && $departamentos->isNotEmpty()) {
+            $idsDeptos = $departamentos->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $destinatarios = $destinatarios
+                ->reject(fn ($u) => in_array((int) $u->departamento_id, $idsDeptos, true))
+                ->values();
+        }
+
+        return [$destinatarios, $departamentos];
     }
 
     /**
@@ -344,6 +392,37 @@ class DerivacionController extends Controller
             ->unique()->values();
 
         return $ids->isEmpty() ? collect() : User::whereIn('id', $ids)->get();
+    }
+
+    /**
+     * Resuelve los departamentos que reciben la derivación completa (todos sus
+     * funcionarios). Se combinan libremente con los destinatarios individuales.
+     *
+     * `departamento_destino_ids` es la lista nueva. El `departamento_destino_id`
+     * singular es el contrato legado y tiene DOS sentidos según el caso, que se
+     * respetan aquí para no romper a los clientes antiguos:
+     *  - sin funcionarios destinatarios → es el departamento destino;
+     *  - con funcionarios destinatarios → es solo el departamento de respaldo de
+     *    esos funcionarios (ver store()), NO un destino adicional.
+     *
+     * @param  \Illuminate\Support\Collection<User>  $destinatarios
+     * @return \Illuminate\Support\Collection<Departamento>
+     */
+    private function resolverDepartamentosDestino(Request $request, $destinatarios)
+    {
+        if ($request->boolean('derivar_a_todos')) {
+            return collect();
+        }
+
+        $ids = collect($request->departamento_destino_ids ?? []);
+        if ($request->departamento_destino_id && $destinatarios->isEmpty()) {
+            $ids->push($request->departamento_destino_id);
+        }
+        $ids = $ids->map(fn ($i) => (int) $i)->unique()->values();
+
+        return $ids->isEmpty()
+            ? collect()
+            : Departamento::whereIn('id', $ids)->orderBy('nombre')->get();
     }
 
     /**
@@ -444,24 +523,22 @@ class DerivacionController extends Controller
      */
     private function paramsProvidenciaDerivar(Request $request, User $user): array
     {
-        // Destino para el cuerpo de la providencia según la modalidad:
-        // todos / funcionario(s) específico(s) / departamento completo.
+        // Destino para el cuerpo de la providencia según la modalidad: todos, o
+        // la combinación de funcionario(s) específico(s) y departamento(s)
+        // completo(s). Los departamentos de la providencia son los de los
+        // funcionarios destinatarios MÁS los departamentos derivados completos.
         if ($request->boolean('derivar_a_todos')) {
             $departamentoDestino = 'Todas las direcciones y departamentos municipales';
             $usuarioDestino = 'Todos los funcionarios';
         } else {
-            $destinatarios = $this->resolverDestinatarios($request);
-            if ($destinatarios->isNotEmpty()) {
-                $destinatarios->load('departamento');
-                $departamentoDestino = $destinatarios
-                    ->map(fn ($d) => $d->departamento?->nombre)
-                    ->filter()->unique()->implode(', ');
-                $usuarioDestino = $destinatarios->pluck('nombre')->implode(', ');
-            } else {
-                $deptoDestino = \App\Models\Departamento::find($request->departamento_destino_id);
-                $departamentoDestino = $deptoDestino?->nombre ?? '';
-                $usuarioDestino = '';
-            }
+            [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
+            $destinatarios->load('departamento');
+
+            $departamentoDestino = $destinatarios
+                ->map(fn ($d) => $d->departamento?->nombre)
+                ->merge($departamentosDestino->pluck('nombre'))
+                ->filter()->unique()->implode(', ');
+            $usuarioDestino = $destinatarios->pluck('nombre')->implode(', ');
         }
 
         return array_merge(
@@ -533,15 +610,17 @@ class DerivacionController extends Controller
     public function previewDerivar(Request $request)
     {
         $request->validate([
-            'correspondencia_id'      => 'required|exists:correspondencia,id',
-            'departamento_destino_id' => 'nullable|exists:departamentos,id',
-            'usuario_destino_id'      => 'nullable|exists:users,id',
-            'usuario_destino_ids'     => 'nullable|array',
-            'usuario_destino_ids.*'   => 'exists:users,id',
-            'derivar_a_todos'         => 'nullable|boolean',
-            'observaciones'           => 'nullable|string',
-            'acciones_para'           => 'nullable|array',
-            'acciones_para.*'         => 'string',
+            'correspondencia_id'         => 'required|exists:correspondencia,id',
+            'departamento_destino_id'    => 'nullable|exists:departamentos,id',
+            'departamento_destino_ids'   => 'nullable|array',
+            'departamento_destino_ids.*' => 'exists:departamentos,id',
+            'usuario_destino_id'         => 'nullable|exists:users,id',
+            'usuario_destino_ids'        => 'nullable|array',
+            'usuario_destino_ids.*'      => 'exists:users,id',
+            'derivar_a_todos'            => 'nullable|boolean',
+            'observaciones'              => 'nullable|string',
+            'acciones_para'              => 'nullable|array',
+            'acciones_para.*'            => 'string',
         ]);
 
         $user = Auth::user();

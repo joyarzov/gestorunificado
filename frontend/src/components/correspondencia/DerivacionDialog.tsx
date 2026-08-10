@@ -64,9 +64,11 @@ const DerivacionDialog = ({
   const [usuarios, setUsuarios] = useState<User[]>([])
   const [selectedDepto, setSelectedDepto] = useState<Departamento | null>(null)
   const [selectedUsuario, setSelectedUsuario] = useState<User | null>(null)
-  // Modo alcalde: destino flexible (funcionarios específicos / depto completo / todos)
-  const [tipoDestino, setTipoDestino] = useState<'funcionarios' | 'departamento' | 'todos'>('funcionarios')
+  // Modo alcalde: destinos específicos (funcionarios y/o departamentos completos,
+  // combinables en una misma derivación) o todos los funcionarios del municipio.
+  const [tipoDestino, setTipoDestino] = useState<'especificos' | 'todos'>('especificos')
   const [selectedUsuarios, setSelectedUsuarios] = useState<User[]>([])
+  const [selectedDeptos, setSelectedDeptos] = useState<Departamento[]>([])
   const [observaciones, setObservaciones] = useState('')
   const [accionesPara, setAccionesPara] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -128,7 +130,8 @@ const DerivacionDialog = ({
   }
 
   // Destino según modalidad. En modo alcalde el departamento ya no es
-  // obligatorio: se puede derivar a funcionario(s), a un depto completo o a todos.
+  // obligatorio: se puede derivar a funcionario(s), a departamento(s) completo(s),
+  // a ambos a la vez, o a todos.
   const buildDestino = () => {
     if (!esModoFuncionario || readOnly) {
       return {
@@ -137,13 +140,14 @@ const DerivacionDialog = ({
       }
     }
     if (tipoDestino === 'todos') return { derivar_a_todos: true }
-    if (tipoDestino === 'departamento') return { departamento_destino_id: selectedDepto?.id }
-    return { usuario_destino_ids: selectedUsuarios.map((u) => u.id) }
+    return {
+      usuario_destino_ids: selectedUsuarios.length > 0 ? selectedUsuarios.map((u) => u.id) : undefined,
+      departamento_destino_ids: selectedDeptos.length > 0 ? selectedDeptos.map((d) => d.id) : undefined,
+    }
   }
 
   const destinoValido = esModoFuncionario && !readOnly
-    ? (tipoDestino === 'todos'
-        || (tipoDestino === 'departamento' ? !!selectedDepto : selectedUsuarios.length > 0))
+    ? (tipoDestino === 'todos' || selectedUsuarios.length > 0 || selectedDeptos.length > 0)
     : !!selectedDepto
 
   const handleSubmit = async () => {
@@ -238,7 +242,8 @@ const DerivacionDialog = ({
     setSelectedDepto(null)
     setSelectedUsuario(null)
     setSelectedUsuarios([])
-    setTipoDestino('funcionarios')
+    setSelectedDeptos([])
+    setTipoDestino('especificos')
     setObservaciones('')
     setAccionesPara([])
     setShowSuccess(false)
@@ -281,6 +286,35 @@ const DerivacionDialog = ({
   const filteredUsuarios = selectedDepto
     ? usuariosSeleccionables.filter((u) => u.departamento_id === selectedDepto.id)
     : usuariosSeleccionables
+
+  // Cuántos funcionarios recibirán la correspondencia con los destinos elegidos.
+  // Quien está seleccionado en persona y además pertenece a un departamento
+  // elegido cuenta una sola vez (el backend no lo notifica dos veces).
+  const idsDeptosDestino = selectedDeptos.map((d) => d.id)
+  const alcanceDestinos = new Set([
+    ...selectedUsuarios.map((u) => u.id),
+    ...usuariosSeleccionables
+      .filter((u) => u.departamento_id != null && idsDeptosDestino.includes(u.departamento_id))
+      .map((u) => u.id),
+  ]).size
+
+  // A quien se eligió en persona y además está en un departamento derivado
+  // completo, el backend le deja SOLO la derivación del departamento (si no,
+  // tendría que acusar recibo dos veces). Se avisa para que el alcalde sepa que
+  // esa persona no queda con una derivación a su nombre.
+  const usuariosAbsorbidos = selectedUsuarios.filter(
+    (u) => u.departamento_id != null && idsDeptosDestino.includes(u.departamento_id)
+  )
+  const nominalesEfectivos = selectedUsuarios.length - usuariosAbsorbidos.length
+
+  // Desglose del alcance; solo aporta cuando hay departamentos de por medio
+  // (con puros funcionarios el conteo ya lo dice todo).
+  const detalleDestinos = selectedDeptos.length === 0
+    ? ''
+    : [
+        nominalesEfectivos > 0 && `${nominalesEfectivos} en persona`,
+        `${selectedDeptos.length} ${selectedDeptos.length === 1 ? 'departamento completo' : 'departamentos completos'}`,
+      ].filter(Boolean).join(' + ')
 
   // Modal FirmaGob (mientras el formulario principal permanece abierto detrás)
   if (showFirmaModal) {
@@ -364,71 +398,108 @@ const DerivacionDialog = ({
                     setTipoDestino(value)
                     setSelectedDepto(null)
                     setSelectedUsuarios([])
+                    setSelectedDeptos([])
                   }}
                 >
-                  <ToggleButton value="funcionarios">Funcionario(s)</ToggleButton>
-                  <ToggleButton value="departamento">Departamento</ToggleButton>
-                  <ToggleButton value="todos">Todos</ToggleButton>
+                  <ToggleButton value="especificos">Destinos específicos</ToggleButton>
+                  <ToggleButton value="todos">Todos los funcionarios</ToggleButton>
                 </ToggleButtonGroup>
 
-                {tipoDestino === 'funcionarios' && (
-                  /* Sin filtro por departamento: se busca por nombre entre TODOS
-                     los funcionarios, para poder mezclar destinos de distintos
-                     departamentos en una misma derivación. */
-                  <Autocomplete
-                    multiple
-                    options={usuariosSeleccionables}
-                    getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
-                    value={selectedUsuarios}
-                    onChange={(_, value) => setSelectedUsuarios(value)}
-                    renderOption={(props, opt) => (
-                      <Box component="li" {...props} key={opt.id}>
-                        <Box>
-                          <Typography variant="body2">{opt.nombre}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {[opt.cargo, departamentos.find((d) => d.id === opt.departamento_id)?.nombre]
-                              .filter(Boolean)
-                              .join(' · ') || opt.rut}
-                          </Typography>
+                {tipoDestino === 'especificos' && (
+                  /* Funcionarios y departamentos completos son destinos
+                     independientes y combinables en una misma derivación
+                     (ej: al Director de Obras y, además, a todo SECPLAN).
+                     El buscador de funcionarios no se filtra por departamento:
+                     se busca por nombre entre todos. */
+                  <>
+                    <Autocomplete
+                      multiple
+                      options={usuariosSeleccionables}
+                      getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
+                      value={selectedUsuarios}
+                      onChange={(_, value) => setSelectedUsuarios(value)}
+                      renderOption={(props, opt) => (
+                        <Box component="li" {...props} key={opt.id}>
+                          <Box>
+                            <Typography variant="body2">{opt.nombre}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {[opt.cargo, departamentos.find((d) => d.id === opt.departamento_id)?.nombre]
+                                .filter(Boolean)
+                                .join(' · ') || opt.rut}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    )}
-                    renderTags={(value, getTagProps) =>
-                      value.map((opt, index) => (
-                        <Chip
-                          {...getTagProps({ index })}
-                          key={opt.id}
-                          label={opt.nombre}
-                          size="small"
+                      )}
+                      renderTags={(value, getTagProps) =>
+                        value.map((opt, index) => (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={opt.id}
+                            label={opt.nombre}
+                            size="small"
+                          />
+                        ))
+                      }
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Funcionario(s) destino"
+                          helperText="Busca por nombre; puedes combinar funcionarios de distintos departamentos"
                         />
-                      ))
-                    }
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Funcionario(s) destino"
-                        required={selectedUsuarios.length === 0}
-                        helperText="Busca por nombre; puedes combinar funcionarios de distintos departamentos"
-                      />
-                    )}
-                  />
-                )}
+                      )}
+                    />
 
-                {tipoDestino === 'departamento' && (
-                  <Autocomplete
-                    options={departamentos}
-                    getOptionLabel={(opt) => opt.nombre}
-                    value={selectedDepto}
-                    onChange={(_, value) => setSelectedDepto(value)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Departamento destino"
-                        required
-                        helperText="La correspondencia llegará a la bandeja de todos los funcionarios del departamento"
-                      />
+                    <Autocomplete
+                      multiple
+                      options={departamentos}
+                      getOptionLabel={(opt) => opt.nombre}
+                      value={selectedDeptos}
+                      onChange={(_, value) => setSelectedDeptos(value)}
+                      isOptionEqualToValue={(opt, value) => opt.id === value.id}
+                      renderTags={(value, getTagProps) =>
+                        value.map((opt, index) => (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={opt.id}
+                            label={opt.nombre}
+                            size="small"
+                          />
+                        ))
+                      }
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Departamento(s) completo(s)"
+                          helperText="Llega a la bandeja de todos los funcionarios de cada departamento elegido"
+                        />
+                      )}
+                    />
+
+                    {!destinoValido && (
+                      <Alert severity="info">
+                        Elige al menos un destino: funcionario(s), departamento(s), o ambos a la vez.
+                      </Alert>
                     )}
-                  />
+
+                    {usuariosAbsorbidos.length > 0 && (
+                      <Alert severity="info">
+                        {usuariosAbsorbidos.map((u) => u.nombre).join(', ')}
+                        {usuariosAbsorbidos.length === 1 ? ' ya está incluido' : ' ya están incluidos'} en
+                        {' '}{selectedDeptos.length === 1 ? 'el departamento elegido' : 'los departamentos elegidos'},
+                        así que {usuariosAbsorbidos.length === 1 ? 'recibirá la correspondencia' : 'recibirán la correspondencia'}{' '}
+                        por esa vía y no se {usuariosAbsorbidos.length === 1 ? 'creará una derivación aparte a su nombre' : 'crearán derivaciones aparte a su nombre'}.
+                        Quita el departamento si necesitas que {usuariosAbsorbidos.length === 1 ? 'quede' : 'queden'} con acuse de recibo personal.
+                      </Alert>
+                    )}
+
+                    {destinoValido && (
+                      <Typography variant="caption" color="text.secondary">
+                        Recibirán esta correspondencia <strong>{alcanceDestinos}</strong>{' '}
+                        {alcanceDestinos === 1 ? 'funcionario' : 'funcionarios'}
+                        {detalleDestinos && ` — ${detalleDestinos}`}.
+                      </Typography>
+                    )}
+                  </>
                 )}
 
                 {tipoDestino === 'todos' && (

@@ -23,6 +23,8 @@ export interface CreateCorrespondenciaData {
 export interface CreateDerivacionData {
   correspondencia_id: number
   departamento_destino_id?: number
+  /** Departamentos que reciben la derivación completa; se combinan con usuario_destino_ids */
+  departamento_destino_ids?: number[]
   usuario_destino_id?: number
   usuario_destino_ids?: number[]
   derivar_a_todos?: boolean
@@ -62,6 +64,7 @@ const rectPayload = (rect?: FirmaRect) => rect
 export interface PreviewDerivarData {
   correspondencia_id: number
   departamento_destino_id?: number
+  departamento_destino_ids?: number[]
   usuario_destino_id?: number
   usuario_destino_ids?: number[]
   derivar_a_todos?: boolean
