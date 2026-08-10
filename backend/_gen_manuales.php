@@ -61,7 +61,7 @@ $cab = '<div class="cabecera">'
     . '<div class="inst-sub">Plataforma de Gestión Documental Municipal · Módulo de Correspondencia</div></td>'
     . '</tr></table><div class="regla-azul"></div></div>';
 
-$pie = '<div class="pie">Ilustre Municipalidad de Cabo de Hornos · Manual de usuario · Módulo de Correspondencia · Junio 2026</div>';
+$pie = '<div class="pie">Ilustre Municipalidad de Cabo de Hornos · Manual de usuario · Módulo de Correspondencia · Agosto 2026</div>';
 
 // ==================== BLOQUES COMPARTIDOS ====================
 
@@ -241,17 +241,35 @@ su <b>clave OTP</b> de FirmaGob, y quedará firmada con valor legal, con su foli
 (<span class="kbd">PROV-2026-00012</span>) y código QR verificable.</p>
 
 <h1>4. Derivar con instrucciones: la providencia de derivación</h1>
-<p>Cuando decide quién debe hacerse cargo, pulse <b>Derivar a Funcionario</b> y elija el destino
-entre tres modalidades:</p>
+<p>Cuando decide quién debe hacerse cargo, pulse <b>Derivar a Funcionario</b> y elija entre dos
+modalidades:</p>
 <ul>
-<li><b>Funcionario(s)</b> — escriba los nombres y selecciónelos, uno o varios, sin importar de qué departamento sean. Cada uno la recibirá en su propia bandeja.</li>
-<li><b>Departamento</b> — la correspondencia llega a la bandeja de todos los funcionarios de esa unidad.</li>
-<li><b>Todos</b> — llega a todos los funcionarios activos del municipio (útil para circulares).</li>
+<li><b>Destinos específicos</b> — dos buscadores que puede usar por separado o <em>combinados en una misma derivación</em>:
+  <ul>
+  <li><b>Funcionario(s)</b>: escriba los nombres y selecciónelos, uno o varios, sin importar de qué departamento sean. Cada uno la recibirá en su propia bandeja.</li>
+  <li><b>Departamento(s) completo(s)</b>: la correspondencia llega a la bandeja de todos los funcionarios de cada unidad elegida.</li>
+  </ul>
+  Así puede, por ejemplo, derivar al Director de Obras y además a toda la Secretaría Comunal de
+  Planificación de una sola vez. Bajo los buscadores el sistema le indica a cuántos funcionarios
+  llegará en total.</li>
+<li><b>Todos los funcionarios</b> — llega a todos los funcionarios activos del municipio (útil para circulares).</li>
 </ul>
+<p>Si elige a un funcionario y además al departamento al que pertenece, el sistema se lo advierte y
+deja <em>una sola</em> derivación (la del departamento): así esa persona no queda obligada a acusar
+recibo dos veces por el mismo documento.</p>
 <p>Marque las instrucciones (<em>PARA: tramitar, responder, informar, coordinar…</em>), agregue
 observaciones si lo estima ("responder antes del viernes"), revise la providencia y fírmela con su
 OTP. Cada destinatario recibe su notificación, y usted recibirá los avisos de vuelta a medida que
 vayan acusando recibo — y el aviso final cuando todos lo hayan hecho.</p>
+
+<h2>Si se le olvidó incluir a alguien</h2>
+<p>Derivar no es un acto de una sola vez. Si después advierte que faltó un destinatario, abra la
+correspondencia y pulse <b>Derivar a otro funcionario</b>: el botón sigue disponible aunque ya la
+haya derivado. El diálogo le recuerda a quién se la envió antes, para que agregue solo a quien falte.</p>
+<p>Esa segunda derivación genera <strong>su propia providencia firmada</strong>, con folio propio, sin
+alterar la anterior — tal como en papel un oficio va acumulando providencias a medida que circula.
+En el panel lateral de la correspondencia las verá listadas todas, cada una con su folio y su
+destino, y podrá abrir cualquiera de ellas.</p>
 
 <h1>5. Responder al remitente: Preparar respuesta</h1>
 <p>Cuando corresponde responder formalmente a quien envió el documento (el ministerio, el vecino),
@@ -289,7 +307,7 @@ perfil. Con la subrogancia activa, el subrogante puede <em>"Actuar como"</em> us
 acusa recibos y deriva en su nombre — con tres resguardos que protegen a ambos:</p>
 <ul>
 <li>Un <b>banner naranjo</b> permanente le recuerda (a él y a cualquiera que mire) que está actuando en nombre de otra autoridad.</li>
-<li>La trazabilidad registra la dualidad: <em>"Juan Pérez, como subrogante de [su nombre], derivó a…"</em>, y las firmas llevan el sufijo <b>(S)</b>.</li>
+<li>La trazabilidad registra la dualidad: <em>"Juan Pérez, como subrogante de [su nombre], derivó a…"</em>. La firma sale a nombre de quien firma, pero con <b>el cargo que subroga</b> y el sufijo (S) —<em>"Alcalde (S)"</em>, no el cargo propio del subrogante—, y bajo ella la leyenda <em>"Subrogante del Alcalde [su nombre]"</em>.</li>
 <li>Sus notificaciones también le llegan al subrogante mientras dura la subrogancia, para que nada quede sin ver.</li>
 </ul>
 
@@ -299,7 +317,9 @@ $conversacion
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
 <dt>Derivé a un funcionario equivocado, ¿puedo deshacerlo?</dt>
-<dd>La derivación firmada no se deshace (es un acto formal), pero puede derivar nuevamente al correcto y aclararlo en la Conversación. Todo queda trazado.</dd>
+<dd>La derivación firmada no se deshace (es un acto formal), pero puede pulsar <b>Derivar a otro funcionario</b> y enviarla al correcto, aclarándolo en la Conversación. Todo queda trazado.</dd>
+<dt>Ya derivé y me faltó incluir a alguien.</dt>
+<dd>Abra la correspondencia y pulse <b>Derivar a otro funcionario</b>. Se genera una segunda providencia con folio propio; la primera queda intacta. El diálogo le recuerda a quién ya se la envió.</dd>
 <dt>¿Por qué no aparece el botón "Preparar respuesta"?</dt>
 <dd>Aparece solo después de generada la providencia (al derivar o al acusar recibo). Sin providencia no existe el acto que respalde una respuesta.</dd>
 <dt>Cerré un proceso y un funcionario necesita agregar un informe.</dt>
@@ -345,7 +365,7 @@ la Conversación es donde ocurre el trabajo.</div>
 <ul>
 <li>En la Conversación puede adjuntar <b>PDF, imágenes (JPG/PNG), Word, Excel, PowerPoint y RAR</b>, de hasta 20 MB cada uno.</li>
 <li>Los <b>PDF e imágenes se abren en pantalla</b> con un clic (con botón para descargarlos); Word, Excel y RAR se descargan al computador.</li>
-<li>La <b>providencia firmada</b> del Alcalde también se abre desde el detalle, y su código QR permite verificar su autenticidad.</li>
+<li>La <b>providencia firmada</b> del Alcalde también se abre desde el detalle, y su código QR permite verificar su autenticidad. Si el Alcalde derivó en más de una oportunidad (por ejemplo, para sumar a otro funcionario), verá <b>una providencia por cada derivación</b>, cada una con su folio.</li>
 </ul>
 
 <h1>5. Si encuentra un proceso "Archivada"</h1>
@@ -384,7 +404,7 @@ foreach ($manuales as $m) {
         . $cab . $pie
         . "<div class=\"portada\"><div class=\"tit\">Manual de Usuario<br/>Módulo de Correspondencia</div>"
         . "<div class=\"sub\">{$m['rol']}</div>"
-        . "<div class=\"ver\">Plataforma de Gestión Documental Municipal · Versión Junio 2026<br/>"
+        . "<div class=\"ver\">Plataforma de Gestión Documental Municipal · Versión Agosto 2026<br/>"
         . "https://docmunicipal.local · Manuales: /manuales</div></div>"
         . "<div class=\"salto\"></div>"
         . $acceso
