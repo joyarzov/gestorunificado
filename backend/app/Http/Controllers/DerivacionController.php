@@ -420,7 +420,12 @@ class DerivacionController extends Controller
             ->reject(fn ($i) => in_array($i, $propios, true)) // sin auto-derivación
             ->unique()->values();
 
-        return $ids->isEmpty() ? collect() : User::whereIn('id', $ids)->get();
+        // SIEMPRE una colección de Eloquent, incluso vacía: `collect()` a secas
+        // es una Support\Collection y no tiene ->load(), así que quien reciba
+        // esto no puede cargar relaciones sin reventar (pasó al derivar solo a
+        // departamento, que deja esta lista vacía). Con $ids vacío la consulta
+        // es trivial: Laravel la compila a "0 = 1".
+        return User::whereIn('id', $ids->all())->get();
     }
 
     /**
@@ -439,19 +444,19 @@ class DerivacionController extends Controller
      */
     private function resolverDepartamentosDestino(Request $request, $destinatarios)
     {
-        if ($request->boolean('derivar_a_todos')) {
-            return collect();
+        $ids = collect();
+
+        if (!$request->boolean('derivar_a_todos')) {
+            $ids = collect($request->departamento_destino_ids ?? []);
+            if ($request->departamento_destino_id && $destinatarios->isEmpty()) {
+                $ids->push($request->departamento_destino_id);
+            }
+            $ids = $ids->map(fn ($i) => (int) $i)->unique()->values();
         }
 
-        $ids = collect($request->departamento_destino_ids ?? []);
-        if ($request->departamento_destino_id && $destinatarios->isEmpty()) {
-            $ids->push($request->departamento_destino_id);
-        }
-        $ids = $ids->map(fn ($i) => (int) $i)->unique()->values();
-
-        return $ids->isEmpty()
-            ? collect()
-            : Departamento::whereIn('id', $ids)->orderBy('nombre')->get();
+        // Siempre Eloquent, aunque venga vacía (mismo motivo que en
+        // resolverDestinatarios: una Support\Collection no soporta ->load()).
+        return Departamento::whereIn('id', $ids->all())->orderBy('nombre')->get();
     }
 
     /**
@@ -561,7 +566,7 @@ class DerivacionController extends Controller
             $usuarioDestino = 'Todos los funcionarios';
         } else {
             [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
-            $destinatarios->load('departamento');
+            $destinatarios->loadMissing('departamento');
 
             $departamentoDestino = $destinatarios
                 ->map(fn ($d) => $d->departamento?->nombre)
