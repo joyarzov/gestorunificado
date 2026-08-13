@@ -25,9 +25,12 @@ import {
   TextField,
   Autocomplete,
   Snackbar,
+  Tooltip,
+  IconButton,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
+  RemoveCircleOutline as QuitarIcon,
   Edit as EditIcon,
   Description as DocIcon,
   Add as AddIcon,
@@ -111,9 +114,11 @@ interface SortableDocItemProps {
   doc: any
   onClick: () => void
   onFirmar?: () => void
+  /** Solo mientras el expediente se está armando (borrador). */
+  onQuitar?: () => void
 }
 
-const SortableDocItem = ({ doc, onClick, onFirmar }: SortableDocItemProps) => {
+const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemProps) => {
   const {
     attributes,
     listeners,
@@ -168,6 +173,18 @@ const SortableDocItem = ({ doc, onClick, onFirmar }: SortableDocItemProps) => {
         color={doc.mi_firma_pendiente ? 'warning' : (docEstadoColor[doc.estado] || 'default')}
         variant={doc.mi_firma_pendiente ? 'outlined' : 'filled'}
       />
+      {onQuitar && (
+        <Tooltip title="Quitar del expediente">
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onQuitar() }}
+            sx={{ ml: 1 }}
+            aria-label={`Quitar ${doc.titulo} del expediente`}
+          >
+            <QuitarIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
     </ListItem>
   )
 }
@@ -213,6 +230,10 @@ const ExpedienteDetail = () => {
 
   // Documentos ordenados localmente
   const [orderedDocs, setOrderedDocs] = useState<any[]>([])
+
+  // Quitar un documento del expediente (solo mientras es borrador)
+  const [docAQuitar, setDocAQuitar] = useState<any | null>(null)
+  const [quitarLoading, setQuitarLoading] = useState(false)
 
   // Hoja de ruta consolidada (actividades + firmas)
   const [hojaRuta, setHojaRuta] = useState<Array<{ fuente: string; tipo: string; descripcion: string; usuario: string; fecha: string }>>([])
@@ -346,6 +367,26 @@ const ExpedienteDetail = () => {
     }
   }
 
+  const handleQuitarDocumento = async () => {
+    if (!id || !docAQuitar) return
+    setQuitarLoading(true)
+    try {
+      await expedientesAPI.quitarDocumento(parseInt(id), docAQuitar.id)
+      setSnackbar({
+        open: true,
+        message: `"${docAQuitar.titulo}" salió del expediente y sigue en Mis documentos`,
+        severity: 'success',
+      })
+      setDocAQuitar(null)
+      loadExpediente(parseInt(id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al quitar el documento'
+      setSnackbar({ open: true, message: msg, severity: 'error' })
+    } finally {
+      setQuitarLoading(false)
+    }
+  }
+
   const handleRecibir = async () => {
     if (!id) return
     setRecibirLoading(true)
@@ -456,6 +497,10 @@ const ExpedienteDetail = () => {
   // El backend decide quién puede derivar y quién debe acusar recibo: con varios
   // destinatarios a la vez la última derivación ya no alcanza para deducirlo.
   const puedeDerivar = expediente?.puedo_derivar ?? false
+
+  // Quitar documentos solo mientras se arma el expediente: una vez derivado ya
+  // circuló con ese contenido (mismo criterio que aplica el backend).
+  const puedeQuitarDocs = expediente?.estado === 'borrador' && puedeEditar
   const eventoIcono = (tipo: string) => {
     switch (tipo) {
       case 'documento_firmado': return <FirmarIcon fontSize="small" color="success" />
@@ -720,6 +765,7 @@ const ExpedienteDetail = () => {
                           doc={doc}
                           onClick={() => navigate(`/documentos/${doc.id}`)}
                           onFirmar={() => navigate(`/documentos/${doc.id}`)}
+                          onQuitar={puedeQuitarDocs ? () => setDocAQuitar(doc) : undefined}
                         />
                       ))}
                     </List>
@@ -992,6 +1038,32 @@ const ExpedienteDetail = () => {
             disabled={(destinos.length === 0 && deptosDestino.length === 0) || derivarLoading}
           >
             {derivarLoading ? 'Derivando...' : 'Derivar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog: quitar documento del expediente */}
+      <Dialog open={!!docAQuitar} onClose={() => setDocAQuitar(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>¿Quitar este documento del expediente?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            <strong>{docAQuitar?.titulo}</strong> saldrá de {expediente.identificador}.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            El documento no se elimina: seguirá disponible en Mis documentos y puedes volver
+            a asociarlo cuando quieras.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDocAQuitar(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<QuitarIcon />}
+            onClick={handleQuitarDocumento}
+            disabled={quitarLoading}
+          >
+            {quitarLoading ? 'Quitando...' : 'Quitar del expediente'}
           </Button>
         </DialogActions>
       </Dialog>

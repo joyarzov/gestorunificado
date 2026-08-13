@@ -446,6 +446,66 @@ class ExpedienteController extends Controller
         return $this->successResponse($expediente, 'Documento asociado exitosamente');
     }
 
+    /**
+     * Quitar un documento del expediente mientras se está armando (borrador).
+     *
+     * Solo lo DESASOCIA: el documento sigue existiendo en "Mis documentos", de
+     * modo que sacarlo de la carpeta nunca destruye el archivo ni sus firmas.
+     * Una vez que el expediente sale a trámite deja de permitirse: ya circuló con
+     * ese contenido y quitarle piezas rompería la trazabilidad de quien lo revisó.
+     */
+    public function quitarDocumento(Expediente $expediente, Documento $documento)
+    {
+        if ($expediente->estado !== Expediente::ESTADO_BORRADOR) {
+            return $this->errorResponse(
+                'Solo se pueden quitar documentos mientras el expediente está en borrador. '
+                    . 'Este ya está en trámite: su contenido quedó registrado en la hoja de ruta.',
+                400
+            );
+        }
+        if (!$this->puedeGestionarExpediente($expediente)) {
+            return $this->errorResponse('Solo el creador del expediente o un administrador puede quitar documentos', 403);
+        }
+        if (!$expediente->documentos()->where('documento_id', $documento->id)->exists()) {
+            return $this->errorResponse('Ese documento no está en este expediente', 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            $expediente->documentos()->detach($documento->id);
+
+            // Renumerar los que quedan: el orden es la posición en la carpeta y no
+            // debe quedar con huecos tras sacar una pieza del medio.
+            foreach ($expediente->documentos()->get() as $i => $doc) {
+                $expediente->documentos()->updateExistingPivot($doc->id, ['orden' => $i + 1]);
+            }
+
+            ExpedienteActividad::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id' => Auth::id(),
+                'tipo' => 'documento_desasociado',
+                'descripcion' => "Documento \"{$documento->titulo}\" quitado del expediente",
+                'metadata' => ['documento_id' => $documento->id],
+            ]);
+
+            DocumentoTrazabilidad::registrar(
+                $documento->id,
+                'desasociado',
+                "Quitado del expediente {$expediente->identificador}",
+                ['expediente_id' => $expediente->id, 'expediente' => $expediente->identificador]
+            );
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Error al quitar el documento: ' . $e->getMessage(), 500);
+        }
+
+        $expediente->load(['documentos', 'creador', 'departamento']);
+
+        return $this->successResponse($expediente, 'Documento quitado del expediente');
+    }
+
     public function subirDocumento(Request $request, Expediente $expediente)
     {
         if ($expediente->estaCerrado()) {

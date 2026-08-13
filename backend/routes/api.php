@@ -285,6 +285,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/{expediente}/actividades', [ExpedienteController::class, 'actividades']);
         Route::get('/{expediente}/hoja-ruta', [ExpedienteController::class, 'hojaRuta']);
         Route::post('/{expediente}/asociar-documento', [ExpedienteController::class, 'asociarDocumento']);
+        Route::delete('/{expediente}/documentos/{documento}', [ExpedienteController::class, 'quitarDocumento']);
         Route::post('/{expediente}/subir-documento', [ExpedienteController::class, 'subirDocumento']);
         Route::put('/{expediente}/reordenar-documentos', [ExpedienteController::class, 'reordenarDocumentos']);
     });

@@ -193,6 +193,14 @@ export const expedientesAPI = {
     return response.data
   },
 
+  // Sacar un documento del expediente (solo en borrador). No borra el documento.
+  quitarDocumento: async (expedienteId: number, documentoId: number) => {
+    const response = await api.delete<ApiResponse<Expediente>>(
+      `/expedientes/${expedienteId}/documentos/${documentoId}`,
+    )
+    return response.data
+  },
+
   reordenarDocumentos: async (expedienteId: number, documentos: { id: number; orden: number }[]) => {
     const response = await api.put<ApiResponse<Expediente>>(`/expedientes/${expedienteId}/reordenar-documentos`, {
       documentos,
