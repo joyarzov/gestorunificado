@@ -59,6 +59,8 @@ const RepositorioDocumental = () => {
   // Filtros
   const [search, setSearch] = useState('')
   const [tipoDocumentalId, setTipoDocumentalId] = useState('')
+  // Vacío = todos los estados: el repositorio es la consulta de TODO el municipio.
+  const [estado, setEstado] = useState('')
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
 
@@ -75,7 +77,7 @@ const RepositorioDocumental = () => {
   useEffect(() => {
     loadDocumentos()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage])
+  }, [page, rowsPerPage, estado])
 
   const loadDocumentos = async () => {
     setLoading(true)
@@ -83,7 +85,7 @@ const RepositorioDocumental = () => {
       const response = await documentosAPI.repositorio({
         page: page + 1,
         per_page: rowsPerPage,
-        estado: 'firmado',
+        estado: estado || undefined,
         search: search || undefined,
         tipo_documental_id: tipoDocumentalId ? Number(tipoDocumentalId) : undefined,
         fecha_desde: fechaDesde || undefined,
@@ -141,7 +143,7 @@ const RepositorioDocumental = () => {
           Repositorio Documental
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Archivo de documentos firmados de la municipalidad
+          Todos los documentos de la municipalidad, en cualquier estado. Solo lectura.
         </Typography>
       </Box>
 
@@ -233,6 +235,25 @@ const RepositorioDocumental = () => {
                     {tipo.nombre}
                   </MenuItem>
                 ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={estado}
+                label="Estado"
+                onChange={(e) => { setPage(0); setEstado(e.target.value) }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="borrador">Borrador</MenuItem>
+                <MenuItem value="pendiente_firma">Pendiente de firma</MenuItem>
+                <MenuItem value="firmado">Firmado</MenuItem>
+                <MenuItem value="incorporado">Incorporado</MenuItem>
+                <MenuItem value="rechazado">Rechazado</MenuItem>
+                <MenuItem value="anulado">Anulado</MenuItem>
               </Select>
             </FormControl>
           </Grid>

@@ -16,6 +16,9 @@ import {
   InputAdornment,
   CircularProgress,
   Tooltip,
+  Chip,
+  MenuItem,
+  Stack,
 } from '@mui/material'
 import {
   Visibility as ViewIcon,
@@ -26,6 +29,20 @@ import { Expediente } from '../../types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+const estadoColors: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
+  borrador: 'default',
+  en_tramite: 'info',
+  cerrado: 'warning',
+  archivado: 'default',
+}
+
+const estadoLabels: Record<string, string> = {
+  borrador: 'Borrador',
+  en_tramite: 'En Trámite',
+  cerrado: 'Cerrado',
+  archivado: 'Archivado',
+}
+
 const RepositorioExpedientes = () => {
   const navigate = useNavigate()
   const [expedientes, setExpedientes] = useState<Expediente[]>([])
@@ -34,11 +51,13 @@ const RepositorioExpedientes = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
+  // Vacío = todos los estados: el repositorio es la consulta de TODO el municipio.
+  const [estado, setEstado] = useState('')
 
   useEffect(() => {
     loadExpedientes()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage])
+  }, [page, rowsPerPage, estado])
 
   const loadExpedientes = async () => {
     setLoading(true)
@@ -46,7 +65,7 @@ const RepositorioExpedientes = () => {
       const response = await expedientesAPI.repositorio({
         page: page + 1,
         per_page: rowsPerPage,
-        estado: 'cerrado',
+        estado: estado || undefined,
         search,
       })
       setExpedientes(response.data.data)
@@ -70,25 +89,40 @@ const RepositorioExpedientes = () => {
           Repositorio de Expedientes
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Expedientes cerrados de la municipalidad
+          Todos los expedientes de la municipalidad, en cualquier estado. Solo lectura.
         </Typography>
       </Box>
 
       <Card sx={{ mb: 3, p: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Buscar por identificador, titulo, asunto..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField
+            fullWidth
+            placeholder="Buscar por identificador, titulo, asunto..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <TextField
+            select
+            label="Estado"
+            value={estado}
+            onChange={(e) => { setPage(0); setEstado(e.target.value) }}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="borrador">Borrador</MenuItem>
+            <MenuItem value="en_tramite">En Trámite</MenuItem>
+            <MenuItem value="cerrado">Cerrado</MenuItem>
+            <MenuItem value="archivado">Archivado</MenuItem>
+          </TextField>
+        </Stack>
       </Card>
 
       <Card>
@@ -100,22 +134,23 @@ const RepositorioExpedientes = () => {
                 <TableCell>Titulo</TableCell>
                 <TableCell>Asunto</TableCell>
                 <TableCell>Creador</TableCell>
-                <TableCell>Fecha Cierre</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell>Última actualización</TableCell>
                 <TableCell align="center">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : expedientes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
-                      No hay expedientes cerrados
+                      No hay expedientes que coincidan
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -155,6 +190,13 @@ const RepositorioExpedientes = () => {
                     </TableCell>
                     <TableCell>
                       {item.creador?.nombre || '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={estadoLabels[item.estado] || item.estado}
+                        color={estadoColors[item.estado] || 'default'}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
                       {item.fecha_cierre
