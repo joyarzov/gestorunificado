@@ -252,6 +252,13 @@ export interface Expediente {
   responsable_actual_departamento_id?: number | null
   responsable_actual_departamento?: Departamento
   ultima_derivacion?: Derivacion
+  /** Derivaciones vivas (pendientes o recibidas). Con multi-destino son varias. */
+  derivaciones_activas?: Derivacion[]
+  /** Calculados por el backend en show(): la UI no los deduce. */
+  mi_derivacion_pendiente?: boolean
+  puedo_derivar?: boolean
+  /** Nombres de quienes tienen el expediente ahora (funcionarios y/o departamentos). */
+  tenedores?: string[]
   estado: 'abierto' | 'cerrado' | 'archivado' | 'borrador' | 'en_tramite'
   nivel_acceso?: number
   informacion_sensible?: boolean

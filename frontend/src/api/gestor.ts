@@ -211,10 +211,16 @@ export const expedientesAPI = {
     return response.data
   },
 
-  // Derivar el expediente a un funcionario responsable (el expediente circula con sus documentos)
+  // Derivar el expediente a uno o varios funcionarios y/o departamentos completos
+  // (el expediente circula con sus documentos). Cada destino acusa recibo por separado.
   derivar: async (
     id: number,
-    data: { usuario_destino_id: number; observaciones?: string; acciones_para?: string[] },
+    data: {
+      usuario_destino_ids?: number[]
+      departamento_destino_ids?: number[]
+      observaciones?: string
+      acciones_para?: string[]
+    },
   ) => {
     const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${id}/derivar`, data)
     return response.data

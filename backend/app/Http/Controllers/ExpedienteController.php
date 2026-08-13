@@ -125,6 +125,9 @@ class ExpedienteController extends Controller
             'responsableActual',
             'responsableActualDepartamento',
             'ultimaDerivacion.usuarioOrigen',
+            'derivacionesActivas.usuarioDestino:id,nombre',
+            'derivacionesActivas.departamentoDestino:id,nombre',
+            'derivacionesActivas.usuarioOrigen:id,nombre',
         ]);
 
         // Marcar, por documento, si el usuario actual tiene una firma pendiente
@@ -140,6 +143,18 @@ class ExpedienteController extends Controller
             );
             $doc->mi_firma_pendiente = $doc->estado === Documento::ESTADO_PENDIENTE_FIRMA && $esFirmante && !$yaFirmo;
         });
+
+        // Con multi-destino la UI no puede deducir esto de la última derivación (que
+        // puede ser de otro destinatario): se lo decimos con el mismo criterio que
+        // aplica el backend al recibir y al derivar.
+        $expediente->mi_derivacion_pendiente = $expediente->derivacionesActivas
+            ->contains(fn ($d) => $d->estado === 'pendiente' && $d->esDestinatario($user));
+        $expediente->puedo_derivar = !$expediente->estaCerrado()
+            && $this->puedeDerivarExpediente($expediente);
+        // Quién lo tiene ahora, en palabras: con varios destinos no hay responsable único.
+        $expediente->tenedores = $expediente->derivacionesActivas
+            ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
+            ->filter()->unique()->values()->all();
 
         // Agregar atributos computados
         $expediente->nivel_acceso_texto = $expediente->nivel_acceso_texto;
@@ -330,6 +345,9 @@ class ExpedienteController extends Controller
             'departamento',
             'responsableActual',
             'ultimaDerivacion.usuarioOrigen',
+            // Para la columna "En poder de": con multi-destino no hay responsable único.
+            'derivacionesActivas.usuarioDestino:id,nombre',
+            'derivacionesActivas.departamentoDestino:id,nombre',
         ])->visiblesPara($user);
 
         // Tab de la pantalla de expedientes. Sin 'vista' devuelve todo lo visible,
@@ -527,10 +545,14 @@ class ExpedienteController extends Controller
     }
 
     /**
-     * Derivar el expediente a un funcionario específico (responsable). El expediente
-     * es la unidad que circula: viaja con todos sus documentos. Reusa el motor de
-     * Derivacion (polimórfico) sin generar providencia firmada — eso es exclusivo del
-     * módulo de Correspondencia.
+     * Derivar el expediente a uno o varios funcionarios y/o departamentos completos.
+     * El expediente es la unidad que circula: viaja con todos sus documentos. Reusa
+     * el motor de Derivacion (polimórfico) y la misma resolución de destinos que la
+     * correspondencia, sin generar providencia firmada — eso es exclusivo del módulo
+     * de Correspondencia.
+     *
+     * Con varios destinos se crea una derivación por destino y cada uno acusa recibo
+     * por separado; el expediente queda en poder de todos ellos a la vez.
      */
     public function derivar(Request $request, Expediente $expediente)
     {
@@ -542,45 +564,88 @@ class ExpedienteController extends Controller
         }
 
         $request->validate([
-            'usuario_destino_id' => 'required|integer|exists:users,id',
+            'usuario_destino_id' => 'nullable|integer|exists:users,id',
+            'usuario_destino_ids' => 'nullable|array',
+            'usuario_destino_ids.*' => 'integer|exists:users,id',
+            'departamento_destino_ids' => 'nullable|array',
+            'departamento_destino_ids.*' => 'integer|exists:departamentos,id',
             'observaciones' => 'nullable|string',
             'acciones_para' => 'nullable|array',
         ]);
 
         $user = Auth::user();
         $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
-        $destino = User::findOrFail($request->usuario_destino_id);
 
-        if ((int) $destino->id === (int) $ctx->id) {
-            return $this->errorResponse('No puedes derivarte el expediente a ti mismo', 400);
+        // resolverDestinos ya descarta la auto-derivación y la fila nominal del
+        // funcionario cuyo departamento se deriva completo (ver el trait).
+        [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
+        if ($destinatarios->isEmpty() && $departamentosDestino->isEmpty()) {
+            return $this->errorResponse(
+                'Indica al menos un destino: funcionario(s) o departamento(s).',
+                422
+            );
         }
+
+        $resumenDestinos = implode(', ', $destinatarios->pluck('nombre')
+            ->merge($departamentosDestino->pluck('nombre'))
+            ->all());
 
         DB::beginTransaction();
         try {
-            // Cerrar la(s) derivación(es) que el actor tenía activas sobre este expediente.
-            foreach ($expediente->derivaciones()->whereIn('estado', ['pendiente', 'recibido'])->get() as $previa) {
-                if ($previa->esDestinatario($user)) {
+            // Cerrar las derivaciones activas que el actor tenía sobre este expediente.
+            // Quien deriva sin ser destinatario (un administrador moviendo el
+            // expediente) cierra TODAS las activas: si no, la anterior quedaría
+            // pendiente y el expediente aparecería en dos bandejas a la vez.
+            $activas = $expediente->derivaciones()->whereIn('estado', ['pendiente', 'recibido'])->get();
+            $esDestinatarioActivo = $activas->contains(fn ($d) => $d->esDestinatario($user));
+            foreach ($activas as $previa) {
+                if (!$esDestinatarioActivo || $previa->esDestinatario($user)) {
                     $previa->update(['estado' => 'derivado']);
                 }
             }
 
-            $derivacion = Derivacion::create([
+            $base = [
                 'derivable_type' => Expediente::class,
                 'derivable_id' => $expediente->id,
                 'departamento_origen_id' => $ctx->departamento_id,
-                'departamento_destino_id' => $destino->departamento_id,
                 'usuario_origen_id' => $user->id,
-                'usuario_destino_id' => $destino->id,
                 'actuando_como_user_id' => ((int) $ctx->id !== (int) $user->id) ? $ctx->id : null,
                 'observaciones' => $request->observaciones,
                 'acciones_para' => $request->acciones_para,
                 'estado' => 'pendiente',
-            ]);
+            ];
+
+            $creadas = [];
+            foreach ($destinatarios as $destino) {
+                $creadas[] = Derivacion::create($base + [
+                    'departamento_destino_id' => $destino->departamento_id,
+                    'usuario_destino_id' => $destino->id,
+                ]);
+            }
+            // Derivación departamental: sin usuario_destino_id, la recibe cualquiera
+            // del departamento (ver Derivacion::esDestinatario).
+            foreach ($departamentosDestino as $depto) {
+                $creadas[] = Derivacion::create($base + [
+                    'departamento_destino_id' => $depto->id,
+                    'usuario_destino_id' => null,
+                ]);
+            }
+
+            // El responsable único solo tiene sentido con un destinatario nominal;
+            // con varios destinos la responsabilidad vive en las derivaciones y el
+            // campo queda nulo (quién lo tiene se resuelve con scopeEnPoderDe).
+            $unico = ($destinatarios->count() === 1 && $departamentosDestino->isEmpty())
+                ? $destinatarios->first()
+                : null;
 
             $expediente->update([
                 'estado' => Expediente::ESTADO_EN_TRAMITE,
-                'responsable_actual_usuario_id' => $destino->id,
-                'responsable_actual_departamento_id' => $destino->departamento_id,
+                'responsable_actual_usuario_id' => $unico?->id,
+                'responsable_actual_departamento_id' => $unico
+                    ? $unico->departamento_id
+                    : ($departamentosDestino->count() === 1 && $destinatarios->isEmpty()
+                        ? $departamentosDestino->first()->id
+                        : null),
                 'actualizado_por' => $user->id,
             ]);
 
@@ -588,11 +653,12 @@ class ExpedienteController extends Controller
                 'expediente_id' => $expediente->id,
                 'usuario_id' => $user->id,
                 'tipo' => 'derivacion',
-                'descripcion' => "Expediente derivado a {$destino->nombre}"
+                'descripcion' => "Expediente derivado a {$resumenDestinos}"
                     . ($request->observaciones ? ": {$request->observaciones}" : ''),
                 'metadata' => [
-                    'derivacion_id' => $derivacion->id,
-                    'usuario_destino_id' => $destino->id,
+                    'derivacion_ids' => array_map(fn ($d) => $d->id, $creadas),
+                    'usuario_destino_ids' => $destinatarios->pluck('id')->all(),
+                    'departamento_destino_ids' => $departamentosDestino->pluck('id')->all(),
                     'acciones_para' => $request->acciones_para,
                 ],
             ]);
@@ -603,22 +669,53 @@ class ExpedienteController extends Controller
             return $this->errorResponse('Error al derivar el expediente: ' . $e->getMessage(), 500);
         }
 
-        // Notificar al destinatario (campana in-app + email), reusando el servicio único.
-        $acciones = !empty($request->acciones_para) ? ' Acciones: ' . implode(', ', $request->acciones_para) . '.' : '';
-        NotificacionService::enviar(
-            $destino,
-            'cero_papel',
-            'expediente_derivado',
-            'Expediente derivado a tu cargo',
-            "El expediente {$expediente->identificador} \"{$expediente->titulo}\" te fue derivado por {$user->nombre}."
-                . ($request->observaciones ? " Observaciones: {$request->observaciones}." : '')
-                . $acciones,
-            ['expediente_id' => $expediente->id, 'url' => '/expedientes/' . $expediente->id]
-        );
+        $this->notificarDerivacionExpediente($expediente, $destinatarios, $departamentosDestino, $user, $request);
 
         $expediente->load(['responsableActual', 'responsableActualDepartamento', 'creador', 'departamento']);
 
-        return $this->successResponse($expediente, "Expediente derivado a {$destino->nombre}");
+        return $this->successResponse($expediente, "Expediente derivado a {$resumenDestinos}");
+    }
+
+    /**
+     * Avisa a cada destinatario de la derivación (campana in-app + correo). Los
+     * departamentos derivados completos notifican a todos sus funcionarios activos.
+     */
+    private function notificarDerivacionExpediente(
+        Expediente $expediente,
+        $destinatarios,
+        $departamentosDestino,
+        User $user,
+        Request $request
+    ): void {
+        $acciones = !empty($request->acciones_para)
+            ? ' Acciones: ' . implode(', ', $request->acciones_para) . '.'
+            : '';
+        $cuerpo = "El expediente {$expediente->identificador} \"{$expediente->titulo}\" te fue derivado por {$user->nombre}."
+            . ($request->observaciones ? " Observaciones: {$request->observaciones}." : '')
+            . $acciones;
+
+        $aAvisar = $destinatarios->all();
+        foreach ($departamentosDestino as $depto) {
+            foreach (User::where('departamento_id', $depto->id)->where('activo', true)->get() as $u) {
+                $aAvisar[] = $u;
+            }
+        }
+
+        $vistos = [];
+        foreach ($aAvisar as $destino) {
+            if (isset($vistos[$destino->id]) || (int) $destino->id === (int) $user->id) {
+                continue;
+            }
+            $vistos[$destino->id] = true;
+            NotificacionService::enviar(
+                $destino,
+                'cero_papel',
+                'expediente_derivado',
+                'Expediente derivado a tu cargo',
+                $cuerpo,
+                ['expediente_id' => $expediente->id, 'url' => '/expedientes/' . $expediente->id]
+            );
+        }
     }
 
     /**
@@ -628,15 +725,16 @@ class ExpedienteController extends Controller
     {
         $user = Auth::user();
 
-        $derivacion = $expediente->derivaciones()
-            ->where('estado', 'pendiente')
-            ->latest()
-            ->first();
+        // Con varios destinatarios hay varias pendientes a la vez: hay que acusar
+        // recibo de la propia, no de la última creada (que puede ser de otro).
+        $pendientes = $expediente->derivaciones()->where('estado', 'pendiente')->latest()->get();
 
-        if (!$derivacion) {
+        if ($pendientes->isEmpty()) {
             return $this->errorResponse('Este expediente no tiene una derivación pendiente', 400);
         }
-        if (!$derivacion->esDestinatario($user)) {
+
+        $derivacion = $pendientes->first(fn ($d) => $d->esDestinatario($user));
+        if (!$derivacion) {
             return $this->errorResponse('No eres el destinatario de esta derivación', 403);
         }
 
@@ -739,8 +837,15 @@ class ExpedienteController extends Controller
             return true;
         }
 
-        // Aún sin responsable asignado (recién creado): puede iniciarlo su creador o su departamento.
-        if (is_null($expediente->responsable_actual_usuario_id)) {
+        // Lo tiene en su bandeja: es destinatario de una derivación activa. Es el caso
+        // normal cuando se derivó a varios y por eso no hay responsable único.
+        $activas = $expediente->derivaciones()->whereIn('estado', ['pendiente', 'recibido'])->get();
+        if ($activas->contains(fn ($d) => $d->esDestinatario($user))) {
+            return true;
+        }
+
+        // Nadie lo tiene todavía (recién creado): puede iniciarlo su creador o su departamento.
+        if (is_null($expediente->responsable_actual_usuario_id) && $activas->isEmpty()) {
             return $expediente->creado_por === $user->id
                 || (int) $expediente->departamento_id === (int) $ctx->departamento_id;
         }

@@ -7,6 +7,7 @@ import {
   CardContent,
   Grid,
   Chip,
+  Stack,
   Button,
   List,
   ListItem,
@@ -59,8 +60,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { expedientesAPI, documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
-import { usersAPI } from '../../api/common'
-import { Expediente, Documento, User, TipoDocumental } from '../../types'
+import { usersAPI, departamentosAPI } from '../../api/common'
+import { Expediente, Documento, User, TipoDocumental, Departamento } from '../../types'
 
 const ACCIONES_DERIVACION = ['Tomar conocimiento', 'Informar', 'Tramitar', 'Revisar', 'Visar bueno', 'Archivar']
 import { format } from 'date-fns'
@@ -202,7 +203,9 @@ const ExpedienteDetail = () => {
   // Dialog: Derivar expediente
   const [openDerivar, setOpenDerivar] = useState(false)
   const [funcionarios, setFuncionarios] = useState<User[]>([])
-  const [destino, setDestino] = useState<User | null>(null)
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([])
+  const [destinos, setDestinos] = useState<User[]>([])
+  const [deptosDestino, setDeptosDestino] = useState<Departamento[]>([])
   const [derivObservaciones, setDerivObservaciones] = useState('')
   const [derivAcciones, setDerivAcciones] = useState<string[]>([])
   const [derivarLoading, setDerivarLoading] = useState(false)
@@ -306,20 +309,32 @@ const ExpedienteDetail = () => {
     usersAPI.funcionarios()
       .then((res) => setFuncionarios(res.data || []))
       .catch(() => setSnackbar({ open: true, message: 'No se pudieron cargar los funcionarios', severity: 'error' }))
+    departamentosAPI.listar()
+      .then((res) => setDepartamentos(res.data || []))
+      .catch(() => { /* los departamentos son opcionales: se puede derivar solo a funcionarios */ })
   }, [openDerivar, funcionarios.length])
 
+  // Un funcionario cuyo departamento se deriva completo ya viene incluido ahí; el
+  // backend descarta su fila nominal, así que lo avisamos antes de enviar.
+  const destinosCubiertos = useMemo(() => {
+    const ids = deptosDestino.map((d) => d.id)
+    return destinos.filter((u) => u.departamento_id && ids.includes(u.departamento_id)).map((u) => u.nombre)
+  }, [destinos, deptosDestino])
+
   const handleDerivar = async () => {
-    if (!id || !destino) return
+    if (!id || (destinos.length === 0 && deptosDestino.length === 0)) return
     setDerivarLoading(true)
     try {
-      await expedientesAPI.derivar(parseInt(id), {
-        usuario_destino_id: destino.id,
+      const res = await expedientesAPI.derivar(parseInt(id), {
+        usuario_destino_ids: destinos.length > 0 ? destinos.map((u) => u.id) : undefined,
+        departamento_destino_ids: deptosDestino.length > 0 ? deptosDestino.map((d) => d.id) : undefined,
         observaciones: derivObservaciones.trim() || undefined,
         acciones_para: derivAcciones.length > 0 ? derivAcciones : undefined,
       })
-      setSnackbar({ open: true, message: `Expediente derivado a ${destino.nombre}`, severity: 'success' })
+      setSnackbar({ open: true, message: res.message || 'Expediente derivado', severity: 'success' })
       setOpenDerivar(false)
-      setDestino(null)
+      setDestinos([])
+      setDeptosDestino([])
       setDerivObservaciones('')
       setDerivAcciones([])
       loadExpediente(parseInt(id))
@@ -438,13 +453,9 @@ const ExpedienteDetail = () => {
   const esAdmin = user?.roles?.includes('admin')
   const puedeEditar = esCreador || esAdmin
 
-  const responsableActualId = expediente?.responsable_actual_usuario_id ?? null
-  const tengoElExpediente = responsableActualId != null && responsableActualId === user?.id
-  const sinResponsable = responsableActualId == null
-  const puedeDerivar = !estaCerrado && (
-    esAdmin || tengoElExpediente ||
-    (sinResponsable && (esCreador || expediente?.departamento_id === user?.departamento_id))
-  )
+  // El backend decide quién puede derivar y quién debe acusar recibo: con varios
+  // destinatarios a la vez la última derivación ya no alcanza para deducirlo.
+  const puedeDerivar = expediente?.puedo_derivar ?? false
   const eventoIcono = (tipo: string) => {
     switch (tipo) {
       case 'documento_firmado': return <FirmarIcon fontSize="small" color="success" />
@@ -458,10 +469,7 @@ const ExpedienteDetail = () => {
   }
 
   const ultimaDeriv = expediente?.ultima_derivacion
-  const debeRecibir = !!ultimaDeriv && ultimaDeriv.estado === 'pendiente' && (
-    ultimaDeriv.usuario_destino_id === user?.id ||
-    (ultimaDeriv.usuario_destino_id == null && ultimaDeriv.departamento_destino_id === user?.departamento_id)
-  )
+  const debeRecibir = expediente?.mi_derivacion_pendiente ?? false
 
   if (loading) {
     return (
@@ -598,7 +606,7 @@ const ExpedienteDetail = () => {
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">
-                    Responsable actual
+                    {(expediente.tenedores?.length ?? 0) > 1 ? 'En poder de' : 'Responsable actual'}
                   </Typography>
                   {expediente.responsable_actual ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -613,6 +621,14 @@ const ExpedienteDetail = () => {
                         <Chip label="Por recibir" size="small" color="warning" variant="outlined" sx={{ ml: 0.5 }} />
                       )}
                     </Box>
+                  ) : expediente.tenedores && expediente.tenedores.length > 0 ? (
+                    // Derivado a varios: la responsabilidad vive en las derivaciones,
+                    // no en un responsable único.
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                      {expediente.tenedores.map((t) => (
+                        <Chip key={t} icon={<PersonIcon />} label={t} size="small" variant="outlined" />
+                      ))}
+                    </Stack>
                   ) : (
                     <Typography color="text.secondary">Sin derivar</Typography>
                   )}
@@ -914,18 +930,38 @@ const ExpedienteDetail = () => {
         <DialogTitle>Derivar expediente</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            El expediente {expediente.identificador} viajará con todos sus documentos al funcionario que elijas.
+            El expediente {expediente.identificador} viajará con todos sus documentos a cada destino que elijas.
+            Puedes combinar funcionarios y departamentos completos; cada uno acusa recibo por separado.
           </Typography>
           <Autocomplete
+            multiple
             options={funcionarios}
             getOptionLabel={(o) => `${o.nombre}${o.departamento?.nombre ? ` · ${o.departamento.nombre}` : ''}`}
-            value={destino}
-            onChange={(_, v) => setDestino(v)}
+            value={destinos}
+            onChange={(_, v) => setDestinos(v)}
             isOptionEqualToValue={(o, v) => o.id === v.id}
             renderInput={(params) => (
-              <TextField {...params} label="Derivar a (funcionario responsable)" required autoFocus margin="dense" />
+              <TextField {...params} label="Funcionarios" autoFocus margin="dense" />
             )}
           />
+          <Autocomplete
+            multiple
+            options={departamentos}
+            getOptionLabel={(o) => o.nombre}
+            value={deptosDestino}
+            onChange={(_, v) => setDeptosDestino(v)}
+            isOptionEqualToValue={(o, v) => o.id === v.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Departamentos completos (opcional)" margin="dense" />
+            )}
+            sx={{ mt: 1 }}
+          />
+          {destinosCubiertos.length > 0 && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              {destinosCubiertos.join(', ')} {destinosCubiertos.length === 1 ? 'ya está incluido' : 'ya están incluidos'} en
+              el departamento que derivas completo, así que no recibirá una copia aparte.
+            </Alert>
+          )}
           <Autocomplete
             multiple
             options={ACCIONES_DERIVACION}
@@ -953,7 +989,7 @@ const ExpedienteDetail = () => {
             variant="contained"
             startIcon={<DerivarIcon />}
             onClick={handleDerivar}
-            disabled={!destino || derivarLoading}
+            disabled={(destinos.length === 0 && deptosDestino.length === 0) || derivarLoading}
           >
             {derivarLoading ? 'Derivando...' : 'Derivar'}
           </Button>

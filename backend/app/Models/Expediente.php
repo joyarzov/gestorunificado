@@ -98,6 +98,17 @@ class Expediente extends Model
         return $this->morphOne(Derivacion::class, 'derivable')->latestOfMany();
     }
 
+    /**
+     * Derivaciones vivas: las que aún no se cerraron al re-derivar. Con multi-destino
+     * son varias a la vez y son la fuente de verdad de quién tiene el expediente.
+     */
+    public function derivacionesActivas()
+    {
+        return $this->morphMany(Derivacion::class, 'derivable')
+            ->whereIn('estado', ['pendiente', 'recibido'])
+            ->orderBy('created_at', 'desc');
+    }
+
     // Generar identificador único
     public static function generarIdentificador(): string
     {
@@ -195,10 +206,13 @@ class Expediente extends Model
     }
 
     /**
-     * Expedientes abiertos que el usuario tiene efectivamente a su cargo: es el
-     * responsable actual (o lo creó y nadie lo ha derivado todavía, caso en que el
-     * responsable queda nulo). Excluye los que aún no acusa recibo: esos viven en
-     * "Por recibir" y no deben aparecer dos veces.
+     * Expedientes abiertos que el usuario tiene efectivamente a su cargo:
+     * - acusó recibo de una derivación dirigida a él (con multi-destino son varios
+     *   los que lo tienen a la vez, por eso no basta el responsable único);
+     * - o es el responsable actual;
+     * - o lo creó y nadie lo ha derivado todavía (responsable nulo).
+     * Excluye los que aún no acusa recibo: esos viven en "Por recibir" y no deben
+     * aparecer dos veces.
      */
     public function scopeEnPoderDe($query, $user)
     {
@@ -207,9 +221,22 @@ class Expediente extends Model
         return $query->abiertos()
             ->where(function ($q) use ($user, $ctx) {
                 $q->where('responsable_actual_usuario_id', $ctx->id)
+                    ->orWhereHas('derivaciones', function ($d) use ($ctx) {
+                        $d->where('estado', 'recibido')
+                            ->where(function ($q3) use ($ctx) {
+                                $q3->where('usuario_destino_id', $ctx->id)
+                                    ->orWhere(function ($q4) use ($ctx) {
+                                        $q4->whereNull('usuario_destino_id')
+                                            ->where('departamento_destino_id', $ctx->departamento_id);
+                                    });
+                            });
+                    })
                     ->orWhere(function ($q2) use ($user) {
                         $q2->whereNull('responsable_actual_usuario_id')
-                            ->where('creado_por', $user->id);
+                            ->where('creado_por', $user->id)
+                            ->whereDoesntHave('derivaciones', function ($d) {
+                                $d->whereIn('estado', ['pendiente', 'recibido']);
+                            });
                     });
             })
             ->whereDoesntHave('derivaciones', function ($d) use ($ctx) {

@@ -63,6 +63,17 @@ const VISTAS: Array<{ value: VistaExpedientes; label: string; vacio: string }> =
 const esVistaValida = (v: string | null): v is VistaExpedientes =>
   VISTAS.some((x) => x.value === v)
 
+/** Quién tiene el expediente: uno, varios (multi-destino) o nadie todavía. */
+const enPoderDe = (exp: Expediente): string => {
+  if (exp.responsable_actual?.nombre) return exp.responsable_actual.nombre
+  const destinos = (exp.derivaciones_activas || [])
+    .map((d) => d.usuario_destino?.nombre || d.departamento_destino?.nombre)
+    .filter((n): n is string => !!n)
+  const unicos = [...new Set(destinos)]
+  if (unicos.length > 0) return unicos.join(', ')
+  return exp.creador?.nombre || '-'
+}
+
 const ExpedientesList = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -301,9 +312,10 @@ const ExpedientesList = () => {
                           </Typography>
                         </TableCell>
                       )}
-                      {/* Sin derivar todavía el responsable es nulo: lo tiene quien lo creó. */}
+                      {/* Con varios destinos no hay responsable único; sin derivar
+                          todavía, el responsable es nulo y lo tiene quien lo creó. */}
                       {!muestraOrigen && (
-                        <TableCell>{item.responsable_actual?.nombre || item.creador?.nombre || '-'}</TableCell>
+                        <TableCell>{enPoderDe(item)}</TableCell>
                       )}
 
                       <TableCell>
