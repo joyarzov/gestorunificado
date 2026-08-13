@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Storage;
 
 class ExpedienteController extends Controller
 {
+    // Misma resolución de destinos que la correspondencia: el expediente circula
+    // con el mismo motor de Derivacion y admite varios destinos por envío.
+    use \App\Http\Controllers\Concerns\ResuelveDestinosDerivacion;
+
     public function index(Request $request)
     {
         $query = Expediente::with(['creador', 'departamento']);
