@@ -21,12 +21,44 @@ class ExpedienteController extends Controller
     // con el mismo motor de Derivacion y admite varios destinos por envío.
     use \App\Http\Controllers\Concerns\ResuelveDestinosDerivacion;
 
+    /**
+     * Repositorio de expedientes (solo lectura): TODOS los expedientes del municipio,
+     * sin el filtro de visibilidad personal. Es una consulta privilegiada, disponible
+     * solo para quien tiene el permiso explícito (alcalde, jefaturas, quien lo tenga
+     * habilitado) o para un administrador — mismo criterio que el registro de
+     * correspondencia.
+     */
+    public function repositorio(Request $request)
+    {
+        $user = Auth::user();
+        // El permiso se evalúa sobre el CONTEXTO: al subrogar se ve exactamente lo del
+        // subrogado (si él no tiene repositorio, el subrogante tampoco).
+        if (!($user->contexto()->puede_ver_repositorio || $user->isAdmin())) {
+            return $this->errorResponse('No tienes permiso para ver el repositorio de expedientes', 403);
+        }
+
+        return $this->listado($request, Expediente::with(['creador', 'departamento', 'responsableActual']));
+    }
+
     public function index(Request $request)
     {
-        $query = Expediente::with(['creador', 'departamento']);
+        // Sin el filtro de visibilidad, cualquiera podía listar los expedientes de
+        // todo el municipio pidiendo esta ruta a mano. Ver repositorio() para la
+        // consulta privilegiada.
+        return $this->listado(
+            $request,
+            Expediente::with(['creador', 'departamento'])->visiblesPara(Auth::user())
+        );
+    }
 
-        // Filtros. "abierto" es un alias para "expedientes donde aún se puede
-        // trabajar" (borrador + en trámite): lo usan los selectores de documento.
+    /**
+     * Filtros y paginación comunes al listado propio y al repositorio: lo único que
+     * los diferencia es el alcance con el que llega la consulta.
+     */
+    private function listado(Request $request, $query)
+    {
+        // "abierto" es un alias para "expedientes donde aún se puede trabajar"
+        // (borrador + en trámite): lo usan los selectores de documento.
         if ($request->filled('estado')) {
             if ($request->estado === 'abierto') {
                 $query->abiertos();
@@ -120,6 +152,10 @@ class ExpedienteController extends Controller
 
     public function show(Expediente $expediente)
     {
+        if (!$this->puedeVerExpediente($expediente)) {
+            return $this->errorResponse('No tienes acceso a este expediente', 403);
+        }
+
         $expediente->load([
             'creador',
             'departamento',
@@ -277,6 +313,10 @@ class ExpedienteController extends Controller
 
     public function indiceElectronico(Expediente $expediente)
     {
+        if (!$this->puedeVerExpediente($expediente)) {
+            return $this->errorResponse('No tienes acceso a este expediente', 403);
+        }
+
         $expediente->load(['documentos.firmas.usuario']);
 
         $indice = [
@@ -308,6 +348,10 @@ class ExpedienteController extends Controller
 
     public function actividades(Expediente $expediente)
     {
+        if (!$this->puedeVerExpediente($expediente)) {
+            return $this->errorResponse('No tienes acceso a este expediente', 403);
+        }
+
         $actividades = $expediente->actividades()
             ->with('usuario')
             ->orderBy('created_at', 'desc')
@@ -822,6 +866,10 @@ class ExpedienteController extends Controller
      */
     public function hojaRuta(Expediente $expediente)
     {
+        if (!$this->puedeVerExpediente($expediente)) {
+            return $this->errorResponse('No tienes acceso a este expediente', 403);
+        }
+
         $eventos = [];
 
         foreach ($expediente->actividades()->with('usuario:id,nombre')->get() as $a) {
@@ -862,6 +910,28 @@ class ExpedienteController extends Controller
         usort($eventos, fn ($a, $b) => ($b['fecha']?->timestamp ?? 0) <=> ($a['fecha']?->timestamp ?? 0));
 
         return $this->successResponse($eventos);
+    }
+
+    /**
+     * ¿Puede este usuario LEER el expediente? Participa en él (lo creó, lo tiene a
+     * cargo o se lo derivaron: ver scopeVisiblesPara), o mira desde una posición
+     * habilitada para ver todo el municipio (repositorio o administración).
+     *
+     * Hasta agosto de 2026 no se comprobaba en ninguna parte: cualquier funcionario
+     * abría el expediente de otro departamento por su id, con sus actividades, su
+     * hoja de ruta y su índice, incluso marcado Secreto.
+     */
+    private function puedeVerExpediente(Expediente $expediente): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+        if ($user->isAdmin() || $user->contexto()->puede_ver_repositorio) {
+            return true;
+        }
+
+        return Expediente::query()->visiblesPara($user)->whereKey($expediente->id)->exists();
     }
 
     private function puedeGestionarExpediente(Expediente $expediente): bool

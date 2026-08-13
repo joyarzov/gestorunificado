@@ -107,8 +107,14 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
     // Dashboard
     Route::get('/dashboard/resumen', [DashboardController::class, 'resumen']);
 
-    // Departamentos
-    Route::apiResource('departamentos', DepartamentoController::class);
+    // Departamentos. Leerlos lo necesita cualquier funcionario (son los destinos de
+    // los selectores: derivar, crear documento, asignar usuario), pero crear, editar
+    // y desactivar es estructura del municipio y quedó sin guard: cualquiera podía
+    // renombrar o desactivar un departamento, sacándolo de los destinos de derivación.
+    Route::apiResource('departamentos', DepartamentoController::class)->only(['index', 'show']);
+    Route::apiResource('departamentos', DepartamentoController::class)
+        ->only(['store', 'update', 'destroy'])
+        ->middleware('role:admin');
 
     // Organigrama
     Route::prefix('organigrama')->group(function () {
@@ -277,6 +283,8 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/estadisticas', [ExpedienteController::class, 'estadisticas']);
         Route::get('/mis-expedientes', [ExpedienteController::class, 'misExpedientes']);
         Route::get('/resumen-vistas', [ExpedienteController::class, 'resumenVistas']);
+        // Consulta de TODO el municipio: exige el permiso puede_ver_repositorio.
+        Route::get('/repositorio', [ExpedienteController::class, 'repositorio']);
         Route::post('/{expediente}/derivar', [ExpedienteController::class, 'derivar']);
         Route::post('/{expediente}/recibir', [ExpedienteController::class, 'recibir']);
         Route::post('/{expediente}/cerrar', [ExpedienteController::class, 'cerrar']);
@@ -293,6 +301,8 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
 
     // Documentos
     Route::prefix('documentos')->group(function () {
+        // Consulta de TODO el municipio: exige el permiso puede_ver_repositorio.
+        Route::get('/repositorio', [DocumentoController::class, 'repositorio']);
         Route::get('/estadisticas', [DocumentoController::class, 'estadisticas']);
         Route::get('/firma-config', [DocumentoController::class, 'firmaConfig']);
         Route::get('/pendientes-firma', [DocumentoController::class, 'pendientesFirma']);

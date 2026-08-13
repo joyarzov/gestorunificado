@@ -27,7 +27,28 @@ use App\Exceptions\FirmaGobException;
 
 class DocumentoController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Repositorio documental (solo lectura): TODOS los documentos del municipio, sin
+     * el filtro de participación. Consulta privilegiada, disponible solo para quien
+     * tiene el permiso explícito (alcalde, jefaturas, quien lo tenga habilitado) o
+     * para un administrador — mismo criterio que el registro de correspondencia.
+     */
+    public function repositorio(Request $request)
+    {
+        $user = Auth::user();
+        // El permiso se evalúa sobre el CONTEXTO: al subrogar se ve exactamente lo del
+        // subrogado (si él no tiene repositorio, el subrogante tampoco).
+        if (!($user->contexto()->puede_ver_repositorio || $user->isAdmin())) {
+            return $this->errorResponse('No tienes permiso para ver el repositorio documental', 403);
+        }
+
+        return $this->index($request, true);
+    }
+
+    /**
+     * @param  bool  $todoElMunicipio  Solo lo activa repositorio(), que ya validó el permiso.
+     */
+    public function index(Request $request, bool $todoElMunicipio = false)
     {
         $query = Documento::with([
             'expedientes:id,identificador,titulo,estado',
@@ -38,6 +59,12 @@ class DocumentoController extends Controller
             'firmanteAsignado:id,nombre',
             'firmantesAsignados:id,nombre'
         ]);
+
+        // Sin esto, pedir la ruta sin `creado_por=me` devolvía los documentos de todo
+        // el municipio a cualquiera. La pantalla mandaba el filtro; el endpoint no lo exigía.
+        if (!$todoElMunicipio) {
+            $query->visiblesPara($request->user());
+        }
 
         // Filtros
         if ($request->filled('expediente_id')) {
@@ -306,8 +333,33 @@ class DocumentoController extends Controller
         return $this->successResponse($titulares);
     }
 
+    /**
+     * ¿Puede este usuario LEER el documento? Participa en él (ver
+     * Documento::scopeVisiblesPara) o mira desde una posición habilitada para todo el
+     * municipio (repositorio o administración).
+     *
+     * Hasta agosto de 2026 no se comprobaba: cualquier funcionario abría y DESCARGABA
+     * el borrador de otro por su id, y leía su trazabilidad completa.
+     */
+    private function puedeVerDocumento(Documento $documento): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+        if ($user->isAdmin() || $user->contexto()->puede_ver_repositorio) {
+            return true;
+        }
+
+        return Documento::query()->visiblesPara($user)->whereKey($documento->id)->exists();
+    }
+
     public function show(Documento $documento)
     {
+        if (!$this->puedeVerDocumento($documento)) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
         $documento->load([
             'expedientes:id,identificador,titulo,estado',
             'tipoDocumental',
@@ -1130,6 +1182,10 @@ class DocumentoController extends Controller
      */
     public function descargar(Documento $documento)
     {
+        if (!$this->puedeVerDocumento($documento)) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
         // Si tiene archivo PDF ya generado, descargarlo
         if ($documento->archivo_pdf && Storage::disk('public')->exists($documento->archivo_pdf)) {
             $nombre = str_replace('/', '_', $documento->numero ?? $documento->identificador);
@@ -1402,6 +1458,10 @@ class DocumentoController extends Controller
      */
     public function trazabilidad(Documento $documento)
     {
+        if (!$this->puedeVerDocumento($documento)) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
         $trazabilidad = $documento->trazabilidades()
             ->with('usuario:id,nombre,rut,cargo')
             ->orderBy('created_at', 'asc')

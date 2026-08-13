@@ -105,6 +105,7 @@ const UsuariosManage = () => {
     departamento_id: '',
     visador: false,
     puede_ver_registro_correspondencia: false,
+    puede_ver_repositorio: false,
     firma_desatendida_habilitada: false,
   })
 
@@ -142,6 +143,7 @@ const UsuariosManage = () => {
         roles: user.roles || [],
         departamento_id: user.departamento_id?.toString() || '',
         visador: user.visador,
+        puede_ver_repositorio: user.puede_ver_repositorio || false,
         puede_ver_registro_correspondencia: user.puede_ver_registro_correspondencia ?? false,
         firma_desatendida_habilitada: user.firma_desatendida_habilitada ?? false,
       })
@@ -157,6 +159,7 @@ const UsuariosManage = () => {
         departamento_id: '',
         visador: false,
         puede_ver_registro_correspondencia: false,
+    puede_ver_repositorio: false,
         firma_desatendida_habilitada: false,
       })
     }
@@ -667,6 +670,17 @@ const UsuariosManage = () => {
                   />
                 }
                 label="Puede ver el registro de correspondencia (solo lectura, todas)"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.puede_ver_repositorio}
+                    onChange={(e) => handleChange('puede_ver_repositorio', e.target.checked)}
+                  />
+                }
+                label="Puede ver los repositorios de Cero Papel (solo lectura: todos los documentos y expedientes del municipio)"
               />
             </Grid>
             <Grid item xs={12}>

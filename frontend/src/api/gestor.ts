@@ -169,6 +169,12 @@ export const expedientesAPI = {
     return response.data
   },
 
+  // Repositorio: TODOS los expedientes del municipio (exige puede_ver_repositorio)
+  repositorio: async (params?: ExpedienteFilters) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<Expediente>>>('/expedientes/repositorio', { params })
+    return response.data
+  },
+
   misExpedientes: async (params?: ExpedienteFilters) => {
     const response = await api.get<ApiResponse<PaginatedResponse<Expediente>>>('/expedientes/mis-expedientes', { params })
     return response.data
@@ -261,6 +267,12 @@ export const expedientesAPI = {
 
 // API de Documentos
 export const documentosAPI = {
+  // Repositorio: TODOS los documentos del municipio (exige puede_ver_repositorio)
+  repositorio: async (params?: DocumentoFilters) => {
+    const response = await api.get<ApiResponse<PaginatedResponse<Documento>>>('/documentos/repositorio', { params })
+    return response.data
+  },
+
   listar: async (params?: DocumentoFilters) => {
     const response = await api.get<ApiResponse<PaginatedResponse<Documento>>>('/documentos', { params })
     return response.data

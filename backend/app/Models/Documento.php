@@ -575,6 +575,38 @@ class Documento extends Model
         return $query->where('estado', self::ESTADO_FIRMADO);
     }
 
+    /**
+     * Documentos en los que el usuario participa. Es el equivalente de
+     * Expediente::scopeVisiblesPara para el otro objeto que circula, y reúne todas
+     * las vías legítimas por las que alguien llega a un documento:
+     *
+     * - lo creó, o lo redactó otro en su nombre (delegación de emisión);
+     * - es firmante asignado —titular o de la lista— o ya lo firmó;
+     * - se lo enviaron, o él lo envió (documento_envios);
+     * - participa en algún expediente que lo contiene.
+     *
+     * Pertenecer al mismo departamento NO basta: si no participó, no lo ve. Para
+     * consultar todo el municipio está el repositorio, que exige permiso explícito.
+     *
+     * La regla sigue al contexto (respeta subrogancia) salvo en "lo creó", que es un
+     * hecho del actor real.
+     */
+    public function scopeVisiblesPara($query, $user)
+    {
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        return $query->where(function ($q) use ($user, $ctx) {
+            $q->where('creado_por', $user->id)
+                ->orWhere('emitido_en_nombre_de_id', $ctx->id)
+                ->orWhere('firmante_asignado_id', $ctx->id)
+                ->orWhereHas('firmantesAsignados', fn ($f) => $f->where('users.id', $ctx->id))
+                ->orWhereHas('firmas', fn ($f) => $f->where('usuario_id', $ctx->id))
+                ->orWhereHas('envios', fn ($e) => $e->where('destinatario_id', $ctx->id)
+                    ->orWhere('remitente_id', $ctx->id))
+                ->orWhereHas('expedientes', fn ($e) => $e->visiblesPara($user));
+        });
+    }
+
     // Helpers
     public function estaFirmado(): bool
     {

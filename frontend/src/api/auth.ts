@@ -20,6 +20,7 @@ export interface AuditarFuncionario {
   aplicaciones_permitidas: string[]
   departamento_id: number | null
   puede_ver_registro_correspondencia: boolean
+  puede_ver_repositorio: boolean
 }
 
 export const authAPI = {

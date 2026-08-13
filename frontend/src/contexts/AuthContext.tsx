@@ -28,6 +28,7 @@ interface AuthContextType {
   canViewAllCorrespondence: () => boolean
   canDerivarCorrespondence: () => boolean
   canViewRegistroCorrespondence: () => boolean
+  canViewRepositorio: () => boolean
   isAuthenticated: () => boolean
 }
 
@@ -339,6 +340,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return isAdmin() || !!user?.puede_ver_registro_correspondencia
   }
 
+  // Repositorios: consulta de solo lectura de todo el municipio. Permiso explícito
+  // por usuario (alcalde, jefaturas, quien lo tenga habilitado) o admin.
+  const canViewRepositorio = () => {
+    if (auditando) return auditando.puede_ver_repositorio
+    if (actuandoComo) return !!actuandoComo.puede_ver_repositorio
+    return isAdmin() || !!user?.puede_ver_repositorio
+  }
+
   const isAuthenticated = () => {
     return user !== null && selectedRole !== null
   }
@@ -364,6 +373,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         checkAuth,
         isAdmin,
         canViewRegistroCorrespondence,
+        canViewRepositorio,
         isOficial,
         isAlcalde,
         hasRole,

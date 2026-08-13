@@ -83,6 +83,7 @@ class AuthController extends Controller
                 'departamento' => $user->departamento?->nombre,
                 'visador' => $user->visador,
                 'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+                'puede_ver_repositorio' => (bool) $user->puede_ver_repositorio,
                 'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
                 'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
                 'debe_cambiar_password' => (bool) $user->debe_cambiar_password,
@@ -108,7 +109,7 @@ class AuthController extends Controller
                 $q->whereNull('subrogancia_hasta')->orWhere('subrogancia_hasta', '>=', $now);
             })
             ->get(['id', 'nombre', 'cargo', 'roles', 'departamento_id', 'subrogancia_hasta',
-                'aplicaciones_permitidas', 'puede_ver_registro_correspondencia'])
+                'aplicaciones_permitidas', 'puede_ver_registro_correspondencia', 'puede_ver_repositorio'])
             ->map(fn ($u) => [
                 'id'               => $u->id,
                 'nombre'           => $u->nombre,
@@ -120,6 +121,7 @@ class AuthController extends Controller
                 // (el frontend arma el menú con estos, no con los del subrogante).
                 'aplicaciones_permitidas' => $u->aplicaciones_permitidas ?? [],
                 'puede_ver_registro_correspondencia' => (bool) $u->puede_ver_registro_correspondencia,
+                'puede_ver_repositorio' => (bool) $u->puede_ver_repositorio,
             ])
             ->all();
     }
@@ -215,6 +217,7 @@ class AuthController extends Controller
                 'aplicaciones_permitidas' => $funcionario->aplicaciones_permitidas ?? [],
                 'departamento_id' => $funcionario->departamento_id,
                 'puede_ver_registro_correspondencia' => (bool) $funcionario->puede_ver_registro_correspondencia,
+                'puede_ver_repositorio' => (bool) $funcionario->puede_ver_repositorio,
             ],
         ], 'Modo auditoría iniciado');
     }
@@ -268,6 +271,7 @@ class AuthController extends Controller
             'subrogados_activos' => $this->subrogadosActivos($user),
             'visador' => $user->visador,
             'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+            'puede_ver_repositorio' => (bool) $user->puede_ver_repositorio,
             'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
             'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
             'debe_cambiar_password' => (bool) $user->debe_cambiar_password,
@@ -300,6 +304,7 @@ class AuthController extends Controller
             'departamento' => $user->departamento?->nombre,
             'visador' => $user->visador,
             'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
+            'puede_ver_repositorio' => (bool) $user->puede_ver_repositorio,
         ], 'Perfil actualizado correctamente');
     }
 

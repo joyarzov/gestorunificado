@@ -43,7 +43,7 @@ const RepositorioExpedientes = () => {
   const loadExpedientes = async () => {
     setLoading(true)
     try {
-      const response = await expedientesAPI.listar({
+      const response = await expedientesAPI.repositorio({
         page: page + 1,
         per_page: rowsPerPage,
         estado: 'cerrado',

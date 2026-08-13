@@ -177,6 +177,7 @@ interface SidebarContext {
   isAlcalde: boolean
   canViewAllCorrespondence: boolean
   canViewRegistroCorrespondence: boolean
+  canViewRepositorio: boolean
 }
 
 export const getSidebarItems = (
@@ -211,8 +212,8 @@ export const getSidebarItems = (
       return items
     }
 
-    case 'gestor_documental':
-      return [
+    case 'gestor_documental': {
+      const items: SidebarNavItem[] = [
         { text: 'Dashboard', path: '/gestor-documental', icon: DashboardIcon },
         { text: 'Mis documentos', path: '/documentos', icon: GestorIcon },
         // Una sola entrada: los derivados y los propios viven en tabs de la misma pantalla.
@@ -229,9 +230,15 @@ export const getSidebarItems = (
           icon: InboxIcon,
           badgeKey: 'recibidos_no_leidos',
         },
-        { text: 'Repositorio documental', path: '/repositorio-documental', icon: ArchiveIcon },
-        { text: 'Repositorio expedientes', path: '/repositorio-expedientes', icon: FolderCopyIcon },
       ]
+      // Los Repositorios consultan TODO el municipio en solo lectura: solo para
+      // quien tiene el permiso explícito (alcalde, jefaturas) o es admin.
+      if (ctx.canViewRepositorio) {
+        items.push({ text: 'Repositorio documental', path: '/repositorio-documental', icon: ArchiveIcon })
+        items.push({ text: 'Repositorio expedientes', path: '/repositorio-expedientes', icon: FolderCopyIcon })
+      }
+      return items
+    }
 
     case 'oirs': {
       const esAdmin = ctx.isAdmin || ctx.role === 'oirs'

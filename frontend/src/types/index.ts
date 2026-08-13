@@ -24,6 +24,8 @@ export interface SubrogadoActivo {
   // Permisos del subrogado: al subrogar se ve exactamente lo suyo.
   aplicaciones_permitidas?: string[]
   puede_ver_registro_correspondencia?: boolean
+  /** Repositorios (documental y de expedientes): consulta de todo el municipio. */
+  puede_ver_repositorio?: boolean
 }
 
 // Tipos de usuario
@@ -48,6 +50,8 @@ export interface User {
   visador: boolean
   activo: boolean
   puede_ver_registro_correspondencia?: boolean
+  /** Repositorios (documental y de expedientes): consulta de todo el municipio. */
+  puede_ver_repositorio?: boolean
   firma_desatendida_habilitada?: boolean
   firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean

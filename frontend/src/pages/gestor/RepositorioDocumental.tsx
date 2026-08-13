@@ -80,7 +80,7 @@ const RepositorioDocumental = () => {
   const loadDocumentos = async () => {
     setLoading(true)
     try {
-      const response = await documentosAPI.listar({
+      const response = await documentosAPI.repositorio({
         page: page + 1,
         per_page: rowsPerPage,
         estado: 'firmado',
