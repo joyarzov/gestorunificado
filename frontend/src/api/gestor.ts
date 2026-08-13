@@ -13,12 +13,16 @@ import {
   PaginatedResponse,
 } from '../types'
 
+/** Tabs de la pantalla de expedientes (ver ExpedienteController::VISTAS). */
+export type VistaExpedientes = 'por_recibir' | 'en_poder' | 'creados' | 'cerrados'
+
 export interface ExpedienteFilters {
   page?: number
   per_page?: number
   estado?: string
   departamento_id?: number
   search?: string
+  vista?: VistaExpedientes
 }
 
 export interface DocumentoFilters {
@@ -222,9 +226,9 @@ export const expedientesAPI = {
     return response.data
   },
 
-  // Bandeja de expedientes que le llegaron al usuario por derivación
-  bandeja: async (estado: 'pendiente' | 'recibido' = 'pendiente') => {
-    const response = await api.get<ApiResponse<Expediente[]>>('/expedientes/bandeja', { params: { estado } })
+  // Contadores por tab de la pantalla de expedientes
+  resumenVistas: async () => {
+    const response = await api.get<ApiResponse<Record<VistaExpedientes, number>>>('/expedientes/resumen-vistas')
     return response.data
   },
 

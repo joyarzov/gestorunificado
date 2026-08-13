@@ -276,7 +276,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
     Route::prefix('expedientes')->group(function () {
         Route::get('/estadisticas', [ExpedienteController::class, 'estadisticas']);
         Route::get('/mis-expedientes', [ExpedienteController::class, 'misExpedientes']);
-        Route::get('/bandeja', [ExpedienteController::class, 'bandeja']);
+        Route::get('/resumen-vistas', [ExpedienteController::class, 'resumenVistas']);
         Route::post('/{expediente}/derivar', [ExpedienteController::class, 'derivar']);
         Route::post('/{expediente}/recibir', [ExpedienteController::class, 'recibir']);
         Route::post('/{expediente}/cerrar', [ExpedienteController::class, 'cerrar']);

@@ -174,6 +174,56 @@ class Expediente extends Model
         });
     }
 
+    /**
+     * Expedientes con una derivación en el estado dado ('pendiente' o 'recibido')
+     * dirigida al usuario, o a su departamento cuando no se nombró destinatario.
+     */
+    public function scopeDerivadosA($query, $user, string $estadoDerivacion)
+    {
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        return $query->whereHas('derivaciones', function ($d) use ($ctx, $estadoDerivacion) {
+            $d->where('estado', $estadoDerivacion)
+                ->where(function ($q) use ($ctx) {
+                    $q->where('usuario_destino_id', $ctx->id)
+                        ->orWhere(function ($q2) use ($ctx) {
+                            $q2->whereNull('usuario_destino_id')
+                                ->where('departamento_destino_id', $ctx->departamento_id);
+                        });
+                });
+        });
+    }
+
+    /**
+     * Expedientes abiertos que el usuario tiene efectivamente a su cargo: es el
+     * responsable actual (o lo creó y nadie lo ha derivado todavía, caso en que el
+     * responsable queda nulo). Excluye los que aún no acusa recibo: esos viven en
+     * "Por recibir" y no deben aparecer dos veces.
+     */
+    public function scopeEnPoderDe($query, $user)
+    {
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        return $query->abiertos()
+            ->where(function ($q) use ($user, $ctx) {
+                $q->where('responsable_actual_usuario_id', $ctx->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('responsable_actual_usuario_id')
+                            ->where('creado_por', $user->id);
+                    });
+            })
+            ->whereDoesntHave('derivaciones', function ($d) use ($ctx) {
+                $d->where('estado', 'pendiente')
+                    ->where(function ($q) use ($ctx) {
+                        $q->where('usuario_destino_id', $ctx->id)
+                            ->orWhere(function ($q2) use ($ctx) {
+                                $q2->whereNull('usuario_destino_id')
+                                    ->where('departamento_destino_id', $ctx->departamento_id);
+                            });
+                    });
+            });
+    }
+
     public function estaCerrado(): bool
     {
         return in_array($this->estado, [self::ESTADO_CERRADO, self::ESTADO_ARCHIVADO]);

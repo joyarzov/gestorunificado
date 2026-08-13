@@ -46,7 +46,6 @@ import DocumentoNew from './pages/gestor/DocumentoNew'
 import DocumentoUpload from './pages/gestor/DocumentoUpload'
 import DocumentoDetail from './pages/gestor/DocumentoDetail'
 import PendientesFirma from './pages/gestor/PendientesFirma'
-import BandejaExpedientes from './pages/gestor/BandejaExpedientes'
 import DocumentosRecibidos from './pages/gestor/DocumentosRecibidos'
 import RepositorioDocumental from './pages/gestor/RepositorioDocumental'
 import RepositorioExpedientes from './pages/gestor/RepositorioExpedientes'
@@ -132,7 +131,8 @@ function App() {
             <Route path="/expedientes/nuevo" element={<ExpedienteNew />} />
             <Route path="/expedientes/:id" element={<ExpedienteDetail />} />
             <Route path="/expedientes/:id/editar" element={<ExpedienteNew />} />
-            <Route path="/bandeja-expedientes" element={<BandejaExpedientes />} />
+            {/* La bandeja se fusionó con la pantalla de expedientes (tab "Por recibir") */}
+            <Route path="/bandeja-expedientes" element={<Navigate to="/expedientes?tab=por_recibir" replace />} />
             <Route path="/documentos" element={<DocumentosList />} />
             <Route path="/documentos/nuevo" element={<DocumentoNew />} />
             <Route path="/documentos/:id/editar" element={<DocumentoNew />} />

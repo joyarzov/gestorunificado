@@ -88,6 +88,9 @@ class ExpedienteController extends Controller
                 'cpat_codigo' => $request->cpat_codigo,
                 'cpat_nombre' => $request->cpat_nombre,
                 'departamento_id' => Auth::user()->departamento_id,
+                // El responsable queda nulo a propósito hasta la primera derivación:
+                // así el expediente recién creado lo puede iniciar su creador o su
+                // departamento (ver puedeDerivarExpediente y scopeEnPoderDe).
                 'estado' => 'borrador',
                 'fecha_creacion' => now(),
                 'creado_por' => Auth::id(),
@@ -294,12 +297,46 @@ class ExpedienteController extends Controller
         return $this->successResponse($actividades);
     }
 
+    /**
+     * Vistas de la pantalla única de expedientes. Son los tabs que ve el funcionario
+     * y están pensadas para no solaparse entre sí (salvo "creados", que es otro eje:
+     * lo que yo abrí, esté donde esté).
+     */
+    private const VISTAS = ['por_recibir', 'en_poder', 'creados', 'cerrados'];
+
+    /**
+     * Aplica el filtro del tab. Se usa tanto para listar como para contar, así que
+     * la definición de cada vista vive en un solo lugar.
+     */
+    private function aplicarVista($query, $user, string $vista)
+    {
+        return match ($vista) {
+            'por_recibir' => $query->abiertos()->derivadosA($user, 'pendiente'),
+            'en_poder' => $query->enPoderDe($user),
+            'creados' => $query->where('creado_por', $user->id),
+            'cerrados' => $query->cerrados(),
+            default => $query,
+        };
+    }
+
     public function misExpedientes(Request $request)
     {
+        $user = Auth::user();
+
         // Visibilidad personal: creador, responsable actual o destinatario de una
         // derivación (ver Expediente::scopeVisiblesPara).
-        $query = Expediente::with(['creador', 'departamento', 'responsableActual'])
-            ->visiblesPara(Auth::user());
+        $query = Expediente::with([
+            'creador',
+            'departamento',
+            'responsableActual',
+            'ultimaDerivacion.usuarioOrigen',
+        ])->visiblesPara($user);
+
+        // Tab de la pantalla de expedientes. Sin 'vista' devuelve todo lo visible,
+        // que es lo que esperan los selectores de documento.
+        if (in_array($request->input('vista'), self::VISTAS, true)) {
+            $this->aplicarVista($query, $user, $request->input('vista'));
+        }
 
         // "abierto" es un alias para "expedientes donde aún se puede trabajar"
         // (borrador + en trámite): lo usan los selectores de documento.
@@ -324,6 +361,25 @@ class ExpedienteController extends Controller
             ->paginate($request->input('per_page', 10));
 
         return $this->successResponse($expedientes);
+    }
+
+    /**
+     * Cantidad de expedientes por tab, para los contadores de la pantalla única.
+     */
+    public function resumenVistas()
+    {
+        $user = Auth::user();
+
+        $conteos = [];
+        foreach (self::VISTAS as $vista) {
+            $conteos[$vista] = $this->aplicarVista(
+                Expediente::query()->visiblesPara($user),
+                $user,
+                $vista
+            )->count();
+        }
+
+        return $this->successResponse($conteos);
     }
 
     public function asociarDocumento(Request $request, Expediente $expediente)
@@ -595,42 +651,6 @@ class ExpedienteController extends Controller
         ]);
 
         return $this->successResponse($expediente, 'Expediente recibido');
-    }
-
-    /**
-     * Bandeja de expedientes que le llegaron al usuario por derivación.
-     * Filtro por estado de la derivación: 'pendiente' (por recibir) o 'recibido' (en su poder).
-     */
-    public function bandeja(Request $request)
-    {
-        $user = Auth::user();
-        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
-        $estado = $request->input('estado', 'pendiente');
-
-        $expedienteIds = Derivacion::deExpedientes()
-            ->where('estado', $estado)
-            ->where(function ($q) use ($ctx) {
-                $q->where('usuario_destino_id', $ctx->id)
-                    ->orWhere(function ($q2) use ($ctx) {
-                        $q2->whereNull('usuario_destino_id')
-                            ->where('departamento_destino_id', $ctx->departamento_id);
-                    });
-            })
-            ->pluck('derivable_id')
-            ->unique()
-            ->values();
-
-        $expedientes = Expediente::with([
-            'creador',
-            'departamento',
-            'responsableActual',
-            'ultimaDerivacion.usuarioOrigen',
-        ])
-            ->whereIn('id', $expedienteIds)
-            ->orderBy('updated_at', 'desc')
-            ->get();
-
-        return $this->successResponse($expedientes);
     }
 
     /**

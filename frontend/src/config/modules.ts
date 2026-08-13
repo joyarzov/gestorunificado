@@ -22,7 +22,6 @@ import {
   Person as PersonIcon,
   MenuBook as LibroIcon,
   Outbox as SalidaIcon,
-  MoveToInbox as BandejaExpIcon,
   SmartToy as FuncionarioIaIcon,
   Category as TipoDocIcon,
 } from '@mui/icons-material'
@@ -216,12 +215,8 @@ export const getSidebarItems = (
       return [
         { text: 'Dashboard', path: '/gestor-documental', icon: DashboardIcon },
         { text: 'Mis documentos', path: '/documentos', icon: GestorIcon },
-        { text: 'Mis expedientes', path: '/expedientes', icon: FolderIcon },
-        {
-          text: 'Bandeja de expedientes',
-          path: '/bandeja-expedientes',
-          icon: BandejaExpIcon,
-        },
+        // Una sola entrada: los derivados y los propios viven en tabs de la misma pantalla.
+        { text: 'Expedientes', path: '/expedientes', icon: FolderIcon },
         {
           text: 'Pendientes de firma',
           path: '/pendientes-firma',
