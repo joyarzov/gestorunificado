@@ -377,6 +377,10 @@ export interface Documento {
   expedientes?: Expediente[]
   creado_por: number
   creador?: User
+  // Quién puso el documento en el expediente que se está viendo y cuándo; sale de
+  // la bitácora del expediente (ExpedienteController::show), no de la tabla.
+  incorporado_por?: { id: number; nombre: string } | null
+  incorporado_en?: string
   // Titular en cuyo nombre se emitió el documento (delegación de emisión)
   emitido_en_nombre_de_id?: number | null
   emitido_en_nombre_de?: { id: number; nombre: string; cargo?: string | null } | null

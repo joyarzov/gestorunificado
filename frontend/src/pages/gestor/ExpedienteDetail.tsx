@@ -156,7 +156,20 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemPr
       <ListItemText
         onClick={onClick}
         primary={doc.titulo}
-        secondary={format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+        secondary={
+          <>
+            {format(new Date(doc.incorporado_en || doc.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+            {doc.incorporado_por && (
+              <>
+                {' · '}
+                {/* Quien lo puso en el expediente: al adjuntar un antecedente o
+                    asociar un documento existente no siempre es quien lo redactó. */}
+                {doc.estado === 'incorporado' ? 'Adjuntado por ' : 'Incorporado por '}
+                {doc.incorporado_por.nombre}
+              </>
+            )}
+          </>
+        }
       />
       {doc.mi_firma_pendiente && (
         <Button

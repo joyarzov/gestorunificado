@@ -159,6 +159,7 @@ class ExpedienteController extends Controller
         $expediente->load([
             'creador',
             'departamento',
+            'documentos.creador:id,nombre',
             'documentos.firmantesAsignados',
             'documentos.firmas',
             'actividades.usuario',
@@ -182,6 +183,34 @@ class ExpedienteController extends Controller
                 fn ($f) => (int) $f->usuario_id === (int) $user->id && $f->estado === 'firmado'
             );
             $doc->mi_firma_pendiente = $doc->estado === Documento::ESTADO_PENDIENTE_FIRMA && $esFirmante && !$yaFirmo;
+        });
+
+        // Quién puso cada documento en ESTE expediente, que no siempre es quien lo
+        // redactó: al asociar uno existente, lo incorpora un tercero. La bitácora del
+        // expediente lo sabe; si no hay rastro (documentos anteriores a la bitácora),
+        // se cae al creador del documento.
+        $incorporadores = $expediente->actividades
+            ->whereIn('tipo', ['documento_creado', 'documento_asociado'])
+            ->sortBy('id')
+            ->reduce(function ($mapa, $act) {
+                $docId = $act->metadata['documento_id'] ?? null;
+                if ($docId && $act->usuario) {
+                    // La última incorporación manda: un documento puede haberse
+                    // quitado y vuelto a asociar.
+                    $mapa[(int) $docId] = [
+                        'usuario' => ['id' => $act->usuario->id, 'nombre' => $act->usuario->nombre],
+                        'fecha' => $act->created_at,
+                    ];
+                }
+                return $mapa;
+            }, []);
+
+        $expediente->documentos->each(function ($doc) use ($incorporadores) {
+            $rastro = $incorporadores[$doc->id] ?? null;
+            $doc->incorporado_por = $rastro['usuario'] ?? ($doc->creador
+                ? ['id' => $doc->creador->id, 'nombre' => $doc->creador->nombre]
+                : null);
+            $doc->incorporado_en = $rastro['fecha'] ?? $doc->pivot?->created_at ?? $doc->created_at;
         });
 
         // Con multi-destino la UI no puede deducir esto de la última derivación (que
