@@ -28,6 +28,10 @@ import {
   Tooltip,
   IconButton,
   Divider,
+  Avatar,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -44,7 +48,6 @@ import {
   DragIndicator as DragIcon,
   Send as DerivarIcon,
   MoveToInbox as RecibirIcon,
-  Person as PersonIcon,
   Draw as FirmarIcon,
 } from '@mui/icons-material'
 import {
@@ -69,8 +72,10 @@ import { usersAPI, departamentosAPI } from '../../api/common'
 import { Expediente, Documento, User, TipoDocumental, Departamento } from '../../types'
 
 const ACCIONES_DERIVACION = ['Tomar conocimiento', 'Informar', 'Tramitar', 'Revisar', 'Visar bueno', 'Archivar']
-import { format } from 'date-fns'
+import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { es } from 'date-fns/locale'
+import CorporateColorBar from '../../components/branding/CorporateColorBar'
+import { CORPORATE_COLORS } from '../../theme'
 import { useAuth } from '../../contexts/AuthContext'
 
 const estadoColors: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
@@ -85,6 +90,52 @@ const estadoLabels: Record<string, string> = {
   en_tramite: 'En Trámite',
   cerrado: 'Cerrado',
   archivado: 'Archivado',
+}
+
+// Dos personas distintas deben verse distintas: iniciales sobre un color estable
+// derivado del nombre, en vez del mismo ícono genérico para todos.
+const iniciales = (nombre: string) =>
+  nombre.trim().split(/\s+/).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('')
+
+const PALETA_PERSONAS = [
+  CORPORATE_COLORS.primaryBlue,
+  CORPORATE_COLORS.barMagenta,
+  CORPORATE_COLORS.barLightBlue,
+  CORPORATE_COLORS.barOrange,
+  CORPORATE_COLORS.barGreen,
+]
+
+const colorPersona = (nombre: string) => {
+  let h = 0
+  for (let i = 0; i < nombre.length; i++) h = (h * 31 + nombre.charCodeAt(i)) % 9973
+  return PALETA_PERSONAS[h % PALETA_PERSONAS.length]
+}
+
+const Persona = ({ nombre, detalle }: { nombre: string; detalle?: string }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Avatar sx={{ width: 30, height: 30, fontSize: 12, fontWeight: 700, bgcolor: colorPersona(nombre) }}>
+      {iniciales(nombre)}
+    </Avatar>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="body2" fontWeight={600} noWrap>{nombre}</Typography>
+      {detalle && (
+        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+          {detalle}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+)
+
+// "hace 3 días" dice más que una fecha cuando lo que importa es si el expediente
+// está detenido. Sobre los umbrales del panel del alcalde: 3 días avisa, 5 alerta.
+const diasDesde = (fecha: string) => Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000)
+const colorAntiguedad = (dias: number) => (dias >= 5 ? 'error.main' : dias >= 3 ? 'warning.main' : 'text.secondary')
+
+const etiquetaDia = (fecha: Date) => {
+  if (isToday(fecha)) return 'Hoy'
+  if (isYesterday(fecha)) return 'Ayer'
+  return format(fecha, "d 'de' MMMM", { locale: es })
 }
 
 const nivelAccesoLabels: Record<number, string> = {
@@ -141,7 +192,11 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemPr
     <ListItem
       ref={setNodeRef}
       style={style}
-      sx={{ cursor: 'pointer' }}
+      sx={{
+        cursor: 'pointer',
+        borderRadius: 1,
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
     >
       <ListItemIcon
         {...attributes}
@@ -183,11 +238,13 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemPr
           Firmar
         </Button>
       )}
+      {/* Relleno sólido solo cuando el documento exige algo de ti; el resto,
+          contorno: si todo grita, nada destaca. */}
       <Chip
         label={doc.mi_firma_pendiente ? 'Pendiente de tu firma' : (docEstadoLabel[doc.estado] || doc.estado || 'Pendiente')}
         size="small"
         color={doc.mi_firma_pendiente ? 'warning' : (docEstadoColor[doc.estado] || 'default')}
-        variant={doc.mi_firma_pendiente ? 'outlined' : 'filled'}
+        variant={doc.mi_firma_pendiente ? 'filled' : 'outlined'}
       />
       {onQuitar && (
         <Tooltip title="Quitar del expediente">
@@ -537,6 +594,48 @@ const ExpedienteDetail = () => {
   const ultimaDeriv = expediente?.ultima_derivacion
   const debeRecibir = expediente?.mi_derivacion_pendiente ?? false
 
+  // Hitos del trámite con su fecha real, sacados de la hoja de ruta: sirven para
+  // ver de un vistazo en qué punto va sin leer el detalle evento por evento.
+  const hitos = useMemo(() => {
+    const ultimoDe = (tipo: string) =>
+      hojaRuta.filter((e) => e.tipo === tipo).map((e) => e.fecha).sort().pop()
+    return [
+      { clave: 'creado', label: 'Creado', fecha: expediente?.fecha_creacion || expediente?.created_at },
+      { clave: 'derivado', label: 'Derivado', fecha: ultimoDe('derivacion') },
+      { clave: 'recibido', label: 'Recibido', fecha: ultimoDe('recepcion') },
+      { clave: 'cerrado', label: 'Cerrado', fecha: expediente?.fecha_cierre },
+    ]
+  }, [hojaRuta, expediente?.fecha_creacion, expediente?.created_at, expediente?.fecha_cierre])
+
+  const pasoActual = hitos.reduce((ultimo, h, i) => (h.fecha ? i : ultimo), 0)
+
+  // Quién lo tiene: el responsable único o, con multi-destino, todos los tenedores.
+  const enPoderDe = useMemo(() => {
+    if (expediente?.responsable_actual) {
+      return [{
+        nombre: expediente.responsable_actual.nombre,
+        detalle: expediente.responsable_actual_departamento?.nombre,
+      }]
+    }
+    return (expediente?.tenedores ?? []).map((t) => ({ nombre: t, detalle: undefined }))
+  }, [expediente?.responsable_actual, expediente?.responsable_actual_departamento, expediente?.tenedores])
+
+  // Eventos agrupados por día, en el orden en que ya vienen de la API.
+  const hojaRutaPorDia = useMemo(() => {
+    const grupos = new Map<string, typeof hojaRuta>()
+    hojaRuta.forEach((ev) => {
+      const dia = format(new Date(ev.fecha), 'yyyy-MM-dd')
+      grupos.set(dia, [...(grupos.get(dia) ?? []), ev])
+    })
+    return Array.from(grupos.entries())
+  }, [hojaRuta])
+
+  // Desde cuándo está quieto: la última recepción, o la derivación si nadie ha
+  // acusado recibo todavía.
+  const desdeCuando = hitos.find((h) => h.clave === 'recibido')?.fecha
+    || hitos.find((h) => h.clave === 'derivado')?.fecha
+    || hitos.find((h) => h.clave === 'creado')?.fecha
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -558,21 +657,52 @@ const ExpedienteDetail = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Button startIcon={<BackIcon />} onClick={() => navigate(-1)}>
-            Volver
-          </Button>
-          <Typography variant="h4" fontWeight="bold">
-            {expediente.identificador}
-          </Typography>
-          <Chip
-            label={estadoLabels[expediente.estado] || expediente.estado}
-            color={estadoColors[expediente.estado] || 'default'}
-          />
-        </Box>
+      <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mb: 1.5 }}>
+        Volver
+      </Button>
+
+      {/* Cabecera: identidad del expediente y las acciones, en un solo bloque.
+          El título es el encabezado real; las etiquetas "Título"/"Asunto" sobraban. */}
+      <Card sx={{ mb: 3, overflow: 'hidden' }}>
+        <CorporateColorBar height={4} />
+        <CardContent>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', gap: 2 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: 'monospace', letterSpacing: 0.5, color: 'text.secondary' }}
+                >
+                  {expediente.identificador}
+                </Typography>
+                <Chip
+                  size="small"
+                  label={estadoLabels[expediente.estado] || expediente.estado}
+                  color={estadoColors[expediente.estado] || 'default'}
+                />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={nivelAccesoLabels[expediente.nivel_acceso ?? 1] || 'Público'}
+                />
+                {expediente.departamento?.nombre && (
+                  <Chip size="small" variant="outlined" label={expediente.departamento.nombre} />
+                )}
+                {expediente.informacion_sensible && (
+                  <Chip size="small" color="warning" label="Información sensible" />
+                )}
+              </Stack>
+              <Typography variant="h5" fontWeight={700} sx={{ color: CORPORATE_COLORS.primaryBlue }}>
+                {expediente.titulo}
+              </Typography>
+              {expediente.asunto && (
+                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  {expediente.asunto}
+                </Typography>
+              )}
+            </Box>
         {(puedeEditar || puedeDerivar || debeRecibir) && (
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             {debeRecibir && (
               <Button
                 variant="contained"
@@ -622,130 +752,112 @@ const ExpedienteDetail = () => {
             )}
           </Box>
         )}
-      </Box>
+          </Box>
+        </CardContent>
+
+        {/* Situación del trámite: en qué punto va, quién lo tiene y desde cuándo.
+            Era lo que había que deducir leyendo la hoja de ruta entera. */}
+        <Divider />
+        <CardContent sx={{ bgcolor: 'action.hover' }}>
+          <Stepper activeStep={pasoActual} alternativeLabel sx={{ mb: hitos.some((h) => h.fecha) ? 2 : 0 }}>
+            {hitos.map((h) => (
+              <Step key={h.clave} completed={!!h.fecha}>
+                <StepLabel
+                  optional={
+                    h.fecha ? (
+                      <Typography variant="caption" color="text.secondary">
+                        {format(new Date(h.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      </Typography>
+                    ) : undefined
+                  }
+                >
+                  {h.label}
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: { xs: 1.5, sm: 3 } }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                {estaCerrado ? 'Último responsable' : 'En poder de'}
+              </Typography>
+              {enPoderDe.length > 0 ? (
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                  {enPoderDe.map((p) => (
+                    <Persona key={p.nombre} nombre={p.nombre} detalle={p.detalle} />
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">Sin derivar</Typography>
+              )}
+              {ultimaDeriv?.estado === 'pendiente' && !debeRecibir && (
+                <Chip label="Aún no acusa recibo" size="small" color="warning" variant="outlined" sx={{ mt: 1 }} />
+              )}
+            </Box>
+
+            {!estaCerrado && desdeCuando && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  Sin movimiento
+                </Typography>
+                <Typography variant="body2" fontWeight={600} sx={{ color: colorAntiguedad(diasDesde(desdeCuando)) }}>
+                  {formatDistanceToNow(new Date(desdeCuando), { locale: es, addSuffix: false })}
+                </Typography>
+              </Box>
+            )}
+
+            {debeRecibir && (
+              <Chip color="warning" label="Debes acusar recibo" icon={<RecibirIcon />} />
+            )}
+          </Box>
+        </CardContent>
+      </Card>
 
       <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12} md={8}>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Información del Expediente
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Título
-                  </Typography>
-                  <Typography fontWeight="medium">{expediente.titulo}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Asunto
-                  </Typography>
-                  <Typography>{expediente.asunto || '-'}</Typography>
-                </Grid>
+          {/* Identificación, estado y responsable ya viven en la cabecera: acá queda
+              el contenido del expediente y los datos de archivo. */}
+          {(expediente.resumen || expediente.cpat_codigo) && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Materia
+                </Typography>
                 {expediente.resumen && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">
-                      Resumen
-                    </Typography>
-                    <Typography>{expediente.resumen}</Typography>
-                  </Grid>
-                )}
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Nivel de Acceso
+                  <Typography sx={{ maxWidth: '68ch', lineHeight: 1.7, color: 'text.primary' }}>
+                    {expediente.resumen}
                   </Typography>
-                  <Typography>
-                    <Chip
-                      label={nivelAccesoLabels[expediente.nivel_acceso ?? 1] || 'Público'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Departamento
-                  </Typography>
-                  <Typography>{expediente.departamento?.nombre || 'Sin asignar'}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    {(expediente.tenedores?.length ?? 0) > 1 ? 'En poder de' : 'Responsable actual'}
-                  </Typography>
-                  {expediente.responsable_actual ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <PersonIcon fontSize="small" color="action" />
-                      <Typography>
-                        {expediente.responsable_actual.nombre}
-                        {expediente.responsable_actual_departamento?.nombre
-                          ? ` · ${expediente.responsable_actual_departamento.nombre}`
-                          : ''}
-                      </Typography>
-                      {ultimaDeriv?.estado === 'pendiente' && (
-                        <Chip label="Por recibir" size="small" color="warning" variant="outlined" sx={{ ml: 0.5 }} />
-                      )}
-                    </Box>
-                  ) : expediente.tenedores && expediente.tenedores.length > 0 ? (
-                    // Derivado a varios: la responsabilidad vive en las derivaciones,
-                    // no en un responsable único.
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
-                      {expediente.tenedores.map((t) => (
-                        <Chip key={t} icon={<PersonIcon />} label={t} size="small" variant="outlined" />
-                      ))}
-                    </Stack>
-                  ) : (
-                    <Typography color="text.secondary">Sin derivar</Typography>
-                  )}
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Fecha de Creación
-                  </Typography>
-                  <Typography>
-                    {expediente.fecha_creacion
-                      ? format(new Date(expediente.fecha_creacion), 'dd/MM/yyyy HH:mm', { locale: es })
-                      : '-'}
-                  </Typography>
-                </Grid>
-                {expediente.fecha_cierre && (
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Fecha de Cierre
-                    </Typography>
-                    <Typography>
-                      {format(new Date(expediente.fecha_cierre), 'dd/MM/yyyy HH:mm', { locale: es })}
-                    </Typography>
-                  </Grid>
                 )}
                 {expediente.cpat_codigo && (
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Código CPAT
-                    </Typography>
+                  <Box sx={{ mt: expediente.resumen ? 2 : 0 }}>
+                    <Typography variant="caption" color="text.secondary">Código CPAT</Typography>
                     <Typography>{expediente.cpat_codigo}</Typography>
-                  </Grid>
+                  </Box>
                 )}
-                {expediente.informacion_sensible && (
-                  <Grid item xs={6}>
-                    <Chip label="Contiene información sensible" color="warning" size="small" />
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Documentos */}
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  Documentos del Expediente
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                  <Typography variant="h6">
+                    Documentos del Expediente
+                  </Typography>
+                  {orderedDocs.length > 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      ({orderedDocs.length})
+                    </Typography>
+                  )}
+                </Box>
                 {puedeAportar && (
                   <Button
                     size="small"
+                    variant="contained"
+                    disableElevation
                     startIcon={<AddIcon />}
                     onClick={handleMenuOpen}
                     disabled={estaCerrado}
@@ -811,35 +923,41 @@ const ExpedienteDetail = () => {
                   </SortableContext>
                 </DndContext>
               ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No hay documentos asociados
-                </Typography>
+                <Box
+                  sx={{
+                    py: 4,
+                    textAlign: 'center',
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                  }}
+                >
+                  <DocIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    Todavía no hay documentos en este expediente
+                  </Typography>
+                  {puedeAportar && !estaCerrado && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      Adjunta un antecedente o sube un documento a firma con "Agregar Documento"
+                    </Typography>
+                  )}
+                </Box>
               )}
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} md={4}>
-          {/* Información del Creador */}
+          {/* Quién abrió el expediente */}
           <Card sx={{ mb: 2 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Información Adicional
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Abierto por
               </Typography>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Creado por
-                </Typography>
-                <Typography variant="body2">{expediente.creador?.nombre || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Fecha de registro
-                </Typography>
-                <Typography variant="body2">
-                  {format(new Date(expediente.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
-                </Typography>
-              </Box>
+              <Persona
+                nombre={expediente.creador?.nombre || 'Sin registro'}
+                detalle={format(new Date(expediente.created_at), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
+              />
             </CardContent>
           </Card>
 
@@ -854,17 +972,64 @@ const ExpedienteDetail = () => {
                   Sin movimientos registrados.
                 </Typography>
               ) : (
-                <List dense>
-                  {hojaRuta.map((ev, i) => (
-                    <ListItem key={i} alignItems="flex-start">
-                      <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>{eventoIcono(ev.tipo)}</ListItemIcon>
-                      <ListItemText
-                        primary={ev.descripcion}
-                        secondary={`${ev.usuario} · ${format(new Date(ev.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}`}
-                      />
-                    </ListItem>
+                // Línea de tiempo: la fecha se dice una vez por día y cada evento
+                // queda con la acción al frente y quién/cuándo en segundo plano.
+                <Box>
+                  {hojaRutaPorDia.map(([dia, eventos]) => (
+                    <Box key={dia} sx={{ mb: 1 }}>
+                      <Typography
+                        variant="overline"
+                        sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 1 }}
+                      >
+                        {etiquetaDia(new Date(eventos[0].fecha))}
+                      </Typography>
+                      {eventos.map((ev, i) => {
+                        const ultimo = i === eventos.length - 1
+                        return (
+                          <Box key={`${dia}-${i}`} sx={{ display: 'flex', gap: 1.5, position: 'relative', pb: ultimo ? 1 : 2 }}>
+                            {!ultimo && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  left: 15,
+                                  top: 32,
+                                  bottom: 0,
+                                  width: '2px',
+                                  bgcolor: 'divider',
+                                }}
+                              />
+                            )}
+                            <Box
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: 'background.paper',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                flexShrink: 0,
+                                zIndex: 1,
+                              }}
+                            >
+                              {eventoIcono(ev.tipo)}
+                            </Box>
+                            <Box sx={{ minWidth: 0, pt: 0.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.4 }}>
+                                {ev.descripcion}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {ev.usuario} · {format(new Date(ev.fecha), 'HH:mm', { locale: es })}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                    </Box>
                   ))}
-                </List>
+                </Box>
               )}
             </CardContent>
           </Card>
