@@ -143,6 +143,9 @@ const TIPOS_HITO = [
   'documento_rechazado',
 ]
 
+/** Movimientos que se muestran antes de pedir el resto. */
+const EVENTOS_VISIBLES = 8
+
 const etiquetaDia = (fecha: Date) => {
   if (isToday(fecha)) return 'Hoy'
   if (isYesterday(fecha)) return 'Ayer'
@@ -345,6 +348,7 @@ const ExpedienteDetail = () => {
   const [hojaRuta, setHojaRuta] = useState<Array<{ fuente: string; tipo: string; descripcion: string; usuario: string; fecha: string }>>([])
   // Por defecto, el recorrido; el detalle completo queda a un clic.
   const [soloHitos, setSoloHitos] = useState(true)
+  const [hojaRutaExpandida, setHojaRutaExpandida] = useState(false)
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -694,14 +698,21 @@ const ExpedienteDetail = () => {
     [hojaRuta, soloHitos],
   )
 
+  // Un expediente con muchas vueltas estira esta columna sin fin y descuadra la
+  // página: se muestran los movimientos recientes y el resto queda a un clic.
+  const eventosVisibles = useMemo(
+    () => (hojaRutaExpandida ? hojaRutaFiltrada : hojaRutaFiltrada.slice(0, EVENTOS_VISIBLES)),
+    [hojaRutaFiltrada, hojaRutaExpandida],
+  )
+
   const hojaRutaPorDia = useMemo(() => {
     const grupos = new Map<string, typeof hojaRuta>()
-    hojaRutaFiltrada.forEach((ev) => {
+    eventosVisibles.forEach((ev) => {
       const dia = format(new Date(ev.fecha), 'yyyy-MM-dd')
       grupos.set(dia, [...(grupos.get(dia) ?? []), ev])
     })
     return Array.from(grupos.entries())
-  }, [hojaRutaFiltrada])
+  }, [eventosVisibles])
 
   // Desde cuándo está quieto: el último movimiento registrado, sea cual sea.
   const desdeCuando = ultimaFecha || expediente?.fecha_creacion || expediente?.created_at
@@ -1067,14 +1078,14 @@ const ExpedienteDetail = () => {
                       size="small"
                       color={soloHitos ? 'primary' : 'default'}
                       variant={soloHitos ? 'filled' : 'outlined'}
-                      onClick={() => setSoloHitos(true)}
+                      onClick={() => { setSoloHitos(true); setHojaRutaExpandida(false) }}
                     />
                     <Chip
                       label="Todo"
                       size="small"
                       color={!soloHitos ? 'primary' : 'default'}
                       variant={!soloHitos ? 'filled' : 'outlined'}
-                      onClick={() => setSoloHitos(false)}
+                      onClick={() => { setSoloHitos(false); setHojaRutaExpandida(false) }}
                     />
                   </Stack>
                 )}
@@ -1143,6 +1154,19 @@ const ExpedienteDetail = () => {
                       })}
                     </Box>
                   ))}
+
+                  {hojaRutaFiltrada.length > EVENTOS_VISIBLES && (
+                    <Button
+                      fullWidth
+                      size="small"
+                      onClick={() => setHojaRutaExpandida((v) => !v)}
+                      sx={{ mt: 0.5 }}
+                    >
+                      {hojaRutaExpandida
+                        ? 'Ver menos'
+                        : `Ver los ${hojaRutaFiltrada.length} movimientos`}
+                    </Button>
+                  )}
                 </Box>
               )}
             </CardContent>
