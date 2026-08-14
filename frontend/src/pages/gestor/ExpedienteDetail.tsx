@@ -600,7 +600,7 @@ const ExpedienteDetail = () => {
     if (expediente?.creador?.nombre) {
       pasos.push({
         nombre: expediente.creador.nombre,
-        accion: 'Abrió el expediente',
+        accion: 'Creó el expediente',
         fecha: expediente.fecha_creacion || expediente.created_at,
       })
     }
@@ -980,11 +980,11 @@ const ExpedienteDetail = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          {/* Quién abrió el expediente */}
+          {/* Quién creó el expediente (creado_por) */}
           <Card sx={{ mb: 2 }}>
             <CardContent>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Abierto por
+                Creado por
               </Typography>
               <Persona
                 nombre={expediente.creador?.nombre || 'Sin registro'}
