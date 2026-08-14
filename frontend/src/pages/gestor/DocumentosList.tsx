@@ -52,7 +52,7 @@ const estadoLabels: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
-  incorporado: 'Incorporado',
+  incorporado: 'Antecedente',
 }
 
 const DocumentosList = () => {

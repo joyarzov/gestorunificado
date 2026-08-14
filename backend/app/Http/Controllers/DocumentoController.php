@@ -1298,6 +1298,19 @@ class DocumentoController extends Controller
             return $this->errorResponse('El archivo subido ya no está disponible. Vuelve a subirlo.', 404);
         }
 
+        // El expediente de destino no se comprobaba: bastaba conocer su id para
+        // colgarle un documento a un expediente ajeno.
+        $expediente = null;
+        if ($request->expediente_id) {
+            $expediente = Expediente::find($request->expediente_id);
+            if (!$expediente || !$expediente->puedeAportarDocumentos(Auth::user())) {
+                return $this->errorResponse('No tienes permiso para agregar documentos a ese expediente', 403);
+            }
+            if ($expediente->estaCerrado()) {
+                return $this->errorResponse('No se pueden agregar documentos a un expediente cerrado', 400);
+            }
+        }
+
         // Validar coherencia de la acción
         if ($request->accion === 'enviar_firma' && empty($request->firmantes_asignados)) {
             return $this->errorResponse('Debes seleccionar al menos un firmante para enviar a firma', 422);

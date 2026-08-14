@@ -255,4 +255,40 @@ class Expediente extends Model
     {
         return in_array($this->estado, [self::ESTADO_CERRADO, self::ESTADO_ARCHIVADO]);
     }
+
+    /**
+     * ¿Puede este usuario incorporarle documentos —antecedentes o documentos que
+     * van a firma? Además del creador y de administración, puede quien lo tiene en
+     * su poder: el responsable actual o el destinatario de una derivación viva. El
+     * funcionario que está tramitando necesita adjuntar sus respaldos sin tener que
+     * devolverle el expediente al creador.
+     *
+     * Es más amplio que "gestionar" (editar, cerrar, asociar documentos ajenos),
+     * que sigue siendo del creador. Sigue al contexto —respeta subrogancia— salvo
+     * en "lo creó", que es un hecho del actor real.
+     */
+    public function puedeAportarDocumentos(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        $roles = is_array($user->roles) ? $user->roles : [];
+        if (in_array('admin', $roles, true)) {
+            return true;
+        }
+
+        if ((int) $this->creado_por === (int) $user->id) {
+            return true;
+        }
+
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        if ($this->responsable_actual_usuario_id
+            && (int) $this->responsable_actual_usuario_id === (int) $ctx->id) {
+            return true;
+        }
+
+        return $this->derivacionesActivas->contains(fn ($d) => $d->esDestinatario($user));
+    }
 }

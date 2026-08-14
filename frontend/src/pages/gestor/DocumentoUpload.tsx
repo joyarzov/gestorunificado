@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -66,8 +66,13 @@ const formatBytes = (bytes: number) => {
 
 const DocumentoUpload = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Se llega desde un expediente ("Subir documento para firma"): el expediente
+  // viene fijado y la navegación de vuelta apunta a él, no al listado.
+  const expedienteFijadoId = Number(searchParams.get('expediente_id')) || null
 
   const [activeStep, setActiveStep] = useState(0)
   const [archivo, setArchivo] = useState<File | null>(null)
@@ -117,6 +122,18 @@ const DocumentoUpload = () => {
       })
       .catch(() => {})
   }, [user?.id])
+
+  // El expediente que llega por la URL puede no estar entre "mis expedientes"
+  // (p. ej. lo tengo derivado): se pide directo para poder mostrarlo fijado.
+  useEffect(() => {
+    if (!expedienteFijadoId) return
+    expedientesAPI
+      .obtener(expedienteFijadoId)
+      .then((res) => {
+        if (res.success) setExpedienteSel(res.data)
+      })
+      .catch(() => setError('No se pudo cargar el expediente de origen'))
+  }, [expedienteFijadoId])
 
   const handleArchivo = async (file: File) => {
     setError(null)
@@ -255,12 +272,23 @@ const DocumentoUpload = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <IconButton onClick={() => navigate('/documentos')}>
+        <IconButton
+          onClick={() =>
+            navigate(expedienteFijadoId ? `/expedientes/${expedienteFijadoId}` : '/documentos')
+          }
+        >
           <BackIcon />
         </IconButton>
-        <Typography variant="h4" fontWeight="bold">
-          Subir documento PDF
-        </Typography>
+        <Box>
+          <Typography variant="h4" fontWeight="bold">
+            Subir documento a firma
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Memos, informes u oficios en PDF: los firmas tú, los envías a firma de otro o registras
+            uno que ya viene firmado. Los respaldos que no se firman (cotizaciones, certificados)
+            van como antecedente del expediente.
+          </Typography>
+        </Box>
       </Box>
 
       <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
@@ -508,12 +536,18 @@ const DocumentoUpload = () => {
                   options={expedientes}
                   value={expedienteSel}
                   onChange={(_, val) => setExpedienteSel(val)}
+                  disabled={!!expedienteFijadoId}
                   getOptionLabel={(opt) => `${opt.numero_expediente || opt.identificador || ''} — ${opt.titulo}`}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Asociar a expediente (opcional)"
+                      label={expedienteFijadoId ? 'Expediente' : 'Asociar a expediente (opcional)'}
                       placeholder="Buscar expediente abierto..."
+                      helperText={
+                        expedienteFijadoId
+                          ? 'El documento quedará asociado al expediente desde donde lo subiste'
+                          : undefined
+                      }
                     />
                   )}
                 />

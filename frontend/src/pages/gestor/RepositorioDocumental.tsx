@@ -251,7 +251,7 @@ const RepositorioDocumental = () => {
                 <MenuItem value="borrador">Borrador</MenuItem>
                 <MenuItem value="pendiente_firma">Pendiente de firma</MenuItem>
                 <MenuItem value="firmado">Firmado</MenuItem>
-                <MenuItem value="incorporado">Incorporado</MenuItem>
+                <MenuItem value="incorporado">Antecedente</MenuItem>
                 <MenuItem value="rechazado">Rechazado</MenuItem>
                 <MenuItem value="anulado">Anulado</MenuItem>
               </Select>

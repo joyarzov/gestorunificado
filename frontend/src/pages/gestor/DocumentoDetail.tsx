@@ -80,7 +80,8 @@ const estadoLabels: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
-  incorporado: 'Incorporado',
+  // Un PDF que entró como antecedente: se archiva tal cual, sin pasar por firma.
+  incorporado: 'Antecedente',
 }
 
 const envioEstadoLabels: Record<string, string> = {
@@ -117,7 +118,7 @@ const accionLabels: Record<string, string> = {
   recibido: 'Recibido',
   firmante_agregado: 'Firmante agregado',
   eliminado: 'Eliminado',
-  incorporado: 'Incorporado',
+  incorporado: 'Adjuntado como antecedente',
   asociado: 'Asociado a expediente',
 }
 

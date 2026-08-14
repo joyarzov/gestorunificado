@@ -388,7 +388,9 @@ export interface Documento {
   archivo_original?: string
   formato?: string
   metadata_pdfa?: Record<string, unknown>
-  estado: 'borrador' | 'pendiente_firma' | 'firmado' | 'rechazado' | 'anulado'
+  // 'incorporado' = antecedente adjuntado a un expediente: se archiva tal cual,
+  // no pasa por firma y ya es final.
+  estado: 'borrador' | 'pendiente_firma' | 'firmado' | 'rechazado' | 'anulado' | 'incorporado'
   nivel_acceso: number
   palabras_clave?: string
   firmado: boolean

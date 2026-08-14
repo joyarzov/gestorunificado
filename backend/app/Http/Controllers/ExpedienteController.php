@@ -550,8 +550,24 @@ class ExpedienteController extends Controller
         return $this->successResponse($expediente, 'Documento quitado del expediente');
     }
 
+    /**
+     * Adjunta un ANTECEDENTE al expediente: un PDF que se archiva tal como llegó
+     * (cotización, certificado, correo) y que no pasa por el circuito de firma —
+     * por eso nace en estado "incorporado", que ya es final.
+     *
+     * Un memo, informe u oficio NO va por aquí: esos suben por el asistente de
+     * DocumentoController::subirDocumento, que detecta las firmas del PDF y deja
+     * elegir quién firma.
+     */
     public function subirDocumento(Request $request, Expediente $expediente)
     {
+        // Faltaba: bastaba conocer el id para meterle un PDF a un expediente ajeno.
+        // Pueden el creador, administración y quien lo tenga en su poder: el que
+        // tramita necesita adjuntar sus respaldos sin devolver el expediente.
+        if (!$expediente->puedeAportarDocumentos(Auth::user())) {
+            return $this->errorResponse('No tienes permiso para agregar documentos a este expediente', 403);
+        }
+
         if ($expediente->estaCerrado()) {
             return $this->errorResponse('No se pueden subir documentos a un expediente cerrado', 400);
         }
@@ -573,9 +589,12 @@ class ExpedienteController extends Controller
                 'formato' => 'PDF',
                 'mecanismo_incorporacion' => Documento::MECANISMO_FISICO,
                 'archivo_pdf' => $path,
+                'archivo_original' => $path,
                 'estado' => Documento::ESTADO_INCORPORADO,
+                'origen_carga' => Documento::ORIGEN_SUBIDO,
                 'nivel_acceso' => $expediente->nivel_acceso ?? 1,
                 'creado_por' => Auth::id(),
+                'actualizado_por' => Auth::id(),
                 'departamento_id' => Auth::user()->departamento_id,
             ]);
 
@@ -586,14 +605,14 @@ class ExpedienteController extends Controller
                 'expediente_id' => $expediente->id,
                 'usuario_id' => Auth::id(),
                 'tipo' => 'documento_asociado',
-                'descripcion' => "Documento PDF \"{$request->titulo}\" subido y asociado al expediente",
+                'descripcion' => "Antecedente \"{$request->titulo}\" adjuntado al expediente",
                 'metadata' => ['documento_id' => $documento->id, 'archivo' => $path],
             ]);
 
             DocumentoTrazabilidad::registrar(
                 $documento->id,
                 'incorporado',
-                "Documento subido e incorporado al expediente {$expediente->identificador}",
+                "Antecedente adjuntado al expediente {$expediente->identificador} (no requiere firma)",
                 ['expediente_id' => $expediente->id, 'expediente' => $expediente->identificador]
             );
 
@@ -601,10 +620,10 @@ class ExpedienteController extends Controller
 
             $expediente->load(['documentos', 'creador', 'departamento']);
 
-            return $this->successResponse($expediente, 'Documento subido y asociado exitosamente', 201);
+            return $this->successResponse($expediente, 'Antecedente adjuntado al expediente', 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Error al subir documento: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Error al adjuntar el antecedente: ' . $e->getMessage(), 500);
         }
     }
 

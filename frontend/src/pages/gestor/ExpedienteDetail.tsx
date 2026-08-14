@@ -27,6 +27,7 @@ import {
   Snackbar,
   Tooltip,
   IconButton,
+  Divider,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -39,6 +40,7 @@ import {
   NoteAdd as NoteAddIcon,
   Link as LinkIcon,
   UploadFile as UploadIcon,
+  AttachFile as AnexoIcon,
   DragIndicator as DragIcon,
   Send as DerivarIcon,
   MoveToInbox as RecibirIcon,
@@ -107,7 +109,8 @@ const docEstadoLabel: Record<string, string> = {
   firmado: 'Firmado',
   rechazado: 'Rechazado',
   anulado: 'Anulado',
-  incorporado: 'Incorporado',
+  // Un PDF que entró como antecedente: se archiva tal cual, sin pasar por firma.
+  incorporado: 'Antecedente',
 }
 
 interface SortableDocItemProps {
@@ -208,7 +211,7 @@ const ExpedienteDetail = () => {
   const [selectedDoc, setSelectedDoc] = useState<Documento | null>(null)
   const [asociarLoading, setAsociarLoading] = useState(false)
 
-  // Dialog: Subir PDF
+  // Dialog: adjuntar antecedente (PDF que se archiva tal cual, sin firma)
   const [openSubir, setOpenSubir] = useState(false)
   const [pdfTitulo, setPdfTitulo] = useState('')
   const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -451,7 +454,7 @@ const ExpedienteDetail = () => {
     }
   }
 
-  // --- Subir PDF ---
+  // --- Adjuntar antecedente (PDF que se archiva tal cual, sin firma) ---
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -475,14 +478,14 @@ const ExpedienteDetail = () => {
     setSubirLoading(true)
     try {
       await expedientesAPI.subirDocumento(parseInt(id), pdfFile, pdfTitulo.trim(), Number(pdfTipoId))
-      setSnackbar({ open: true, message: 'Documento subido exitosamente', severity: 'success' })
+      setSnackbar({ open: true, message: 'Antecedente adjuntado al expediente', severity: 'success' })
       setOpenSubir(false)
       setPdfFile(null)
       setPdfTitulo('')
       setPdfTipoId('')
       loadExpediente(parseInt(id))
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Error al subir documento'
+      const msg = err?.response?.data?.message || 'Error al adjuntar el antecedente'
       setSnackbar({ open: true, message: msg, severity: 'error' })
     } finally {
       setSubirLoading(false)
@@ -497,6 +500,11 @@ const ExpedienteDetail = () => {
   // El backend decide quién puede derivar y quién debe acusar recibo: con varios
   // destinatarios a la vez la última derivación ya no alcanza para deducirlo.
   const puedeDerivar = expediente?.puedo_derivar ?? false
+
+  // Aportar documentos es más amplio que gestionar: quien tramita el expediente
+  // adjunta sus respaldos sin devolvérselo al creador. Editarlo, en cambio —
+  // asociar documentos ajenos, cerrarlo—, sigue siendo del creador.
+  const puedeAportar = puedeEditar || puedeDerivar
 
   // Quitar documentos solo mientras se arma el expediente: una vez derivado ya
   // circuló con ese contenido (mismo criterio que aplica el backend).
@@ -722,7 +730,7 @@ const ExpedienteDetail = () => {
                 <Typography variant="h6">
                   Documentos del Expediente
                 </Typography>
-                {puedeEditar && (
+                {puedeAportar && (
                   <Button
                     size="small"
                     startIcon={<AddIcon />}
@@ -737,17 +745,35 @@ const ExpedienteDetail = () => {
                   open={Boolean(menuAnchor)}
                   onClose={handleMenuClose}
                 >
-                  <MenuItem onClick={() => { handleMenuClose(); navigate(`/documentos/nuevo?expediente_id=${id}`) }}>
-                    <ListItemIcon><NoteAddIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Crear nuevo documento</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={() => { handleMenuClose(); setOpenAsociar(true) }}>
-                    <ListItemIcon><LinkIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Asociar documento existente</ListItemText>
-                  </MenuItem>
+                  {puedeEditar && (
+                    <MenuItem onClick={() => { handleMenuClose(); navigate(`/documentos/nuevo?expediente_id=${id}`) }}>
+                      <ListItemIcon><NoteAddIcon fontSize="small" /></ListItemIcon>
+                      <ListItemText>Crear nuevo documento</ListItemText>
+                    </MenuItem>
+                  )}
+                  {puedeEditar && (
+                    <MenuItem onClick={() => { handleMenuClose(); setOpenAsociar(true) }}>
+                      <ListItemIcon><LinkIcon fontSize="small" /></ListItemIcon>
+                      <ListItemText>Asociar documento existente</ListItemText>
+                    </MenuItem>
+                  )}
+                  {puedeEditar && <Divider />}
+                  {/* Dos vías distintas para un PDF que ya existe fuera de la plataforma:
+                      el antecedente se archiva tal cual y el documento pasa por firma.
+                      Ambas quedan también para quien tramita el expediente. */}
                   <MenuItem onClick={() => { handleMenuClose(); setOpenSubir(true) }}>
+                    <ListItemIcon><AnexoIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText
+                      primary="Adjuntar antecedente"
+                      secondary="Respaldo que no se firma: cotización, certificado, correo"
+                    />
+                  </MenuItem>
+                  <MenuItem onClick={() => { handleMenuClose(); navigate(`/documentos/subir?expediente_id=${id}`) }}>
                     <ListItemIcon><UploadIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Subir archivo PDF</ListItemText>
+                    <ListItemText
+                      primary="Subir documento a firma"
+                      secondary="Memo, informe u oficio: se firma aquí o ya viene firmado"
+                    />
                   </MenuItem>
                 </Menu>
               </Box>
@@ -907,15 +933,30 @@ const ExpedienteDetail = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Subir documento PDF */}
+      {/* Dialog: adjuntar antecedente (no requiere firma) */}
       <Dialog open={openSubir} onClose={() => setOpenSubir(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Subir Documento PDF</DialogTitle>
+        <DialogTitle>Adjuntar antecedente</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Sube un archivo PDF para asociarlo a este expediente.
+            Para respaldos que se archivan tal como llegaron: cotizaciones, certificados,
+            correos, planos. Quedan incorporados al expediente sin pasar por firma.
           </Typography>
+          <Alert
+            severity="info"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                size="small"
+                onClick={() => { setOpenSubir(false); navigate(`/documentos/subir?expediente_id=${id}`) }}
+              >
+                Ir allá
+              </Button>
+            }
+          >
+            ¿Es un memo, informe u oficio que se firma? Usa "Subir documento a firma".
+          </Alert>
           <TextField
-            label="Título del documento"
+            label="Título del antecedente"
             value={pdfTitulo}
             onChange={(e) => setPdfTitulo(e.target.value)}
             fullWidth
@@ -945,7 +986,7 @@ const ExpedienteDetail = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Button
               variant="outlined"
-              startIcon={<UploadIcon />}
+              startIcon={<AnexoIcon />}
               onClick={() => fileInputRef.current?.click()}
             >
               Seleccionar PDF
