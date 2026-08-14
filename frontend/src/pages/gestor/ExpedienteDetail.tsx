@@ -29,9 +29,6 @@ import {
   IconButton,
   Divider,
   Avatar,
-  Stepper,
-  Step,
-  StepLabel,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -49,6 +46,7 @@ import {
   Send as DerivarIcon,
   MoveToInbox as RecibirIcon,
   Draw as FirmarIcon,
+  ChevronRight as FlechaIcon,
 } from '@mui/icons-material'
 import {
   DndContext,
@@ -594,20 +592,36 @@ const ExpedienteDetail = () => {
   const ultimaDeriv = expediente?.ultima_derivacion
   const debeRecibir = expediente?.mi_derivacion_pendiente ?? false
 
-  // Hitos del trámite con su fecha real, sacados de la hoja de ruta: sirven para
-  // ver de un vistazo en qué punto va sin leer el detalle evento por evento.
-  const hitos = useMemo(() => {
-    const ultimoDe = (tipo: string) =>
-      hojaRuta.filter((e) => e.tipo === tipo).map((e) => e.fecha).sort().pop()
-    return [
-      { clave: 'creado', label: 'Creado', fecha: expediente?.fecha_creacion || expediente?.created_at },
-      { clave: 'derivado', label: 'Derivado', fecha: ultimoDe('derivacion') },
-      { clave: 'recibido', label: 'Recibido', fecha: ultimoDe('recepcion') },
-      { clave: 'cerrado', label: 'Cerrado', fecha: expediente?.fecha_cierre },
-    ]
-  }, [hojaRuta, expediente?.fecha_creacion, expediente?.created_at, expediente?.fecha_cierre])
+  // El expediente NO avanza por etapas fijas: se deriva, se recibe, se re-deriva y
+  // puede reabrirse. Por eso acá va el recorrido REAL —por las manos por las que
+  // pasó, en orden— y no un stepper que prometería una linealidad que no existe.
+  const recorrido = useMemo(() => {
+    const pasos: { nombre: string; accion: string; fecha: string }[] = []
+    if (expediente?.creador?.nombre) {
+      pasos.push({
+        nombre: expediente.creador.nombre,
+        accion: 'Abrió el expediente',
+        fecha: expediente.fecha_creacion || expediente.created_at,
+      })
+    }
+    hojaRuta
+      .filter((e) => e.tipo === 'recepcion')
+      .slice()
+      .sort((a, b) => a.fecha.localeCompare(b.fecha))
+      .forEach((e) => pasos.push({ nombre: e.usuario, accion: 'Lo recibió', fecha: e.fecha }))
+    return pasos
+  }, [hojaRuta, expediente?.creador?.nombre, expediente?.fecha_creacion, expediente?.created_at])
 
-  const pasoActual = hitos.reduce((ultimo, h, i) => (h.fecha ? i : ultimo), 0)
+  // Cuántas veces se movió: cada derivación y cada acuse de recibo cuenta.
+  const movimientos = useMemo(
+    () => hojaRuta.filter((e) => e.tipo === 'derivacion' || e.tipo === 'recepcion').length,
+    [hojaRuta],
+  )
+
+  const ultimaFecha = useMemo(
+    () => hojaRuta.map((e) => e.fecha).sort().pop(),
+    [hojaRuta],
+  )
 
   // Quién lo tiene: el responsable único o, con multi-destino, todos los tenedores.
   const enPoderDe = useMemo(() => {
@@ -630,11 +644,8 @@ const ExpedienteDetail = () => {
     return Array.from(grupos.entries())
   }, [hojaRuta])
 
-  // Desde cuándo está quieto: la última recepción, o la derivación si nadie ha
-  // acusado recibo todavía.
-  const desdeCuando = hitos.find((h) => h.clave === 'recibido')?.fecha
-    || hitos.find((h) => h.clave === 'derivado')?.fecha
-    || hitos.find((h) => h.clave === 'creado')?.fecha
+  // Desde cuándo está quieto: el último movimiento registrado, sea cual sea.
+  const desdeCuando = ultimaFecha || expediente?.fecha_creacion || expediente?.created_at
 
   if (loading) {
     return (
@@ -759,23 +770,32 @@ const ExpedienteDetail = () => {
             Era lo que había que deducir leyendo la hoja de ruta entera. */}
         <Divider />
         <CardContent sx={{ bgcolor: 'action.hover' }}>
-          <Stepper activeStep={pasoActual} alternativeLabel sx={{ mb: hitos.some((h) => h.fecha) ? 2 : 0 }}>
-            {hitos.map((h) => (
-              <Step key={h.clave} completed={!!h.fecha}>
-                <StepLabel
-                  optional={
-                    h.fecha ? (
-                      <Typography variant="caption" color="text.secondary">
-                        {format(new Date(h.fecha), 'dd/MM/yyyy HH:mm', { locale: es })}
-                      </Typography>
-                    ) : undefined
-                  }
-                >
-                  {h.label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+          {recorrido.length > 1 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Ha pasado por {movimientos > 0 && `· ${movimientos} ${movimientos === 1 ? 'movimiento' : 'movimientos'}`}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {recorrido.map((paso, i) => (
+                  <Box key={`${paso.nombre}-${paso.fecha}`} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {i > 0 && <FlechaIcon fontSize="small" sx={{ color: 'text.disabled' }} />}
+                    <Tooltip title={`${paso.accion} · ${format(new Date(paso.fecha), "d 'de' MMMM, HH:mm", { locale: es })}`}>
+                      <Chip
+                        size="small"
+                        avatar={
+                          <Avatar sx={{ bgcolor: colorPersona(paso.nombre), color: '#fff !important', fontSize: 11, fontWeight: 700 }}>
+                            {iniciales(paso.nombre)}
+                          </Avatar>
+                        }
+                        label={paso.nombre}
+                        variant={i === recorrido.length - 1 ? 'filled' : 'outlined'}
+                      />
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
 
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: { xs: 1.5, sm: 3 } }}>
             <Box>
@@ -825,7 +845,19 @@ const ExpedienteDetail = () => {
                   Materia
                 </Typography>
                 {expediente.resumen && (
-                  <Typography sx={{ maxWidth: '68ch', lineHeight: 1.7, color: 'text.primary' }}>
+                  <Typography
+                    sx={{
+                      maxWidth: '68ch',
+                      lineHeight: 1.7,
+                      color: 'text.primary',
+                      // Justificado y con guionado: el borde derecho recto ordena el
+                      // párrafo, y los guiones evitan los ríos de espacio que deja
+                      // justificar sin partir palabras.
+                      textAlign: 'justify',
+                      hyphens: 'auto',
+                    }}
+                    lang="es"
+                  >
                     {expediente.resumen}
                   </Typography>
                 )}
