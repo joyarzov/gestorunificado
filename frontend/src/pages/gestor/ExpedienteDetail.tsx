@@ -47,6 +47,8 @@ import {
   MoveToInbox as RecibirIcon,
   Draw as FirmarIcon,
   ChevronRight as FlechaIcon,
+  Visibility as VerIcon,
+  Download as DescargarIcon,
 } from '@mui/icons-material'
 import {
   DndContext,
@@ -130,6 +132,17 @@ const Persona = ({ nombre, detalle }: { nombre: string; detalle?: string }) => (
 const diasDesde = (fecha: string) => Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000)
 const colorAntiguedad = (dias: number) => (dias >= 5 ? 'error.main' : dias >= 3 ? 'warning.main' : 'text.secondary')
 
+// El recorrido del expediente: cómo circuló y qué se resolvió. Lo demás
+// (documentos asociados, quitados, creados) es trajín interno.
+const TIPOS_HITO = [
+  'derivacion',
+  'recepcion',
+  'cierre',
+  'reapertura',
+  'documento_firmado',
+  'documento_rechazado',
+]
+
 const etiquetaDia = (fecha: Date) => {
   if (isToday(fecha)) return 'Hoy'
   if (isYesterday(fecha)) return 'Ayer'
@@ -168,9 +181,11 @@ interface SortableDocItemProps {
   onFirmar?: () => void
   /** Solo mientras el expediente se está armando (borrador). */
   onQuitar?: () => void
+  /** Bajar el PDF sin entrar al documento y volver. */
+  onDescargar?: () => void
 }
 
-const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemProps) => {
+const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar }: SortableDocItemProps) => {
   const {
     attributes,
     listeners,
@@ -193,13 +208,19 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemPr
       sx={{
         cursor: 'pointer',
         borderRadius: 1,
+        // Las acciones y el asa de arrastre aparecen al acercarse: en reposo la
+        // fila muestra el documento, no los controles. En táctil no hay hover, así
+        // que ahí quedan siempre visibles.
         '&:hover': { bgcolor: 'action.hover' },
+        '&:hover .acciones-doc, &:hover .asa-doc': { opacity: 1 },
+        '@media (hover: none)': { '& .acciones-doc, & .asa-doc': { opacity: 1 } },
       }}
     >
       <ListItemIcon
         {...attributes}
         {...listeners}
-        sx={{ cursor: 'grab', minWidth: 32 }}
+        className="asa-doc"
+        sx={{ cursor: 'grab', minWidth: 32, opacity: 0, transition: 'opacity .15s' }}
       >
         <DragIcon fontSize="small" color="action" />
       </ListItemIcon>
@@ -244,6 +265,20 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar }: SortableDocItemPr
         color={doc.mi_firma_pendiente ? 'warning' : (docEstadoColor[doc.estado] || 'default')}
         variant={doc.mi_firma_pendiente ? 'filled' : 'outlined'}
       />
+      <Stack direction="row" className="acciones-doc" sx={{ opacity: 0, transition: 'opacity .15s', ml: 0.5 }}>
+        <Tooltip title="Abrir documento">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onClick() }} aria-label={`Abrir ${doc.titulo}`}>
+            <VerIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        {onDescargar && doc.archivo_pdf && (
+          <Tooltip title="Descargar PDF">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDescargar() }} aria-label={`Descargar ${doc.titulo}`}>
+              <DescargarIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
       {onQuitar && (
         <Tooltip title="Quitar del expediente">
           <IconButton
@@ -308,6 +343,8 @@ const ExpedienteDetail = () => {
 
   // Hoja de ruta consolidada (actividades + firmas)
   const [hojaRuta, setHojaRuta] = useState<Array<{ fuente: string; tipo: string; descripcion: string; usuario: string; fecha: string }>>([])
+  // Por defecto, el recorrido; el detalle completo queda a un clic.
+  const [soloHitos, setSoloHitos] = useState(true)
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -522,6 +559,21 @@ const ExpedienteDetail = () => {
     }
   }
 
+  // Bajar el PDF desde la lista, sin entrar al documento y volver.
+  const handleDescargarDoc = async (doc: Documento) => {
+    try {
+      const blob = await documentosAPI.descargar(doc.id)
+      const url = URL.createObjectURL(blob as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${doc.numero || doc.identificador || 'documento'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setSnackbar({ open: true, message: 'No se pudo descargar el documento', severity: 'error' })
+    }
+  }
+
   // --- Adjuntar antecedente (PDF que se archiva tal cual, sin firma) ---
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -634,15 +686,22 @@ const ExpedienteDetail = () => {
     return (expediente?.tenedores ?? []).map((t) => ({ nombre: t, detalle: undefined }))
   }, [expediente?.responsable_actual, expediente?.responsable_actual_departamento, expediente?.tenedores])
 
-  // Eventos agrupados por día, en el orden en que ya vienen de la API.
+  // Eventos agrupados por día, en el orden en que ya vienen de la API. El filtro
+  // separa el recorrido del expediente (cómo circuló) del trajín con los
+  // documentos, que es ruido cuando lo que buscas es por dónde pasó.
+  const hojaRutaFiltrada = useMemo(
+    () => (soloHitos ? hojaRuta.filter((e) => TIPOS_HITO.includes(e.tipo)) : hojaRuta),
+    [hojaRuta, soloHitos],
+  )
+
   const hojaRutaPorDia = useMemo(() => {
     const grupos = new Map<string, typeof hojaRuta>()
-    hojaRuta.forEach((ev) => {
+    hojaRutaFiltrada.forEach((ev) => {
       const dia = format(new Date(ev.fecha), 'yyyy-MM-dd')
       grupos.set(dia, [...(grupos.get(dia) ?? []), ev])
     })
     return Array.from(grupos.entries())
-  }, [hojaRuta])
+  }, [hojaRutaFiltrada])
 
   // Desde cuándo está quieto: el último movimiento registrado, sea cual sea.
   const desdeCuando = ultimaFecha || expediente?.fecha_creacion || expediente?.created_at
@@ -949,6 +1008,7 @@ const ExpedienteDetail = () => {
                           onClick={() => navigate(`/documentos/${doc.id}`)}
                           onFirmar={() => navigate(`/documentos/${doc.id}`)}
                           onQuitar={puedeQuitarDocs ? () => setDocAQuitar(doc) : undefined}
+                          onDescargar={() => handleDescargarDoc(doc)}
                         />
                       ))}
                     </List>
@@ -996,12 +1056,34 @@ const ExpedienteDetail = () => {
           {/* Hoja de ruta consolidada (actividades + firmas) */}
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Hoja de ruta
-              </Typography>
-              {hojaRuta.length === 0 ? (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, gap: 1 }}>
+                <Typography variant="h6">
+                  Hoja de ruta
+                </Typography>
+                {hojaRuta.length > 0 && (
+                  <Stack direction="row" spacing={0.5}>
+                    <Chip
+                      label="Hitos"
+                      size="small"
+                      color={soloHitos ? 'primary' : 'default'}
+                      variant={soloHitos ? 'filled' : 'outlined'}
+                      onClick={() => setSoloHitos(true)}
+                    />
+                    <Chip
+                      label="Todo"
+                      size="small"
+                      color={!soloHitos ? 'primary' : 'default'}
+                      variant={!soloHitos ? 'filled' : 'outlined'}
+                      onClick={() => setSoloHitos(false)}
+                    />
+                  </Stack>
+                )}
+              </Box>
+              {hojaRutaFiltrada.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  Sin movimientos registrados.
+                  {hojaRuta.length === 0
+                    ? 'Sin movimientos registrados.'
+                    : 'Sin derivaciones ni firmas todavía. Mira "Todo" para el detalle.'}
                 </Typography>
               ) : (
                 // Línea de tiempo: la fecha se dice una vez por día y cada evento
