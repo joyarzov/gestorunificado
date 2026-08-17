@@ -237,6 +237,12 @@ class Correspondencia extends Model
      * - resto: solo donde participa — la creó, está en la cadena de derivaciones
      *   (origen o destino), o fue derivada a su departamento sin usuario específico.
      * Usa contexto() para respetar la subrogancia.
+     *
+     * Lo derivado EN SUBROGANCIA lo ven los dos: el subrogante, porque lo
+     * gestionó él (queda en usuario_origen_id), y el TITULAR, porque se derivó
+     * en su nombre (actuando_como_user_id). Sin lo segundo el titular no vería
+     * en su propia lista los asuntos que salieron de su despacho mientras
+     * estaba ausente.
      */
     public function scopeVisiblesPara($query, User $user)
     {
@@ -248,6 +254,7 @@ class Correspondencia extends Model
             $q->where('usuario_id', $ctx->id)
               ->orWhereHas('derivaciones', function ($d) use ($ctx) {
                   $d->where('usuario_origen_id', $ctx->id)
+                    ->orWhere('actuando_como_user_id', $ctx->id)
                     ->orWhere('usuario_destino_id', $ctx->id)
                     ->orWhere(function ($d2) use ($ctx) {
                         $d2->whereNull('usuario_destino_id')
