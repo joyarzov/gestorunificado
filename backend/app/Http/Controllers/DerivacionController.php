@@ -885,16 +885,25 @@ class DerivacionController extends Controller
                     ->update(['estado' => 'recibido']);
             }
 
-            // Notificar al usuario que derivó originalmente
-            if ($derivacion->usuario_origen_id) {
+            // Notificar a quien derivó originalmente. Si derivó en subrogancia,
+            // el aviso es del TITULAR (ver Derivacion::titularOrigenId): el
+            // subrogante solo recibe copia mientras la subrogancia siga vigente.
+            $destinatarioAviso = $derivacion->titularOrigenId();
+            // Quien acusa recibo subrogando se identifica como tal: el aviso lo
+            // lee el titular del asunto, que no tiene por qué saber quién está
+            // subrogando hoy en el departamento de destino.
+            $quienRecibio = $user->getActuandoComo()
+                ? "{$user->nombre} (subrogando a {$user->getActuandoComo()->nombre})"
+                : $user->nombre;
+            if ($destinatarioAviso) {
                 NotificacionService::enviar(
-                    $derivacion->usuario_origen_id,
+                    $destinatarioAviso,
                     'correspondencia',
                     $quedanPendientes ? 'correspondencia_recibida_parcial' : 'correspondencia_en_gestion',
                     $quedanPendientes ? 'Acuse de recibo' : 'Correspondencia recibida',
                     $quedanPendientes
-                        ? "{$user->nombre} recibió la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
-                        : "La correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" fue recibida por {$user->nombre} y quedó en gestión. El proceso se cierra cuando el Alcalde lo dé por completado.",
+                        ? "{$quienRecibio} recibió la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" (aún hay destinatarios pendientes)."
+                        : "La correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" fue recibida por {$quienRecibio} y quedó en gestión. El proceso se cierra cuando el Alcalde lo dé por completado.",
                     ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
                 );
             }

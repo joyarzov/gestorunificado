@@ -87,6 +87,23 @@ class Derivacion extends Model
         return $this->belongsTo(User::class, 'actuando_como_user_id');
     }
 
+    /**
+     * DUEÑO INSTITUCIONAL del origen de la derivación: el subrogado si se derivó
+     * en subrogancia, o el usuario que derivó si no la hubo.
+     *
+     * usuario_origen_id guarda SIEMPRE al actor real (trazabilidad de quién
+     * apretó el botón) y no cambia cuando la subrogancia termina. Por eso todo
+     * lo que sigue al asunto en el tiempo —avisos de acuse, mensajes del hilo—
+     * debe apuntar aquí y no a usuario_origen_id: de lo contrario el subrogante
+     * sigue recibiendo notificaciones de asuntos ajenos para siempre y el
+     * titular nunca recibe los suyos. Mientras la subrogancia siga vigente, el
+     * NotificacionService ya le manda copia espejo al subrogante.
+     */
+    public function titularOrigenId(): ?int
+    {
+        return $this->actuando_como_user_id ?: $this->usuario_origen_id;
+    }
+
     public function scopePendientes($query)
     {
         return $query->where('estado', 'pendiente');

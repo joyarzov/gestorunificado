@@ -223,8 +223,12 @@ class CorrespondenciaMensajeController extends Controller
 
         // Avisar a los demás participantes (no crítico).
         try {
-            $otros = $this->participantesIds($correspondencia)
-                ->reject(fn ($id) => $id === $user->id)
+            // Se excluye al autor real y a su contexto: si escribió subrogando,
+            // el mensaje es institucionalmente del titular y avisarle sería
+            // notificarle su propio mensaje.
+            $excluidos = [(int) $user->id, (int) $user->contexto()->id];
+            $otros = $this->destinatariosAvisoIds($correspondencia)
+                ->reject(fn ($id) => in_array((int) $id, $excluidos, true))
                 ->values()->all();
             if (!empty($otros)) {
                 NotificacionService::enviar(
@@ -260,12 +264,40 @@ class CorrespondenciaMensajeController extends Controller
         return Storage::disk('public')->download($adjunto->ruta_archivo, $adjunto->nombre_archivo);
     }
 
-    /** IDs de los participantes: creador + toda la cadena de derivaciones. */
+    /**
+     * IDs de los participantes: creador + toda la cadena de derivaciones.
+     *
+     * Incluye al actor real Y al subrogado (actuando_como_user_id): el titular
+     * es parte del hilo aunque él no haya derivado personalmente, y el
+     * subrogante conserva el acceso a lo que gestionó. Para decidir a quién se
+     * AVISA no se usa esta lista sino destinatariosAvisoIds().
+     */
     private function participantesIds(Correspondencia $correspondencia)
     {
         $correspondencia->loadMissing('derivaciones');
         return collect([$correspondencia->usuario_id])
             ->merge($correspondencia->derivaciones->pluck('usuario_origen_id'))
+            ->merge($correspondencia->derivaciones->pluck('actuando_como_user_id'))
+            ->merge($correspondencia->derivaciones->pluck('usuario_destino_id'))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * A quién se avisa de la actividad del hilo: los DUEÑOS INSTITUCIONALES.
+     *
+     * Lo derivado en subrogancia pertenece al titular (Derivacion::titularOrigenId),
+     * no a quien lo operó ese día: si no se distingue, el subrogante sigue
+     * recibiendo mensajes de asuntos ajenos mucho después de terminada la
+     * subrogancia y el titular nunca los recibe. Mientras la subrogancia esté
+     * vigente, el NotificacionService le manda copia espejo al subrogante.
+     */
+    private function destinatariosAvisoIds(Correspondencia $correspondencia)
+    {
+        $correspondencia->loadMissing('derivaciones');
+        return collect([$correspondencia->usuario_id])
+            ->merge($correspondencia->derivaciones->map(fn ($d) => $d->titularOrigenId()))
             ->merge($correspondencia->derivaciones->pluck('usuario_destino_id'))
             ->filter()
             ->unique()
