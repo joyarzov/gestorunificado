@@ -10,7 +10,10 @@ interface AuthContextType {
   loading: boolean
   showRoleSelector: boolean
   setShowRoleSelector: (show: boolean) => void
-  login: (rut: string, password: string, forzar?: boolean) => Promise<void>
+  login: (rut: string, password: string) => Promise<void>
+  /** Aviso puntual tras entrar (ej: se cerró la sesión anterior). Se muestra una vez. */
+  avisoSesion: string | null
+  descartarAvisoSesion: () => void
   logout: () => Promise<void>
   selectRole: (role: string) => void
   actuarComo: (subrogado: SubrogadoActivo, role: string) => Promise<void>
@@ -51,6 +54,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   })
   const [loading, setLoading] = useState(true)
   const [showRoleSelector, setShowRoleSelector] = useState(false)
+  const [avisoSesion, setAvisoSesion] = useState<string | null>(null)
   const location = useLocation()
 
   const esModoAuditoria = auditando !== null
@@ -129,9 +133,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
-  const login = async (rut: string, password: string, forzar = false) => {
-    const response = await authAPI.login(rut, password, forzar)
+  const login = async (rut: string, password: string) => {
+    const response = await authAPI.login(rut, password)
     const { token, user: userData } = response.data
+
+    // Entrar nunca se interrumpe con un diálogo: si había otra sesión propia
+    // realmente activa, se cerró sola y solo se informa una vez, ya adentro.
+    setAvisoSesion(
+      response.data.sesion_anterior_cerrada
+        ? 'Se cerró tu sesión anterior en otro dispositivo.'
+        : null
+    )
 
     localStorage.setItem('token', token)
     setUser(userData)
@@ -362,6 +374,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         showRoleSelector,
         setShowRoleSelector,
         login,
+        avisoSesion,
+        descartarAvisoSesion: () => setAvisoSesion(null),
         logout,
         selectRole,
         actuarComo,

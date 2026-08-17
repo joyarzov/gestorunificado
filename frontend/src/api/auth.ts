@@ -3,6 +3,9 @@ import { ApiResponse, SubrogadoActivo, User } from '../types'
 
 export interface LoginResponse {
   token: string
+  // El backend avisa si al entrar había otra sesión propia realmente activa
+  // (no vencida y con uso reciente); se cierra sola y se informa sin diálogos.
+  sesion_anterior_cerrada?: boolean
   user: User
 }
 
@@ -24,11 +27,10 @@ export interface AuditarFuncionario {
 }
 
 export const authAPI = {
-  login: async (rut: string, password: string, forzar = false) => {
+  login: async (rut: string, password: string) => {
     const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
       rut,
       password,
-      forzar,
     })
     return response.data
   },

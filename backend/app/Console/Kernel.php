@@ -14,6 +14,10 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('oirs:notificar-proximas-vencer')->dailyAt('08:00');
         $schedule->command('documentos:alertar-estancados')->weekdays()->dailyAt('08:30');
+        // Tokens ya vencidos (más de 24 h pasada su expiración): se acumulaban
+        // indefinidamente porque casi nadie usa "Cerrar sesión". Solo borra lo
+        // que ya no autentica nada.
+        $schedule->command('sanctum:prune-expired --hours=24')->dailyAt('03:00');
     }
 
     /**

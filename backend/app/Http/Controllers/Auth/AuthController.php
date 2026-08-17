@@ -21,6 +21,12 @@ class AuthController extends Controller
     private const TOKEN_SUBROGANCIA_PREFIX = 'subrogancia:';
 
     /**
+     * Minutos sin actividad tras los cuales una sesión propia deja de contar
+     * como "en uso" (solo afecta al aviso al entrar, no a la validez del token).
+     */
+    private const MINUTOS_INACTIVIDAD = 30;
+
+    /**
      * Login con RUT y contraseña
      */
     public function login(Request $request)
@@ -28,7 +34,6 @@ class AuthController extends Controller
         $request->validate([
             'rut' => 'required|string',
             'password' => 'required|string',
-            'forzar' => 'sometimes|boolean',
         ]);
 
         // Formatear RUT
@@ -45,17 +50,16 @@ class AuthController extends Controller
             ]);
         }
 
-        // Sesión propia (perfil usuario): si ya hay otra activa, no la cerramos
-        // en silencio — pedimos confirmación. Las sesiones de subrogancia
-        // (token subrogancia:*) NO se tocan: pueden convivir con esta.
-        $sesionPropiaActiva = $user->tokens()->where('name', self::TOKEN_PROPIO)->exists();
-        if ($sesionPropiaActiva && !$request->boolean('forzar')) {
-            return $this->errorResponse(
-                'Ya hay una sesión activa de este usuario en otro dispositivo o navegador. Si continúas, esa sesión se cerrará.',
-                409,
-                ['requiere_confirmacion' => true]
-            );
-        }
+        // El login nunca se interrumpe para preguntar: entra y cierra la sesión
+        // propia anterior. Antes se devolvía un 409 pidiendo confirmación, pero
+        // la comprobación no descartaba los tokens ya vencidos, así que a
+        // cualquiera que cerrara la pestaña sin usar "Cerrar sesión" le salía
+        // "Sesión ya en uso" al día siguiente sin haber ninguna sesión real.
+        //
+        // Solo se avisa (mensaje discreto en la app, ya dentro) cuando de verdad
+        // había una sesión VIVA: token propio no vencido y con uso reciente. Las
+        // sesiones de subrogancia (token subrogancia:*) NO se tocan.
+        $sesionAnteriorViva = $this->sesionPropiaViva($user);
 
         // Cerrar solo las sesiones propias previas; dejar vivas las de subrogancia.
         $user->tokens()->where('name', self::TOKEN_PROPIO)->delete();
@@ -71,6 +75,8 @@ class AuthController extends Controller
 
         return $this->successResponse([
             'token' => $token,
+            // El frontend lo usa para el aviso discreto "se cerró tu sesión anterior".
+            'sesion_anterior_cerrada' => $sesionAnteriorViva,
             'user' => [
                 'id' => $user->id,
                 'rut' => $user->rut,
@@ -90,6 +96,37 @@ class AuthController extends Controller
                 'subrogados_activos' => $this->subrogadosActivos($user),
             ],
         ], 'Login exitoso');
+    }
+
+    /**
+     * ¿El usuario tenía una sesión propia realmente VIVA al momento de entrar?
+     *
+     * "Viva" = token propio no vencido (según sanctum.expiration) y con uso en
+     * los últimos MINUTOS_INACTIVIDAD. Un token que solo quedó registrado
+     * porque alguien cerró la pestaña no cuenta: avisar por eso sería ruido.
+     * De paso se limpian los tokens propios ya vencidos del usuario.
+     */
+    private function sesionPropiaViva(User $user): bool
+    {
+        $expiracion = config('sanctum.expiration'); // minutos; null = sin vencimiento
+        $ahora = now();
+
+        $tokens = $user->tokens()->where('name', self::TOKEN_PROPIO)->get();
+        $viva = false;
+
+        foreach ($tokens as $t) {
+            $vencido = $expiracion && $t->created_at
+                && $t->created_at->lte($ahora->copy()->subMinutes($expiracion));
+            if ($vencido) {
+                $t->delete();
+                continue;
+            }
+            if ($t->last_used_at && $t->last_used_at->gt($ahora->copy()->subMinutes(self::MINUTOS_INACTIVIDAD))) {
+                $viva = true;
+            }
+        }
+
+        return $viva;
     }
 
     /**

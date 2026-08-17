@@ -11,11 +11,6 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from '@mui/material'
 import { Visibility, VisibilityOff, Login as LoginIcon } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
@@ -27,9 +22,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  // Confirmación cuando ya hay otra sesión propia activa (backend devuelve 409).
-  const [confirmReuso, setConfirmReuso] = useState(false)
-  const [confirmMsg, setConfirmMsg] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
@@ -59,35 +51,24 @@ const Login = () => {
     setRut(formatRut(e.target.value))
   }
 
-  const intentarLogin = async (forzar: boolean) => {
+  // Entrar no se interrumpe con confirmaciones: si el usuario tenía otra sesión
+  // propia abierta, el backend la cierra y avisa después con un mensaje discreto
+  // (ver AuthContext.avisoSesion). El diálogo "Sesión ya en uso" que había aquí
+  // saltaba casi siempre por tokens vencidos que nadie había cerrado.
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      await login(rut, password, forzar)
+      await login(rut, password)
       navigate(from, { replace: true })
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = (err as any)?.response
-      // 409 = ya hay otra sesión propia activa → pedir confirmación antes de cerrarla.
-      if (response?.status === 409) {
-        setConfirmMsg(response?.data?.message || 'Ya hay una sesión activa de este usuario.')
-        setConfirmReuso(true)
-      } else {
-        setError(response?.data?.message || 'Error al iniciar sesión')
-      }
+      setError(response?.data?.message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await intentarLogin(false)
-  }
-
-  const handleConfirmReuso = async () => {
-    setConfirmReuso(false)
-    await intentarLogin(true)
   }
 
   return (
@@ -188,28 +169,6 @@ const Login = () => {
           </Box>
         </CardContent>
       </Card>
-
-      <Dialog open={confirmReuso} onClose={() => setConfirmReuso(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Sesión ya en uso</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {confirmMsg} ¿Deseas continuar e iniciar sesión aquí?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmReuso(false)} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleConfirmReuso}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} /> : null}
-          >
-            Continuar
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }
