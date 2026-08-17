@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import PrivateRoute from './components/auth/PrivateRoute'
 import RoleSelectorDialog from './components/auth/RoleSelectorDialog'
 import AppLayout from './components/layout/AppLayout'
+import AvisoSesion from './components/layout/AvisoSesion'
 
 // Pages
 import Login from './pages/auth/Login'
@@ -73,6 +74,9 @@ import ChangePassword from './pages/auth/ChangePassword'
 function App() {
   return (
     <>
+      {/* Avisos de sesión: fuera de las rutas porque /portal (el destino al
+          entrar) se renderiza sin AppLayout. */}
+      <AvisoSesion />
       <Routes>
         {/* La página de inicio es el login de funcionarios. El portal
             ciudadano sigue disponible en /portal-ciudadano (su acceso

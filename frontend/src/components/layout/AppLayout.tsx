@@ -29,7 +29,6 @@ import {
   TextField,
   CircularProgress,
   Tooltip,
-  Snackbar,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -82,8 +81,6 @@ const AppLayout = () => {
     canViewRegistroCorrespondence,
     canViewRepositorio,
     setShowRoleSelector,
-    avisoSesion,
-    descartarAvisoSesion,
   } = useAuth()
   const [pendientesFirmaCount, setPendientesFirmaCount] = useState(0)
 
@@ -571,18 +568,6 @@ const AppLayout = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Aviso puntual al entrar (ej: se cerró la sesión anterior). Informativo,
-          sin bloquear: reemplaza al viejo diálogo "Sesión ya en uso". */}
-      <Snackbar
-        open={Boolean(avisoSesion)}
-        autoHideDuration={6000}
-        onClose={descartarAvisoSesion}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Alert severity="info" variant="filled" onClose={descartarAvisoSesion} sx={{ width: '100%' }}>
-          {avisoSesion}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }
