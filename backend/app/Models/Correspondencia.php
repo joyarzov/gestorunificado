@@ -176,9 +176,11 @@ class Correspondencia extends Model
      *
      * Requiere tener cargadas las relaciones 'derivaciones.usuarioDestino' y
      * 'mensajes'. Si el eager load usa un SELECT acotado de 'derivaciones', DEBE
-     * incluir: usuario_origen_id, usuario_destino_id, estado y fecha_recepcion
-     * (usuario_origen_id es imprescindible para detectar las derivaciones de
-     * tránsito; sin él el conteo de acuses queda inconsistente entre vistas).
+     * incluir: usuario_origen_id, actuando_como_user_id, usuario_destino_id,
+     * estado y fecha_recepcion (los dos primeros son imprescindibles para
+     * detectar las derivaciones de tránsito, incluidas las hechas en
+     * subrogancia; sin ellos el conteo de acuses queda inconsistente entre
+     * vistas).
      */
     public function getResumenGestionAttribute(): array
     {
@@ -189,7 +191,15 @@ class Correspondencia extends Model
         // su vez re-derivó (la que el Alcalde recibió de Partes y reencaminó a
         // funcionarios). Ese destino no "acusa recibo" —deriva— así que no debe
         // contar como destinatario de gestión ni inflar el denominador de acuses.
-        $reencaminaron = $this->derivaciones->pluck('usuario_origen_id')->filter()->unique();
+        // Quién reencaminó se mide por el DUEÑO INSTITUCIONAL de la derivación
+        // (Derivacion::titularOrigenId): si el Alcalde reenvió a través de su
+        // subrogante, usuario_origen_id es el subrogante y el Alcalde quedaría
+        // contado como un destinatario que nunca acusó — el "2 de 3" con solo
+        // dos funcionarios derivados.
+        $reencaminaron = $this->derivaciones
+            ->map(fn ($d) => $d->titularOrigenId())
+            ->filter()
+            ->unique();
         $activas = $this->derivaciones
             ->whereIn('estado', ['pendiente', 'recibido', 'archivado'])
             ->reject(fn ($d) => $d->usuario_destino_id && $reencaminaron->contains($d->usuario_destino_id));
