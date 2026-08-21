@@ -682,11 +682,11 @@ const ExpedienteDetail = () => {
     return pasos
   }, [hojaRuta, expediente?.creador?.nombre, expediente?.fecha_creacion, expediente?.created_at])
 
-  // Cuántas veces se movió: cada derivación y cada acuse de recibo cuenta.
-  const movimientos = useMemo(
-    () => hojaRuta.filter((e) => e.tipo === 'derivacion' || e.tipo === 'recepcion').length,
-    [hojaRuta],
-  )
+  // El contador tiene que contar LO QUE SE DIBUJA. Antes sumaba derivaciones más
+  // recepciones ("3 movimientos") junto a un recorrido que dibuja un chip por
+  // cada mano por la que pasó de verdad ("creó" + cada acuse de recibo): con
+  // envíos sin acusar, el número invitaba a contar chips que no estaban. El
+  // detalle acto por acto está completo en la hoja de ruta, más abajo.
 
   const ultimaFecha = useMemo(
     () => hojaRuta.map((e) => e.fecha).sort().pop(),
@@ -873,7 +873,7 @@ const ExpedienteDetail = () => {
           {recorrido.length > 1 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Ha pasado por {movimientos > 0 && `· ${movimientos} ${movimientos === 1 ? 'movimiento' : 'movimientos'}`}
+                Ha pasado por · {recorrido.length} {recorrido.length === 1 ? 'persona' : 'personas'}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 {recorrido.map((paso, i) => (
