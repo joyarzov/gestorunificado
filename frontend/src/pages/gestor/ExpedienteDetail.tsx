@@ -44,6 +44,7 @@ import {
   AttachFile as AnexoIcon,
   DragIndicator as DragIcon,
   Send as DerivarIcon,
+  PersonAddAlt1 as AgregarDestinatarioIcon,
   MoveToInbox as RecibirIcon,
   Draw as FirmarIcon,
   ChevronRight as FlechaIcon,
@@ -326,8 +327,11 @@ const ExpedienteDetail = () => {
   const [subirLoading, setSubirLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Dialog: Derivar expediente
+  // Dialog: Derivar expediente. El mismo formulario sirve para dos actos
+  // distintos: 'derivar' PASA el expediente (cierra lo vigente) y 'agregar' SUMA
+  // un destinatario olvidado sin quitárselo a quien ya lo tiene.
   const [openDerivar, setOpenDerivar] = useState(false)
+  const [derivarModo, setDerivarModo] = useState<'derivar' | 'agregar'>('derivar')
   const [funcionarios, setFuncionarios] = useState<User[]>([])
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [destinos, setDestinos] = useState<User[]>([])
@@ -458,13 +462,20 @@ const ExpedienteDetail = () => {
     if (!id || (destinos.length === 0 && deptosDestino.length === 0)) return
     setDerivarLoading(true)
     try {
-      const res = await expedientesAPI.derivar(parseInt(id), {
+      const payload = {
         usuario_destino_ids: destinos.length > 0 ? destinos.map((u) => u.id) : undefined,
         departamento_destino_ids: deptosDestino.length > 0 ? deptosDestino.map((d) => d.id) : undefined,
         observaciones: derivObservaciones.trim() || undefined,
         acciones_para: derivAcciones.length > 0 ? derivAcciones : undefined,
+      }
+      const res = derivarModo === 'agregar'
+        ? await expedientesAPI.agregarDestinatarios(parseInt(id), payload)
+        : await expedientesAPI.derivar(parseInt(id), payload)
+      setSnackbar({
+        open: true,
+        message: res.message || (derivarModo === 'agregar' ? 'Destinatario agregado' : 'Expediente derivado'),
+        severity: 'success',
       })
-      setSnackbar({ open: true, message: res.message || 'Expediente derivado', severity: 'success' })
       setOpenDerivar(false)
       setDestinos([])
       setDeptosDestino([])
@@ -472,7 +483,8 @@ const ExpedienteDetail = () => {
       setDerivAcciones([])
       loadExpediente(parseInt(id))
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Error al derivar el expediente'
+      const msg = err?.response?.data?.message
+        || (derivarModo === 'agregar' ? 'Error al agregar destinatarios' : 'Error al derivar el expediente')
       setSnackbar({ open: true, message: msg, severity: 'error' })
     } finally {
       setDerivarLoading(false)
@@ -624,6 +636,7 @@ const ExpedienteDetail = () => {
   // El backend decide quién puede derivar y quién debe acusar recibo: con varios
   // destinatarios a la vez la última derivación ya no alcanza para deducirlo.
   const puedeDerivar = expediente?.puedo_derivar ?? false
+  const puedeAgregarDestinatarios = expediente?.puedo_agregar_destinatarios ?? false
 
   // Aportar documentos es más amplio que gestionar: quien tramita el expediente
   // adjunta sus respaldos sin devolvérselo al creador. Editarlo, en cambio —
@@ -782,7 +795,7 @@ const ExpedienteDetail = () => {
                 </Typography>
               )}
             </Box>
-        {(puedeEditar || puedeDerivar || debeRecibir) && (
+        {(puedeEditar || puedeDerivar || puedeAgregarDestinatarios || debeRecibir) && (
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             {debeRecibir && (
               <Button
@@ -799,9 +812,18 @@ const ExpedienteDetail = () => {
               <Button
                 variant="contained"
                 startIcon={<DerivarIcon />}
-                onClick={() => setOpenDerivar(true)}
+                onClick={() => { setDerivarModo('derivar'); setOpenDerivar(true) }}
               >
                 Derivar
+              </Button>
+            )}
+            {puedeAgregarDestinatarios && (
+              <Button
+                variant="outlined"
+                startIcon={<AgregarDestinatarioIcon />}
+                onClick={() => { setDerivarModo('agregar'); setOpenDerivar(true) }}
+              >
+                Agregar destinatario
               </Button>
             )}
             {puedeEditar && !estaCerrado && (
@@ -1328,14 +1350,31 @@ const ExpedienteDetail = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Derivar expediente */}
+      {/* Dialog: Derivar expediente / Agregar destinatario (mismo formulario) */}
       <Dialog open={openDerivar} onClose={() => setOpenDerivar(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Derivar expediente</DialogTitle>
+        <DialogTitle>
+          {derivarModo === 'agregar' ? 'Agregar destinatario' : 'Derivar expediente'}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            El expediente {expediente.identificador} viajará con todos sus documentos a cada destino que elijas.
-            Puedes combinar funcionarios y departamentos completos; cada uno acusa recibo por separado.
+            {derivarModo === 'agregar' ? (
+              <>
+                El expediente {expediente.identificador} le llegará también a quien elijas, con todos sus
+                documentos. <strong>Quien ya lo tiene lo conserva</strong>: esto suma destinatarios, no los
+                reemplaza.
+              </>
+            ) : (
+              <>
+                El expediente {expediente.identificador} viajará con todos sus documentos a cada destino que elijas.
+                Puedes combinar funcionarios y departamentos completos; cada uno acusa recibo por separado.
+              </>
+            )}
           </Typography>
+          {derivarModo === 'agregar' && (expediente.tenedores?.length ?? 0) > 0 && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Hoy lo tiene {expediente.tenedores!.join(', ')}. Seguirá teniéndolo.
+            </Alert>
+          )}
           <Autocomplete
             multiple
             options={funcionarios}
@@ -1390,11 +1429,13 @@ const ExpedienteDetail = () => {
           <Button onClick={() => setOpenDerivar(false)}>Cancelar</Button>
           <Button
             variant="contained"
-            startIcon={<DerivarIcon />}
+            startIcon={derivarModo === 'agregar' ? <AgregarDestinatarioIcon /> : <DerivarIcon />}
             onClick={handleDerivar}
             disabled={(destinos.length === 0 && deptosDestino.length === 0) || derivarLoading}
           >
-            {derivarLoading ? 'Derivando...' : 'Derivar'}
+            {derivarLoading
+              ? (derivarModo === 'agregar' ? 'Agregando...' : 'Derivando...')
+              : (derivarModo === 'agregar' ? 'Agregar' : 'Derivar')}
           </Button>
         </DialogActions>
       </Dialog>

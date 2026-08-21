@@ -261,6 +261,8 @@ export interface Expediente {
   /** Calculados por el backend en show(): la UI no los deduce. */
   mi_derivacion_pendiente?: boolean
   puedo_derivar?: boolean
+  /** Sumar un destinatario olvidado sin quitarle el expediente a quien lo tiene. */
+  puedo_agregar_destinatarios?: boolean
   /** Nombres de quienes tienen el expediente ahora (funcionarios y/o departamentos). */
   tenedores?: string[]
   estado: 'abierto' | 'cerrado' | 'archivado' | 'borrador' | 'en_tramite'

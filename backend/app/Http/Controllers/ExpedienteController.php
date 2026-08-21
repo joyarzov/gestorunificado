@@ -220,6 +220,11 @@ class ExpedienteController extends Controller
             ->contains(fn ($d) => $d->estado === 'pendiente' && $d->esDestinatario($user));
         $expediente->puedo_derivar = !$expediente->estaCerrado()
             && $this->puedeDerivarExpediente($expediente);
+        // Sumar un destinatario olvidado: solo tiene sentido si el expediente ya
+        // está circulando (si no, lo que corresponde es derivarlo).
+        $expediente->puedo_agregar_destinatarios = !$expediente->estaCerrado()
+            && $expediente->derivacionesActivas->isNotEmpty()
+            && $expediente->puedeAportarDocumentos($user);
         // Quién lo tiene ahora, en palabras: con varios destinos no hay responsable único.
         $expediente->tenedores = $expediente->derivacionesActivas
             ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
@@ -830,6 +835,146 @@ class ExpedienteController extends Controller
         $expediente->load(['responsableActual', 'responsableActualDepartamento', 'creador', 'departamento']);
 
         return $this->successResponse($expediente, "Expediente derivado a {$resumenDestinos}");
+    }
+
+    /**
+     * Suma destinatarios a un expediente que YA está circulando, sin quitárselo
+     * a quien lo tiene.
+     *
+     * derivar() MUEVE el expediente: cierra las derivaciones activas y lo entrega
+     * a los nuevos destinos. Eso dejaba sin salida el olvido más común —"lo mandé
+     * a Eva y se me pasó incluir a Winston"—: el creador ya no lo tiene en su
+     * poder, así que el botón Derivar desaparece, y aunque fuera admin, derivar de
+     * nuevo se lo habría quitado a Eva. Aquí las derivaciones vigentes NO se
+     * tocan: el expediente queda en varias bandejas a la vez, que es exactamente
+     * lo que permite el multi-destino cuando se eligen todos de una.
+     *
+     * Es el equivalente para expedientes de lo que en correspondencia puede hacer
+     * el alcalde (ver DerivacionController::alcaldePuedeDerivar): derivar es un
+     * acto repetible y sumar un destinatario no debe deshacer lo ya hecho.
+     *
+     * Permiso: el mismo que para aportar documentos (creador + admin + quien lo
+     * tiene en su poder). Quien puede meter papeles en el expediente puede decidir
+     * a quién más le llega.
+     */
+    public function agregarDestinatarios(Request $request, Expediente $expediente)
+    {
+        if ($expediente->estaCerrado()) {
+            return $this->errorResponse('No se puede modificar un expediente cerrado', 400);
+        }
+
+        $user = Auth::user();
+        if (!$expediente->puedeAportarDocumentos($user)) {
+            return $this->errorResponse('No puedes agregar destinatarios a este expediente', 403);
+        }
+
+        $request->validate([
+            'usuario_destino_ids' => 'nullable|array',
+            'usuario_destino_ids.*' => 'integer|exists:users,id',
+            'departamento_destino_ids' => 'nullable|array',
+            'departamento_destino_ids.*' => 'integer|exists:departamentos,id',
+            'observaciones' => 'nullable|string',
+            'acciones_para' => 'nullable|array',
+        ]);
+
+        $activas = $expediente->derivaciones()->whereIn('estado', ['pendiente', 'recibido'])->get();
+        if ($activas->isEmpty()) {
+            return $this->errorResponse(
+                'Este expediente todavía no está en circulación: usa Derivar para enviarlo.',
+                422
+            );
+        }
+
+        [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
+
+        // Quien ya lo tiene no se suma de nuevo: una segunda derivación al mismo
+        // destinatario le pediría acusar recibo dos veces del mismo expediente.
+        $destinatarios = $destinatarios->reject(
+            fn ($u) => $activas->contains(fn ($d) => (int) $d->usuario_destino_id === (int) $u->id)
+        );
+        $departamentosDestino = $departamentosDestino->reject(
+            fn ($dep) => $activas->contains(
+                fn ($d) => is_null($d->usuario_destino_id)
+                    && (int) $d->departamento_destino_id === (int) $dep->id
+            )
+        );
+
+        if ($destinatarios->isEmpty() && $departamentosDestino->isEmpty()) {
+            return $this->errorResponse(
+                'Indica al menos un destino nuevo: los que elegiste ya tienen el expediente.',
+                422
+            );
+        }
+
+        $resumenDestinos = implode(', ', $destinatarios->pluck('nombre')
+            ->merge($departamentosDestino->pluck('nombre'))
+            ->all());
+
+        $ctx = method_exists($user, 'contexto') ? $user->contexto() : $user;
+
+        DB::beginTransaction();
+        try {
+            $base = [
+                'derivable_type' => Expediente::class,
+                'derivable_id' => $expediente->id,
+                'departamento_origen_id' => $ctx->departamento_id,
+                'usuario_origen_id' => $user->id,
+                'actuando_como_user_id' => ((int) $ctx->id !== (int) $user->id) ? $ctx->id : null,
+                'observaciones' => $request->observaciones,
+                'acciones_para' => $request->acciones_para,
+                'estado' => 'pendiente',
+            ];
+
+            $creadas = [];
+            foreach ($destinatarios as $destino) {
+                $creadas[] = Derivacion::create($base + [
+                    'departamento_destino_id' => $destino->departamento_id,
+                    'usuario_destino_id' => $destino->id,
+                ]);
+            }
+            foreach ($departamentosDestino as $depto) {
+                $creadas[] = Derivacion::create($base + [
+                    'departamento_destino_id' => $depto->id,
+                    'usuario_destino_id' => null,
+                ]);
+            }
+
+            // Ahora lo tienen varios: la responsabilidad pasa a vivir en las
+            // derivaciones y el responsable único deja de tener sentido (misma
+            // convención que derivar() con multi-destino, ver scopeEnPoderDe).
+            $expediente->update([
+                'estado' => Expediente::ESTADO_EN_TRAMITE,
+                'responsable_actual_usuario_id' => null,
+                'responsable_actual_departamento_id' => null,
+                'actualizado_por' => $user->id,
+            ]);
+
+            ExpedienteActividad::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id' => $user->id,
+                'tipo' => 'derivacion',
+                'descripcion' => "Se sumó a {$resumenDestinos} como destinatario"
+                    . ($request->observaciones ? ": {$request->observaciones}" : ''),
+                'metadata' => [
+                    'derivacion_ids' => array_map(fn ($d) => $d->id, $creadas),
+                    'usuario_destino_ids' => $destinatarios->pluck('id')->all(),
+                    'departamento_destino_ids' => $departamentosDestino->pluck('id')->all(),
+                    'acciones_para' => $request->acciones_para,
+                    'sumado_a_derivacion_existente' => true,
+                ],
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse('Error al agregar destinatarios: ' . $e->getMessage(), 500);
+        }
+
+        $this->notificarDerivacionExpediente($expediente, $destinatarios, $departamentosDestino, $user, $request);
+
+        $expediente->load(['responsableActual', 'responsableActualDepartamento', 'creador', 'departamento']);
+
+        return $this->successResponse($expediente, "Se agregó a {$resumenDestinos} al expediente");
     }
 
     /**

@@ -240,6 +240,22 @@ export const expedientesAPI = {
     return response.data
   },
 
+  // Suma destinatarios a un expediente que ya está circulando, SIN cerrar las
+  // derivaciones vigentes: quien ya lo tenía lo conserva. Es el arreglo para el
+  // destinatario que se olvidó al derivar.
+  agregarDestinatarios: async (
+    id: number,
+    data: {
+      usuario_destino_ids?: number[]
+      departamento_destino_ids?: number[]
+      observaciones?: string
+      acciones_para?: string[]
+    },
+  ) => {
+    const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${id}/agregar-destinatarios`, data)
+    return response.data
+  },
+
   // Recibir la derivación pendiente de un expediente dirigido al usuario
   recibir: async (id: number) => {
     const response = await api.post<ApiResponse<Expediente>>(`/expedientes/${id}/recibir`)

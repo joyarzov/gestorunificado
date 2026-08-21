@@ -286,6 +286,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         // Consulta de TODO el municipio: exige el permiso puede_ver_repositorio.
         Route::get('/repositorio', [ExpedienteController::class, 'repositorio']);
         Route::post('/{expediente}/derivar', [ExpedienteController::class, 'derivar']);
+        Route::post('/{expediente}/agregar-destinatarios', [ExpedienteController::class, 'agregarDestinatarios']);
         Route::post('/{expediente}/recibir', [ExpedienteController::class, 'recibir']);
         Route::post('/{expediente}/cerrar', [ExpedienteController::class, 'cerrar']);
         Route::post('/{expediente}/reabrir', [ExpedienteController::class, 'reabrir']);
