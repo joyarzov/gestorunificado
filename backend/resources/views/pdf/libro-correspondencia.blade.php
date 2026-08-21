@@ -6,18 +6,20 @@
     <style>
         @page { size: letter landscape; margin: 0; }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; }
+        html { margin: 0; padding: 0; }
+        /* Los márgenes van en el BODY, no en un wrapper: DomPDF ignora
+           @page{margin} y el padding de un div solo aplica en la primera
+           página — el resto salía pegado al borde superior.
+           El margen inferior reserva el espacio del pie fijo (QR + verif). */
         body {
+            margin: 0.9cm 1.6cm 2.6cm 1.6cm;
+            padding: 0;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 9pt;
             color: #1a1a1a;
             line-height: 1.35;
         }
-        /* DomPDF ignora @page margin: el wrapper crea los márgenes ópticos.
-           padding-bottom amplio reserva el espacio del pie fijo (QR + verif). */
-        .page-content {
-            padding: 0.9cm 1.6cm 2.6cm 1.6cm;
-        }
+        .page-content { padding: 0; }
 
         .color-bar { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
         .color-bar td { height: 6px; line-height: 6px; font-size: 0; padding: 0; }
@@ -37,7 +39,14 @@
         .doc-sub { text-align: center; font-size: 9.5pt; color: #444; margin-bottom: 14px; }
         .doc-sub strong { color: #0071BC; }
 
-        table.registros { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        /* table-layout: fixed obliga a respetar el 100%: sin esto, un folio
+           o un nombre más largo que su columna ensancha la tabla y se sale
+           del margen derecho. Los anchos van en % y suman 100. */
+        table.registros {
+            width: 100%; border-collapse: collapse; margin-bottom: 14px;
+            table-layout: fixed;
+        }
+        table.registros th, table.registros td { word-wrap: break-word; overflow-wrap: break-word; }
         table.registros th {
             background: #0071BC; color: #fff; font-size: 8pt; text-align: left;
             padding: 5px 6px; border: 0.5pt solid #005a96;
@@ -112,15 +121,15 @@
     <table class="registros">
         <thead>
             <tr>
-                <th style="width:88px;">Folio</th>
-                <th style="width:62px;">Tipo</th>
-                <th>Destinatario</th>
-                <th>Materia</th>
-                <th style="width:66px;">F. Doc.</th>
-                <th style="width:80px;">Estado</th>
-                <th style="width:135px;">Despacho</th>
-                <th style="width:120px;">Firmante</th>
-                <th style="width:88px;">Responde a</th>
+                <th style="width:9%;">Folio</th>
+                <th style="width:7%;">Tipo</th>
+                <th style="width:15%;">Destinatario</th>
+                <th style="width:18%;">Materia</th>
+                <th style="width:8%;">F. Doc.</th>
+                <th style="width:8%;">Estado</th>
+                <th style="width:15%;">Despacho</th>
+                <th style="width:12%;">Firmante</th>
+                <th style="width:8%;">Responde a</th>
             </tr>
         </thead>
         <tbody>
@@ -145,15 +154,15 @@
     <table class="registros">
         <thead>
             <tr>
-                <th style="width:78px;">Folio</th>
-                <th style="width:72px;">N&deg; Documento</th>
-                <th style="width:62px;">F. Recibo</th>
-                <th>Remitente</th>
-                <th>Materia</th>
-                <th style="width:105px;">Departamento</th>
-                <th style="width:92px;">Estado</th>
-                <th style="width:120px;">Derivada a</th>
-                <th style="width:95px;">Folio Providencia</th>
+                <th style="width:9%;">Folio</th>
+                <th style="width:10%;">N&deg; Documento</th>
+                <th style="width:8%;">F. Recibo</th>
+                <th style="width:15%;">Remitente</th>
+                <th style="width:17%;">Materia</th>
+                <th style="width:10%;">Departamento</th>
+                <th style="width:8%;">Estado</th>
+                <th style="width:12%;">Derivada a</th>
+                <th style="width:11%;">Folio Providencia</th>
             </tr>
         </thead>
         <tbody>
