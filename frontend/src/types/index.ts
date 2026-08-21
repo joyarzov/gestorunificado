@@ -264,7 +264,10 @@ export interface Expediente {
   /** Sumar un destinatario olvidado sin quitarle el expediente a quien lo tiene. */
   puedo_agregar_destinatarios?: boolean
   /** Nombres de quienes tienen el expediente ahora (funcionarios y/o departamentos). */
+  /** Quiénes lo tienen de verdad: acusaron recibo. */
   tenedores?: string[]
+  /** A quiénes les llegó pero todavía no acusan recibo. */
+  pendientes_de_recibir?: string[]
   estado: 'abierto' | 'cerrado' | 'archivado' | 'borrador' | 'en_tramite'
   nivel_acceso?: number
   informacion_sensible?: boolean

@@ -226,8 +226,29 @@ class ExpedienteController extends Controller
             && $expediente->derivacionesActivas->isNotEmpty()
             && $expediente->puedeAportarDocumentos($user);
         // Quién lo tiene ahora, en palabras: con varios destinos no hay responsable único.
+        //
+        // "Lo tiene" NO es lo mismo que "se lo enviaron": una derivación 'pendiente'
+        // significa que le llegó pero todavía no la acusa, y hasta entonces el
+        // expediente no está realmente en sus manos (scopeEnPoderDe aplica el mismo
+        // criterio para las bandejas). Mezclarlas hacía que la cabecera afirmara
+        // "En poder de Fulano" de alguien que nunca lo abrió.
+        $nombreDestino = fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre;
+
         $expediente->tenedores = $expediente->derivacionesActivas
-            ->map(fn ($d) => $d->usuarioDestino?->nombre ?? $d->departamentoDestino?->nombre)
+            ->where('estado', 'recibido')
+            ->map($nombreDestino)
+            ->filter()->unique()->values()->all();
+
+        // Sin ninguna derivación viva mandan los campos del expediente: es el caso
+        // legado (derivación única antes del multi-destino) y el del recién creado.
+        if (empty($expediente->tenedores) && $expediente->derivacionesActivas->isEmpty()
+            && $expediente->responsableActual) {
+            $expediente->tenedores = [$expediente->responsableActual->nombre];
+        }
+
+        $expediente->pendientes_de_recibir = $expediente->derivacionesActivas
+            ->where('estado', 'pendiente')
+            ->map($nombreDestino)
             ->filter()->unique()->values()->all();
 
         // Agregar atributos computados

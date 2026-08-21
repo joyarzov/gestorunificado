@@ -658,7 +658,8 @@ const ExpedienteDetail = () => {
     }
   }
 
-  const ultimaDeriv = expediente?.ultima_derivacion
+  // (ya no se usa `ultima_derivacion`: con multi-destino "la última" no representa
+  //  el estado del expediente — hay varias vivas a la vez)
   const debeRecibir = expediente?.mi_derivacion_pendiente ?? false
 
   // El expediente NO avanza por etapas fijas: se deriva, se recibe, se re-deriva y
@@ -692,16 +693,23 @@ const ExpedienteDetail = () => {
     [hojaRuta],
   )
 
-  // Quién lo tiene: el responsable único o, con multi-destino, todos los tenedores.
-  const enPoderDe = useMemo(() => {
-    if (expediente?.responsable_actual) {
-      return [{
-        nombre: expediente.responsable_actual.nombre,
-        detalle: expediente.responsable_actual_departamento?.nombre,
-      }]
-    }
-    return (expediente?.tenedores ?? []).map((t) => ({ nombre: t, detalle: undefined }))
-  }, [expediente?.responsable_actual, expediente?.responsable_actual_departamento, expediente?.tenedores])
+  // Quién lo tiene DE VERDAD (acusó recibo) y a quién le llegó pero no lo ha
+  // tomado. El backend ya los separa: mezclarlos hacía que la cabecera dijera
+  // "En poder de" de alguien que nunca abrió el expediente.
+  const enPoderDe = useMemo(
+    () => (expediente?.tenedores ?? []).map((t) => ({
+      nombre: t,
+      detalle: expediente?.responsable_actual?.nombre === t
+        ? expediente?.responsable_actual_departamento?.nombre
+        : undefined,
+    })),
+    [expediente?.tenedores, expediente?.responsable_actual, expediente?.responsable_actual_departamento],
+  )
+
+  const porRecibir = useMemo(
+    () => expediente?.pendientes_de_recibir ?? [],
+    [expediente?.pendientes_de_recibir],
+  )
 
   // Eventos agrupados por día, en el orden en que ya vienen de la API. El filtro
   // separa el recorrido del expediente (cómo circuló) del trajín con los
@@ -901,12 +909,24 @@ const ExpedienteDetail = () => {
                   ))}
                 </Stack>
               ) : (
-                <Typography variant="body2" color="text.secondary">Sin derivar</Typography>
-              )}
-              {ultimaDeriv?.estado === 'pendiente' && !debeRecibir && (
-                <Chip label="Aún no acusa recibo" size="small" color="warning" variant="outlined" sx={{ mt: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  {porRecibir.length > 0 ? 'Nadie todavía' : 'Sin derivar'}
+                </Typography>
               )}
             </Box>
+
+            {!estaCerrado && porRecibir.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  Le llegó, aún sin acusar recibo
+                </Typography>
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ opacity: 0.75 }}>
+                  {porRecibir.map((nombre) => (
+                    <Persona key={nombre} nombre={nombre} />
+                  ))}
+                </Stack>
+              </Box>
+            )}
 
             {!estaCerrado && desdeCuando && (
               <Box>
@@ -1370,9 +1390,10 @@ const ExpedienteDetail = () => {
               </>
             )}
           </Typography>
-          {derivarModo === 'agregar' && (expediente.tenedores?.length ?? 0) > 0 && (
+          {derivarModo === 'agregar' && (enPoderDe.length > 0 || porRecibir.length > 0) && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              Hoy lo tiene {expediente.tenedores!.join(', ')}. Seguirá teniéndolo.
+              {enPoderDe.length > 0 && <>Hoy lo tiene {enPoderDe.map((p) => p.nombre).join(', ')}. Seguirá teniéndolo. </>}
+              {porRecibir.length > 0 && <>Le llegó y aún no acusa recibo: {porRecibir.join(', ')}.</>}
             </Alert>
           )}
           <Autocomplete
