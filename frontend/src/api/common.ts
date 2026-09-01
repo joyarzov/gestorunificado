@@ -160,3 +160,28 @@ export const notificacionesAPI = {
     return response.data
   },
 }
+
+/** Estado de presencia de un usuario en la plataforma. */
+export type EstadoPresencia = 'en_linea' | 'ausente' | 'desconectado'
+
+export interface UsuarioPresencia {
+  id: number
+  nombre: string
+  cargo?: string | null
+  departamento?: string | null
+  estado: EstadoPresencia
+  /** Última actividad registrada (ISO 8601). Null si nunca se ha conectado. */
+  visto_at?: string | null
+}
+
+export interface PresenciaResponse {
+  usuarios: UsuarioPresencia[]
+  umbrales: { en_linea: number; ausente: number }
+}
+
+export const presenciaAPI = {
+  listar: async () => {
+    const response = await api.get<ApiResponse<PresenciaResponse>>('/presencia')
+    return response.data
+  },
+}

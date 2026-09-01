@@ -48,14 +48,39 @@ export const useNotificaciones = (isAuthenticated: boolean) => {
       return
     }
 
-    fetchNoLeidas()
-
-    intervalRef.current = setInterval(fetchNoLeidas, POLLING_INTERVAL)
-
-    return () => {
+    // El sondeo solo corre con la pestaña a la vista. Dos razones: el contador
+    // solo se ve cuando alguien está mirando, y —sobre todo— cada petición
+    // refresca last_used_at, que es de donde sale la presencia del globo
+    // flotante. Sondeando en segundo plano, quien dejó el navegador abierto
+    // aparecería "en línea" indefinidamente. Al volver a la pestaña se
+    // recarga al instante, así que no se pierde ningún aviso.
+    const arrancar = () => {
+      if (intervalRef.current) return
+      intervalRef.current = setInterval(fetchNoLeidas, POLLING_INTERVAL)
+    }
+    const detener = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
+    }
+
+    const alCambiarVisibilidad = () => {
+      if (document.hidden) {
+        detener()
+      } else {
+        fetchNoLeidas()
+        arrancar()
+      }
+    }
+
+    fetchNoLeidas()
+    if (!document.hidden) arrancar()
+    document.addEventListener('visibilitychange', alCambiarVisibilidad)
+
+    return () => {
+      detener()
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad)
     }
   }, [isAuthenticated, fetchNoLeidas])
 

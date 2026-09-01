@@ -137,6 +137,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         });
     });
 
+    // Presencia: quién está conectado ahora (globo flotante del layout).
+    Route::get('presencia', [\App\Http\Controllers\PresenciaController::class, 'index']);
+
     // Usuarios: el directorio (funcionarios) es para cualquier autenticado;
     // la gestión (CRUD, activar, resetear contraseña) es solo de admin.
     Route::prefix('users')->group(function () {

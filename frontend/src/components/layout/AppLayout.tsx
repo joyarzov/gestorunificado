@@ -44,6 +44,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import CorporateColorBar from '../branding/CorporateColorBar'
 import NotificacionesBell from './NotificacionesBell'
 import ModuleSwitcher from './ModuleSwitcher'
+import GloboPresencia from './GloboPresencia'
 import { documentosAPI } from '../../api/gestor'
 import { usersAPI } from '../../api/common'
 import type { User as UserType } from '../../types'
@@ -535,6 +536,11 @@ const AppLayout = () => {
         )}
         <Outlet />
       </Box>
+
+      {/* Globo de presencia: vive en el layout para acompañar al usuario entre
+          módulos (Correspondencia, Expedientes, Cero Papel) sin recargarse.
+          Él mismo se oculta en pantallas chicas. */}
+      <GloboPresencia />
 
       {/* Selector "Ver como" (modo auditoría del admin) */}
       <Dialog open={verComoOpen} onClose={() => !verComoLoading && setVerComoOpen(false)} maxWidth="xs" fullWidth>

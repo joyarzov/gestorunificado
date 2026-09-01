@@ -22,11 +22,12 @@ import {
   CheckCircle as SuccessIcon,
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material'
-import { departamentosAPI, usersAPI } from '../../api/common'
+import { departamentosAPI, presenciaAPI, usersAPI, EstadoPresencia } from '../../api/common'
 import { correspondenciaAPI, CreateDerivacionData } from '../../api/correspondencia'
 import { Departamento, Derivacion, User } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import FirmaGobModal, { FirmaParams } from './FirmaGobModal'
+import { PuntoPresencia } from '../layout/GloboPresencia'
 
 const ACCIONES_PARA_OPTIONS = [
   'Tomar conocimiento',
@@ -64,6 +65,8 @@ const DerivacionDialog = ({
 }: DerivacionDialogProps) => {
   const { checkAuth, user, actuandoComo } = useAuth()
   const [departamentos, setDepartamentos] = useState<Departamento[]>([])
+  /** Estado de conexión por usuario, para pintarlo junto a cada destinatario. */
+  const [presenciaPorUsuario, setPresenciaPorUsuario] = useState<Record<number, EstadoPresencia>>({})
   const [usuarios, setUsuarios] = useState<User[]>([])
   const [selectedDepto, setSelectedDepto] = useState<Departamento | null>(null)
   const [selectedUsuario, setSelectedUsuario] = useState<User | null>(null)
@@ -108,6 +111,17 @@ const DerivacionDialog = ({
       ])
       setDepartamentos(deptosRes.data)
       setUsuarios(usersRes.data)
+
+      // La presencia es un adorno útil, no un requisito: si falla, el diálogo
+      // funciona igual y simplemente no se muestran los puntos de estado.
+      presenciaAPI.listar()
+        .then((res) => {
+          if (!res.success) return
+          const mapa: Record<number, EstadoPresencia> = {}
+          res.data.usuarios.forEach((u) => { mapa[u.id] = u.estado })
+          setPresenciaPorUsuario(mapa)
+        })
+        .catch(() => { /* sin presencia, sin drama */ })
 
       if (prefillDepartamentoId) {
         const depto = deptosRes.data.find((d: Departamento) => d.id === prefillDepartamentoId)
@@ -439,18 +453,27 @@ const DerivacionDialog = ({
                       getOptionLabel={(opt) => `${opt.nombre} (${opt.rut})`}
                       value={selectedUsuarios}
                       onChange={(_, value) => setSelectedUsuarios(value)}
-                      renderOption={(props, opt) => (
-                        <Box component="li" {...props} key={opt.id}>
-                          <Box>
-                            <Typography variant="body2">{opt.nombre}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {[opt.cargo, departamentos.find((d) => d.id === opt.departamento_id)?.nombre]
-                                .filter(Boolean)
-                                .join(' · ') || opt.rut}
-                            </Typography>
+                      renderOption={(props, opt) => {
+                        // Estado de conexión al elegir destinatario: para lo urgente,
+                        // saber quién está frente al computador cambia la decisión.
+                        const presencia = presenciaPorUsuario[opt.id]
+                        return (
+                          <Box component="li" {...props} key={opt.id}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                              {presencia && <PuntoPresencia estado={presencia} />}
+                              <Box>
+                                <Typography variant="body2">{opt.nombre}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {[opt.cargo, departamentos.find((d) => d.id === opt.departamento_id)?.nombre]
+                                    .filter(Boolean)
+                                    .join(' · ') || opt.rut}
+                                  {presencia === 'en_linea' && ' · en línea'}
+                                </Typography>
+                              </Box>
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
+                        )
+                      }}
                       renderTags={(value, getTagProps) =>
                         value.map((opt, index) => (
                           <Chip
