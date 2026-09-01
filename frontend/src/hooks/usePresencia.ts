@@ -10,6 +10,20 @@ import { useSondeo } from './useSondeo'
  */
 const INTERVALO = 60000
 
+/**
+ * Ritmo con la pestaña en segundo plano.
+ *
+ * Sin esto, quien tiene la plataforma abierta en otra pestaña mientras trabaja
+ * en otro sistema desaparecía de la lista, aunque estuviera en su puesto: el
+ * caso más común en la municipalidad.
+ *
+ * Sigue sin ser un cheque en blanco. La cuenta de inactividad no se reinicia
+ * mientras la pestaña está oculta —los eventos de mouse solo llegan a la
+ * pestaña activa—, así que a los 15 minutos sin volver a la plataforma el
+ * sondeo se corta igual y la persona cae de la lista.
+ */
+const INTERVALO_OCULTO = 60000
+
 export const usePresencia = (isAuthenticated: boolean) => {
   const [usuarios, setUsuarios] = useState<UsuarioPresencia[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,7 +46,7 @@ export const usePresencia = (isAuthenticated: boolean) => {
   // Este es el único sondeo que SÍ se detiene por inactividad: consultar la
   // lista es lo que marca la propia presencia, así que dejar de consultar es
   // exactamente lo que hace que el verde se apague al irse del puesto.
-  useSondeo(cargar, INTERVALO, isAuthenticated)
+  useSondeo(cargar, INTERVALO, isAuthenticated, true, INTERVALO_OCULTO)
 
   return { usuarios, enLinea, totalEnLinea: enLinea.length, loading, recargar: cargar }
 }

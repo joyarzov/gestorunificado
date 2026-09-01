@@ -36,8 +36,12 @@ class PresenciaService
      * El margen es amplio en relación al sondeo (cada 60 s) porque el frontend
      * deja de consultar cuando la persona se va del puesto: la marca envejece
      * sola y quien no está cae de la lista sin necesidad de otro umbral.
+     *
+     * Diez y no cinco: con cinco, cualquier tropiezo del sondeo —un minuto de
+     * red lenta, la pestaña recién recuperada— borraba de la lista a alguien
+     * que estaba sentado frente al computador.
      */
-    public const MINUTOS_EN_LINEA = 5;
+    public const MINUTOS_EN_LINEA = 10;
 
     /** Deja constancia de que este usuario está frente a la pantalla ahora. */
     public function registrar(User $user): void

@@ -2,12 +2,18 @@ import { useEffect, useRef } from 'react'
 
 /**
  * Minutos sin mover el mouse, teclear o hacer scroll tras los cuales se
- * considera que la persona dejó el puesto, aunque la pestaña siga a la vista.
+ * considera que la persona dejó el puesto.
  *
- * Tres minutos deja margen para leer un documento largo sin que el sistema
- * declare ausente a alguien que sí está trabajando.
+ * Quince, no tres. Con tres, la lista de conectados quedaba prácticamente
+ * vacía: en una oficina municipal se atiende público, se contesta el teléfono
+ * y se revisan papeles: nadie toca el mouse cada tres minutos, y gente que
+ * estaba trabajando desaparecía de la lista.
+ *
+ * Quince minutos es el punto en que "no ha tocado el equipo" empieza a
+ * significar de verdad "no está": suficiente para no borrar a quien está
+ * ocupado, y bastante menos que dejar a alguien en verde toda la tarde.
  */
-const MINUTOS_INACTIVIDAD = 3
+const MINUTOS_INACTIVIDAD = 15
 const MS_INACTIVIDAD = MINUTOS_INACTIVIDAD * 60 * 1000
 
 /** Eventos que cuentan como "hay alguien aquí". */
@@ -69,8 +75,19 @@ export const useSondeo = (
       !document.hidden
       && (!respetarInactividad || (Date.now() - ultimaActividadRef.current) < MS_INACTIVIDAD)
 
-    /** ¿Toca consultar ahora? Con la pestaña oculta, solo si se pidió seguir. */
-    const debeConsultar = () => (document.hidden ? Boolean(intervaloOculto) : hayAlguien())
+    const sigueActivo = () =>
+      !respetarInactividad || (Date.now() - ultimaActividadRef.current) < MS_INACTIVIDAD
+
+    /**
+     * ¿Toca consultar ahora?
+     *
+     * Con la pestaña oculta se consulta solo si se pidió seguir, y aun así
+     * respetando la inactividad: los eventos de mouse no llegan a una pestaña
+     * de fondo, así que el reloj sigue corriendo y quien se fue termina
+     * cayendo de la lista igual.
+     */
+    const debeConsultar = () =>
+      document.hidden ? Boolean(intervaloOculto) && sigueActivo() : hayAlguien()
 
     const detener = () => {
       if (timerRef.current) {
@@ -107,7 +124,7 @@ export const useSondeo = (
       detener()
       if (document.hidden) {
         // Al pasar a segundo plano se baja el ritmo, si se pidió seguir.
-        if (intervaloOculto) arrancar(intervaloOculto)
+        if (debeConsultar()) arrancar(intervaloOculto!)
       } else {
         tareaRef.current()
         arrancar(intervaloMs)
@@ -117,7 +134,7 @@ export const useSondeo = (
     // Primera ejecución inmediata, sin esperar un ciclo completo.
     tareaRef.current()
     if (document.hidden) {
-      if (intervaloOculto) arrancar(intervaloOculto)
+      if (debeConsultar()) arrancar(intervaloOculto!)
     } else {
       arrancar(intervaloMs)
     }
