@@ -216,6 +216,15 @@ export interface ChatMensaje {
   fecha: string
 }
 
+/** Adelanto de un mensaje sin leer, para el aviso flotante. */
+export interface ChatAvisoMensaje {
+  conversacion_id: number
+  autor_id: number
+  autor?: string | null
+  cuerpo: string
+  fecha: string
+}
+
 export interface ChatHilo {
   conversacion_id: number
   interlocutor: ChatInterlocutor | null
@@ -232,9 +241,12 @@ export const chatAPI = {
     return response.data
   },
 
-  /** Solo el contador, para el badge: mucho más barato que traer todo. */
+  /**
+   * Contador y, si hay, el último mensaje sin leer: con eso el aviso flotante
+   * puede decir quién escribió y qué, sin una segunda consulta.
+   */
   noLeidos: async () => {
-    const response = await api.get<ApiResponse<{ no_leidos: number }>>('/chat/no-leidos')
+    const response = await api.get<ApiResponse<{ no_leidos: number; ultimo: ChatAvisoMensaje | null }>>('/chat/no-leidos')
     return response.data
   },
 

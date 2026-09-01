@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Badge, Box, CircularProgress, Divider, Fab, IconButton, InputAdornment,
-  List, ListItemButton, ListItemText, Popover, Tab, Tabs, TextField,
+  List, ListItemButton, ListItemText, Popover, Snackbar, Tab, Tabs, TextField,
   Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import {
@@ -17,6 +17,7 @@ import { formatDistanceToNow, format, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { usePresencia } from '../../hooks/usePresencia'
 import { useChat } from '../../hooks/useChat'
+import { useTituloPestana } from '../../hooks/useTituloPestana'
 import { ChatInterlocutor, EstadoPresencia, UsuarioPresencia } from '../../api/common'
 import PuntoPresencia from '../common/PuntoPresencia'
 import { estaSilenciado, silenciar, sonarMensajeNuevo } from '../../utils/sonidoChat'
@@ -81,8 +82,12 @@ const GloboChat = () => {
   const { usuarios, totalEnLinea } = usePresencia(activo)
   const {
     conversaciones, mensajes, setMensajes, leidoPorElOtro, noLeidos,
+    aviso, descartarAviso,
     cargandoHilo, cargarConversaciones, cargarHilo, enviar,
   } = useChat(activo, abierto ? conversacionId : null)
+
+  // Contador en el título, para cuando la persona está en otra pestaña.
+  useTituloPestana(activo ? noLeidos : 0)
 
   const presenciaPorId = useMemo(() => {
     const m: Record<number, EstadoPresencia> = {}
@@ -130,6 +135,18 @@ const GloboChat = () => {
     cargarHilo(id, true)
   }
 
+  /** Pulsar el aviso flotante lleva directo a esa conversación. */
+  const abrirDesdeAviso = () => {
+    if (!aviso) return
+    setAncla(document.getElementById('globo-chat-fab'))
+    setTab(1)
+    setDestinatario({ id: aviso.autor_id, nombre: aviso.autor || 'Funcionario' })
+    setConversacionId(aviso.conversacion_id)
+    setMensajes([])
+    cargarHilo(aviso.conversacion_id, true)
+    descartarAviso()
+  }
+
   const volver = () => {
     setDestinatario(null)
     setConversacionId(null)
@@ -169,6 +186,7 @@ const GloboChat = () => {
           color="primary"
           size="medium"
           onClick={(e) => setAncla(e.currentTarget)}
+          id="globo-chat-fab"
           sx={{ position: 'fixed', bottom: 24, left: 24, zIndex: (t) => t.zIndex.drawer + 2 }}
           aria-label="Abrir chat y ver quién está conectado"
         >
@@ -402,6 +420,36 @@ const GloboChat = () => {
           </>
         )}
       </Popover>
+
+      {/* Aviso flotante de mensaje nuevo. Aparece arriba a la derecha para no
+          taparle nada al globo ni a los botones de acción de las pantallas, y
+          se retira solo. Pulsarlo abre esa conversación. */}
+      <Snackbar
+        open={Boolean(aviso)}
+        autoHideDuration={6000}
+        onClose={(_, motivo) => { if (motivo !== 'clickaway') descartarAviso() }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box
+          onClick={abrirDesdeAviso}
+          sx={{
+            cursor: 'pointer', maxWidth: 330, bgcolor: 'background.paper',
+            border: '1px solid', borderColor: 'divider', borderLeft: '3px solid',
+            borderLeftColor: 'primary.main', borderRadius: 1.5, boxShadow: 4, p: 1.5,
+            display: 'flex', alignItems: 'flex-start', gap: 1.25,
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        >
+          <Avatarcito nombre={aviso?.autor || '?'} estado={aviso ? presenciaPorId[aviso.autor_id] : undefined} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={700} noWrap>{aviso?.autor}</Typography>
+            <Typography variant="caption" color="text.secondary"
+              sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {aviso?.cuerpo}
+            </Typography>
+          </Box>
+        </Box>
+      </Snackbar>
     </>
   )
 }

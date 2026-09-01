@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSondeo } from './useSondeo'
-import { chatAPI, ChatConversacionResumen, ChatMensaje } from '../api/common'
+import { chatAPI, ChatAvisoMensaje, ChatConversacionResumen, ChatMensaje } from '../api/common'
 import { sonarMensajeNuevo } from '../utils/sonidoChat'
 
 /** Sondeo del contador de no leídos (panel cerrado). */
 const INTERVALO_BADGE = 30000
+/**
+ * Ritmo con la pestaña en segundo plano. Más lento, pero suficiente para que
+ * el contador del título avise mientras la persona está en otra pestaña.
+ */
+const INTERVALO_OCULTO = 20000
 /**
  * Sondeo de la conversación abierta.
  *
@@ -30,6 +35,8 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
   const [cargandoHilo, setCargandoHilo] = useState(false)
   /** Hasta cuándo leyó el interlocutor: con eso se marcan los propios como vistos. */
   const [leidoPorElOtro, setLeidoPorElOtro] = useState<string | null>(null)
+  /** Mensaje recién llegado, para el aviso flotante. Se limpia al mostrarlo. */
+  const [aviso, setAviso] = useState<ChatAvisoMensaje | null>(null)
   /** Último mensaje que ya tenemos: es lo que se manda como `desde`. */
   const ultimoIdRef = useRef<number>(0)
   // Referencias para detectar la LLEGADA de un mensaje y avisar con sonido.
@@ -45,6 +52,9 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
       const actual = res.data.no_leidos
       if (noLeidosPrevios.current !== null && actual > noLeidosPrevios.current) {
         sonarMensajeNuevo()
+        // El aviso flotante solo aparece por lo que ACABA de llegar, nunca por
+        // lo que ya estaba pendiente al entrar.
+        if (res.data.ultimo) setAviso(res.data.ultimo)
       }
       noLeidosPrevios.current = actual
       setNoLeidos(actual)
@@ -132,7 +142,8 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
     },
     conversacionAbierta ? INTERVALO_HILO : INTERVALO_BADGE,
     habilitado,
-    false // el aviso debe llegar aunque la persona lleve un rato sin tocar el mouse
+    false, // el aviso debe llegar aunque la persona lleve un rato sin tocar el mouse
+    INTERVALO_OCULTO // y también con la pestaña en segundo plano, más lento
   )
 
   // Al deshabilitarse (cierre de sesión, pantalla chica) no debe quedar rastro.
@@ -149,6 +160,8 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
     mensajes,
     setMensajes,
     leidoPorElOtro,
+    aviso,
+    descartarAviso: () => setAviso(null),
     noLeidos,
     cargandoHilo,
     cargarConversaciones,

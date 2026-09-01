@@ -119,9 +119,36 @@ class ChatController extends Controller
             ->pluck('id')
             ->all();
 
-        $total = $ids ? array_sum($this->contarNoLeidos($yo->id, $ids)) : 0;
+        if (!$ids) {
+            return $this->successResponse(['no_leidos' => 0, 'ultimo' => null]);
+        }
 
-        return $this->successResponse(['no_leidos' => $total]);
+        $porConversacion = $this->contarNoLeidos($yo->id, $ids);
+        $total = array_sum($porConversacion);
+
+        // El último mensaje sin leer viaja con el contador para que el aviso
+        // flotante pueda decir quién escribió y qué, sin una segunda consulta.
+        $ultimo = null;
+        if ($total > 0) {
+            $mensaje = ChatMensaje::whereIn('conversacion_id', array_keys(array_filter($porConversacion)))
+                ->where('usuario_id', '!=', $yo->id)
+                ->with('usuario:id,nombre')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($mensaje) {
+                $ultimo = [
+                    'conversacion_id' => $mensaje->conversacion_id,
+                    'autor_id'        => $mensaje->usuario_id,
+                    'autor'           => $mensaje->usuario?->nombre,
+                    // Recortado: el aviso muestra un adelanto, no el mensaje entero.
+                    'cuerpo'          => mb_strimwidth($mensaje->cuerpo, 0, 120, '…'),
+                    'fecha'           => $mensaje->created_at,
+                ];
+            }
+        }
+
+        return $this->successResponse(['no_leidos' => $total, 'ultimo' => $ultimo]);
     }
 
     /**

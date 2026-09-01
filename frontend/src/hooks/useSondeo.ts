@@ -43,7 +43,17 @@ export const useSondeo = (
    * hacerlo sin ensuciar la presencia porque esta tiene su propia señal
    * (`users.presencia_at`), que solo marca el endpoint de presencia.
    */
-  respetarInactividad = true
+  respetarInactividad = true,
+  /**
+   * Ritmo (ms) al que seguir consultando con la pestaña OCULTA. Sin esto, el
+   * sondeo se detiene del todo al cambiar de pestaña.
+   *
+   * Lo usa el chat: es lo que permite que el contador del título avise de un
+   * mensaje mientras la persona está en otra pestaña. Puede permitírselo
+   * porque la presencia tiene señal propia (`users.presencia_at`) y este
+   * sondeo ya no la ensucia. Se va a un ritmo lento a propósito.
+   */
+  intervaloOculto?: number
 ) => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const ultimaActividadRef = useRef<number>(Date.now())
@@ -59,6 +69,9 @@ export const useSondeo = (
       !document.hidden
       && (!respetarInactividad || (Date.now() - ultimaActividadRef.current) < MS_INACTIVIDAD)
 
+    /** ¿Toca consultar ahora? Con la pestaña oculta, solo si se pidió seguir. */
+    const debeConsultar = () => (document.hidden ? Boolean(intervaloOculto) : hayAlguien())
+
     const detener = () => {
       if (timerRef.current) {
         clearInterval(timerRef.current)
@@ -66,17 +79,17 @@ export const useSondeo = (
       }
     }
 
-    const arrancar = () => {
+    const arrancar = (ms: number) => {
       if (timerRef.current) return
       timerRef.current = setInterval(() => {
         // Se comprueba en cada latido: así el sondeo se apaga solo cuando la
         // persona se queda quieta, sin necesidad de un temporizador aparte.
-        if (hayAlguien()) {
+        if (debeConsultar()) {
           tareaRef.current()
         } else {
           detener()
         }
-      }, intervaloMs)
+      }, ms)
     }
 
     const despertar = () => {
@@ -86,21 +99,28 @@ export const useSondeo = (
         // Al volver, ponerse al día de inmediato: esperar al siguiente ciclo
         // haría que la pantalla se viera desactualizada justo al retomar.
         tareaRef.current()
-        arrancar()
+        arrancar(intervaloMs)
       }
     }
 
     const alCambiarVisibilidad = () => {
+      detener()
       if (document.hidden) {
-        detener()
+        // Al pasar a segundo plano se baja el ritmo, si se pidió seguir.
+        if (intervaloOculto) arrancar(intervaloOculto)
       } else {
-        despertar()
+        tareaRef.current()
+        arrancar(intervaloMs)
       }
     }
 
     // Primera ejecución inmediata, sin esperar un ciclo completo.
     tareaRef.current()
-    if (!document.hidden) arrancar()
+    if (document.hidden) {
+      if (intervaloOculto) arrancar(intervaloOculto)
+    } else {
+      arrancar(intervaloMs)
+    }
 
     EVENTOS_ACTIVIDAD.forEach(e =>
       window.addEventListener(e, despertar, { passive: true })
@@ -112,5 +132,5 @@ export const useSondeo = (
       EVENTOS_ACTIVIDAD.forEach(e => window.removeEventListener(e, despertar))
       document.removeEventListener('visibilitychange', alCambiarVisibilidad)
     }
-  }, [habilitado, intervaloMs, respetarInactividad])
+  }, [habilitado, intervaloMs, respetarInactividad, intervaloOculto])
 }
