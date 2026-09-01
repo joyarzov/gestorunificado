@@ -30,15 +30,19 @@ class PresenciaService
     /** Nombre del token de sesión de usuario (AuthController::TOKEN_PROPIO). */
     public const TOKEN_SESION = 'usuario';
 
-    /** Hasta cuántos minutos de inactividad se considera "en línea". */
-    public const MINUTOS_EN_LINEA = 5;
-
     /**
-     * Hasta cuántos minutos se considera "ausente" (pestaña abierta, persona no).
-     * Coincide con AuthController::MINUTOS_INACTIVIDAD: pasado ese punto, la
-     * sesión ya no se considera viva en ninguna parte del sistema.
+     * Hasta cuántos minutos desde la última señal se considera "en línea".
+     *
+     * Hay solo DOS estados a propósito. Un estado intermedio ("ausente")
+     * prometía más de lo que el sistema puede saber y nadie sabía cómo
+     * interpretarlo: para el resto se muestra "activo hace X", que es un dato
+     * verificable y que no induce a error.
+     *
+     * El margen es amplio en relación al sondeo (cada 60 s) porque el frontend
+     * deja de consultar cuando la persona se va del puesto: la marca envejece
+     * sola y quien no está cae de la lista sin necesidad de otro umbral.
      */
-    public const MINUTOS_AUSENTE = 30;
+    public const MINUTOS_EN_LINEA = 5;
 
     /**
      * Última actividad registrada por usuario: [usuario_id => Carbon].
@@ -62,21 +66,13 @@ class PresenciaService
     /**
      * Traduce una última actividad al estado que se muestra.
      *
-     * @return string en_linea | ausente | desconectado
+     * @return string en_linea | desconectado
      */
     public function estado(?Carbon $visto): string
     {
-        if (!$visto) {
-            return 'desconectado';
-        }
-        if ($visto->gte(now()->subMinutes(self::MINUTOS_EN_LINEA))) {
-            return 'en_linea';
-        }
-        if ($visto->gte(now()->subMinutes(self::MINUTOS_AUSENTE))) {
-            return 'ausente';
-        }
-
-        return 'desconectado';
+        return $visto && $visto->gte(now()->subMinutes(self::MINUTOS_EN_LINEA))
+            ? 'en_linea'
+            : 'desconectado';
     }
 
     /**
@@ -95,7 +91,7 @@ class PresenciaService
             ->with('departamento:id,nombre')
             ->get(['id', 'nombre', 'cargo', 'departamento_id']);
 
-        $orden = ['en_linea' => 0, 'ausente' => 1, 'desconectado' => 2];
+        $orden = ['en_linea' => 0, 'desconectado' => 1];
 
         return $usuarios
             ->map(function (User $u) use ($actividades) {

@@ -460,7 +460,9 @@ const DerivacionDialog = ({
                         return (
                           <Box component="li" {...props} key={opt.id}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                              {presencia && <PuntoPresencia estado={presencia} />}
+                              {/* Solo se marca a quien está en línea: un punto gris
+                                  junto a cada nombre sería ruido, no información. */}
+                              {presencia === 'en_linea' && <PuntoPresencia estado={presencia} />}
                               <Box>
                                 <Typography variant="body2">{opt.nombre}</Typography>
                                 <Typography variant="caption" color="text.secondary">

@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { notificacionesAPI } from '../api/common'
 import { Notificacion } from '../types'
+import { useSondeo } from './useSondeo'
 
 const POLLING_INTERVAL = 30000 // 30 seconds
 
 export const useNotificaciones = (isAuthenticated: boolean) => {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [loading, setLoading] = useState(true)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const contadorNoLeidas = notificaciones.length
 
@@ -41,48 +41,22 @@ export const useNotificaciones = (isAuthenticated: boolean) => {
     }
   }, [])
 
+  // El sondeo lo gobierna useSondeo: se detiene con la pestaña oculta o sin
+  // actividad. Además de ahorrar peticiones, evita que este sondeo mantenga
+  // "en línea" a quien dejó el navegador abierto y se fue.
+  useSondeo(
+    () => { if (isAuthenticated) fetchNoLeidas() },
+    POLLING_INTERVAL,
+    isAuthenticated
+  )
+
+  // Al cerrar sesión no debe quedar nada en pantalla.
   useEffect(() => {
     if (!isAuthenticated) {
       setNotificaciones([])
       setLoading(false)
-      return
     }
-
-    // El sondeo solo corre con la pestaña a la vista. Dos razones: el contador
-    // solo se ve cuando alguien está mirando, y —sobre todo— cada petición
-    // refresca last_used_at, que es de donde sale la presencia del globo
-    // flotante. Sondeando en segundo plano, quien dejó el navegador abierto
-    // aparecería "en línea" indefinidamente. Al volver a la pestaña se
-    // recarga al instante, así que no se pierde ningún aviso.
-    const arrancar = () => {
-      if (intervalRef.current) return
-      intervalRef.current = setInterval(fetchNoLeidas, POLLING_INTERVAL)
-    }
-    const detener = () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-
-    const alCambiarVisibilidad = () => {
-      if (document.hidden) {
-        detener()
-      } else {
-        fetchNoLeidas()
-        arrancar()
-      }
-    }
-
-    fetchNoLeidas()
-    if (!document.hidden) arrancar()
-    document.addEventListener('visibilitychange', alCambiarVisibilidad)
-
-    return () => {
-      detener()
-      document.removeEventListener('visibilitychange', alCambiarVisibilidad)
-    }
-  }, [isAuthenticated, fetchNoLeidas])
+  }, [isAuthenticated])
 
   return {
     notificaciones,

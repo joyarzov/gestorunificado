@@ -88,6 +88,12 @@ const GloboChat = () => {
     return m
   }, [usuarios])
 
+  const vistoPorId = useMemo(() => {
+    const m: Record<number, string | null | undefined> = {}
+    usuarios.forEach((u: UsuarioPresencia) => { m[u.id] = u.visto_at })
+    return m
+  }, [usuarios])
+
   // Al abrir el panel se refresca la lista: el badge solo trae el contador.
   useEffect(() => {
     if (abierto) cargarConversaciones()
@@ -146,6 +152,11 @@ const GloboChat = () => {
 
   const conectados = usuarios.filter(u => u.estado === 'en_linea')
   const resto = usuarios.filter(u => u.estado !== 'en_linea')
+  // Dentro de los no conectados, primero quien estuvo hace menos rato: es el
+  // que con más probabilidad sigue en la oficina.
+  const restoOrdenado = [...resto].sort((a, b) =>
+    new Date(b.visto_at || 0).getTime() - new Date(a.visto_at || 0).getTime()
+  )
 
   return (
     <>
@@ -185,7 +196,11 @@ const GloboChat = () => {
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>{destinatario!.nombre}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
-                  {presenciaPorId[destinatario!.id] === 'en_linea' ? 'En línea' : (destinatario!.cargo || '')}
+                  {presenciaPorId[destinatario!.id] === 'en_linea'
+                    ? 'En línea'
+                    : (vistoPorId[destinatario!.id]
+                        ? `activo hace ${formatDistanceToNow(new Date(vistoPorId[destinatario!.id]!), { locale: es })}`
+                        : (destinatario!.cargo || ''))}
                 </Typography>
               </Box>
             </Box>
@@ -288,7 +303,7 @@ const GloboChat = () => {
                       <Typography variant="caption" sx={{ px: 2, pt: 1, pb: 0.5, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
                         No conectados ({resto.length})
                       </Typography>
-                      {resto.map(u => (
+                      {restoOrdenado.map(u => (
                         <ListItemButton key={u.id} onClick={() => abrirConPersona(u)}>
                           <Avatarcito nombre={u.nombre} estado={u.estado} />
                           <ListItemText
@@ -353,7 +368,7 @@ const GloboChat = () => {
 
             <Box sx={{ px: 2, py: 0.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, flex: 1 }}>
-                "En línea" significa que la persona tiene la plataforma a la vista.
+                "En línea": tiene la plataforma abierta y está usando el equipo.
               </Typography>
               <Tooltip title={silencio ? 'Activar el aviso sonoro' : 'Silenciar el aviso sonoro'}>
                 <IconButton

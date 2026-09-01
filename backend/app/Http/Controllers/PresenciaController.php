@@ -30,7 +30,6 @@ class PresenciaController extends Controller
             'usuarios' => $this->presencia->listado($user),
             'umbrales' => [
                 'en_linea' => PresenciaService::MINUTOS_EN_LINEA,
-                'ausente'  => PresenciaService::MINUTOS_AUSENTE,
             ],
         ]);
     }

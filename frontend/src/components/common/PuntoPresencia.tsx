@@ -3,14 +3,12 @@ import { EstadoPresencia } from '../../api/common'
 
 export const COLOR_PRESENCIA: Record<EstadoPresencia, string> = {
   en_linea: '#2DC700',   // verde de la barra corporativa
-  ausente: '#EE5825',    // naranjo
   desconectado: '#BDBDBD',
 }
 
 export const ETIQUETA_PRESENCIA: Record<EstadoPresencia, string> = {
-  en_linea: 'En línea',
-  ausente: 'Ausente',
-  desconectado: 'Desconectado',
+  en_linea: 'Tiene la plataforma abierta ahora',
+  desconectado: 'No está usando la plataforma',
 }
 
 /**

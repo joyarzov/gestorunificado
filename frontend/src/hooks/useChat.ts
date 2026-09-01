@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSondeo } from './useSondeo'
 import { chatAPI, ChatConversacionResumen, ChatMensaje } from '../api/common'
 import { sonarMensajeNuevo } from '../utils/sonidoChat'
 
@@ -21,7 +22,6 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
   const [mensajes, setMensajes] = useState<ChatMensaje[]>([])
   const [noLeidos, setNoLeidos] = useState(0)
   const [cargandoHilo, setCargandoHilo] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Referencias para detectar la LLEGADA de un mensaje y avisar con sonido.
   // La primera carga nunca suena: si no, entrar a la plataforma con mensajes
   // pendientes dispararía el aviso de algo que no acaba de pasar.
@@ -87,51 +87,25 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
     return null
   }, [cargarConversaciones])
 
-  // Sondeo: el hilo abierto manda; si no hay ninguno, solo el contador.
+  // El hilo abierto manda el ritmo; si no hay ninguno, solo el contador.
+  // useSondeo se encarga de detenerlo con la pestaña oculta o sin actividad.
+  useSondeo(
+    () => {
+      if (conversacionAbierta) cargarHilo(conversacionAbierta)
+      cargarBadge()
+    },
+    conversacionAbierta ? INTERVALO_HILO : INTERVALO_BADGE,
+    habilitado
+  )
+
+  // Al deshabilitarse (cierre de sesión, pantalla chica) no debe quedar rastro.
   useEffect(() => {
     if (!habilitado) {
       setNoLeidos(0)
-      return
+      noLeidosPrevios.current = null
+      ajenosPrevios.current = null
     }
-
-    const tick = () => {
-      if (conversacionAbierta) {
-        cargarHilo(conversacionAbierta)
-        cargarBadge()
-      } else {
-        cargarBadge()
-      }
-    }
-
-    const arrancar = () => {
-      if (timerRef.current) return
-      timerRef.current = setInterval(tick, conversacionAbierta ? INTERVALO_HILO : INTERVALO_BADGE)
-    }
-    const detener = () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-    }
-
-    const alCambiarVisibilidad = () => {
-      if (document.hidden) {
-        detener()
-      } else {
-        tick()
-        arrancar()
-      }
-    }
-
-    tick()
-    if (!document.hidden) arrancar()
-    document.addEventListener('visibilitychange', alCambiarVisibilidad)
-
-    return () => {
-      detener()
-      document.removeEventListener('visibilitychange', alCambiarVisibilidad)
-    }
-  }, [habilitado, conversacionAbierta, cargarBadge, cargarHilo])
+  }, [habilitado])
 
   return {
     conversaciones,

@@ -161,8 +161,12 @@ export const notificacionesAPI = {
   },
 }
 
-/** Estado de presencia de un usuario en la plataforma. */
-export type EstadoPresencia = 'en_linea' | 'ausente' | 'desconectado'
+/**
+ * Estado de presencia. Solo dos: o la persona está usando la plataforma ahora,
+ * o no. Para las que no, se muestra "activo hace X" a partir de `visto_at`,
+ * que dice algo verificable en vez de un estado intermedio ambiguo.
+ */
+export type EstadoPresencia = 'en_linea' | 'desconectado'
 
 export interface UsuarioPresencia {
   id: number
@@ -176,7 +180,7 @@ export interface UsuarioPresencia {
 
 export interface PresenciaResponse {
   usuarios: UsuarioPresencia[]
-  umbrales: { en_linea: number; ausente: number }
+  umbrales: { en_linea: number }
 }
 
 export const presenciaAPI = {
