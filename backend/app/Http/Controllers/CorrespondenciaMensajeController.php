@@ -121,8 +121,14 @@ class CorrespondenciaMensajeController extends Controller
 
         // Hitos de trazabilidad persistentes (cierres y reaperturas del
         // proceso): se conservan aunque el estado vuelva atrás.
+        //
+        // Solo los TIPOS_HITO. La bitácora también guarda derivaciones, acuses
+        // y mensajes para alimentar el feed de últimos movimientos, pero acá
+        // esos tres ya se componen arriba con sus destinatarios, adjuntos y
+        // estado de acuse: leerlos de nuevo los mostraría duplicados.
         $correspondencia->loadMissing('eventos.usuario:id,nombre,cargo');
-        foreach ($correspondencia->eventos as $e) {
+        $hitos = $correspondencia->eventos->whereIn('tipo', \App\Models\CorrespondenciaEvento::TIPOS_HITO);
+        foreach ($hitos as $e) {
             $items[] = [
                 'tipo'  => 'evento',
                 'evento_tipo' => $e->tipo,
@@ -245,7 +251,12 @@ class CorrespondenciaMensajeController extends Controller
         }
 
         // Novedad para los demás participantes (el autor queda "al día").
-        $correspondencia->registrarActividad($user->contexto()->id);
+        $correspondencia->registrarActividad(
+            $user->contexto()->id,
+            'mensaje',
+            'escribió en el hilo',
+            $user->id
+        );
 
         $mensaje->load(['usuario', 'adjuntos']);
         return $this->successResponse($mensaje, 'Mensaje enviado', 201);

@@ -40,6 +40,7 @@ import { useAuth } from '../../contexts/AuthContext'
 
 import { ESTADO_CORRESPONDENCIA, ESTADOS_ENTRADA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 import ResumenGestion from '../../components/correspondencia/ResumenGestion'
+import EstrellaSeguimiento from '../../components/correspondencia/EstrellaSeguimiento'
 
 const CorrespondenciaList = () => {
   const navigate = useNavigate()
@@ -279,6 +280,10 @@ const CorrespondenciaList = () => {
                             sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }}
                           />
                         )}
+                        <EstrellaSeguimiento
+                          correspondenciaId={item.id}
+                          seguida={item.en_seguimiento}
+                        />
                         <strong>{item.folio || `#${item.id}`}</strong>
                       </Box>
                     </TableCell>

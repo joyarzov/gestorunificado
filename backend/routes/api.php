@@ -170,6 +170,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/alcalde-info', [CorrespondenciaController::class, 'getAlcaldeInfo']);
         Route::get('/estadisticas', [CorrespondenciaController::class, 'estadisticas']);
         Route::get('/panel-alcalde', [CorrespondenciaController::class, 'panelAlcalde']);
+        // Seguimiento personal ("estrella") y feed de últimos movimientos.
+        Route::get('/seguimiento', [CorrespondenciaController::class, 'seguimiento']);
+        Route::get('/movimientos', [CorrespondenciaController::class, 'movimientos']);
         Route::get('/panel-funcionario', [CorrespondenciaController::class, 'panelFuncionario']);
         Route::get('/registro', [CorrespondenciaController::class, 'registro']);
         Route::get('/bandeja', [CorrespondenciaController::class, 'bandeja']);
@@ -177,6 +180,8 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/exportar', [CorrespondenciaController::class, 'exportar']);
         Route::post('/{correspondencia}/archivar', [CorrespondenciaController::class, 'archivar']);
         Route::post('/{correspondencia}/desarchivar', [CorrespondenciaController::class, 'desarchivar']);
+        Route::post('/{correspondencia}/seguimiento', [CorrespondenciaController::class, 'seguir']);
+        Route::delete('/{correspondencia}/seguimiento', [CorrespondenciaController::class, 'dejarDeSeguir']);
 
         // Correspondencia de SALIDA (reserva de número → cola de despacho)
         Route::get('/salidas', [\App\Http\Controllers\CorrespondenciaSalidaController::class, 'index']);

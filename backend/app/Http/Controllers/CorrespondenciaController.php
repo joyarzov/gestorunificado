@@ -53,16 +53,21 @@ class CorrespondenciaController extends Controller
         $correspondencias = $query->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10));
         $correspondencias->getCollection()->each(fn ($c) => $c->append('resumen_gestion'));
-        $this->marcarNovedades($correspondencias->getCollection(), Auth::user()->contexto()->id);
+        $this->marcarBanderas($correspondencias->getCollection(), Auth::user()->contexto()->id);
 
         return $this->successResponse($correspondencias);
     }
 
     /**
-     * Marca en cada correspondencia si tiene novedades sin leer para el usuario:
-     * su última actividad es posterior a la última lectura (o no la ha abierto).
+     * Marca en cada correspondencia las dos banderas personales del usuario:
+     * - tiene_novedades: su última actividad es posterior a la última lectura
+     *   (o no la ha abierto todavía).
+     * - en_seguimiento: la marcó con estrella para no perderla de vista.
+     *
+     * Las dos van juntas porque se pintan en la misma celda de los listados;
+     * resolverlas de una pasada evita duplicar consultas por página.
      */
-    private function marcarNovedades($correspondencias, int $usuarioId): void
+    private function marcarBanderas($correspondencias, int $usuarioId): void
     {
         $ids = collect($correspondencias)->pluck('id')->filter()->unique();
         if ($ids->isEmpty()) {
@@ -71,11 +76,198 @@ class CorrespondenciaController extends Controller
         $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $usuarioId)
             ->whereIn('correspondencia_id', $ids)
             ->pluck('leido_at', 'correspondencia_id');
+        $seguidas = \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $usuarioId)
+            ->whereIn('correspondencia_id', $ids)
+            ->pluck('correspondencia_id')
+            ->flip();
         foreach ($correspondencias as $c) {
             $act = $c->ultima_actividad_at;
             $leido = $lecturas[$c->id] ?? null;
             $c->tiene_novedades = $act && (!$leido || $act->gt($leido));
+            $c->en_seguimiento = $seguidas->has($c->id);
         }
+    }
+
+    // =====================================================
+    // SEGUIMIENTO PERSONAL ("estrella")
+    // =====================================================
+
+    /** Días sin movimiento a partir de los cuales una correspondencia en gestión se considera estancada. */
+    private const DIAS_ESTANCADA = 7;
+
+    /**
+     * Entradas que el usuario puede ver, con el MISMO criterio que gobierna el
+     * acceso al detalle (Correspondencia::esVisiblePara).
+     *
+     * El scope `visiblesPara` se queda corto acá: no contempla el permiso de
+     * registro/repositorio, que sí abre el detalle. Usarlo tal cual haría que
+     * el Alcalde o Eva marcaran una correspondencia con estrella y después no
+     * la encontraran en su propia lista. Se resuelve solo para estos endpoints
+     * nuevos, sin tocar el scope compartido por bandeja, listado y panel.
+     */
+    private function entradasVisibles(User $user)
+    {
+        // El flag se lee del CONTEXTO, no del actor: al subrogar se ven los
+        // permisos del subrogado, ni más ni menos (misma regla que registro()).
+        return $user->contexto()->puede_ver_registro_correspondencia
+            ? Correspondencia::query()->entradas()
+            : Correspondencia::visiblesPara($user)->entradas();
+    }
+
+    /**
+     * Marca la correspondencia para seguimiento del usuario (o actualiza su
+     * nota privada). Idempotente: volver a marcarla no duplica ni pierde la nota.
+     */
+    public function seguir(Request $request, Correspondencia $correspondencia)
+    {
+        $user = Auth::user();
+        if (!$correspondencia->esVisiblePara($user)) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+        // En modo auditoría se mira, no se marca: la lista de seguimiento es del
+        // funcionario auditado y no debe ensuciarse desde el "Ver como".
+        if ($user->estaAuditando()) {
+            return $this->errorResponse('En modo auditoría no se puede marcar seguimiento.', 403);
+        }
+
+        $request->validate(['nota' => 'nullable|string|max:300']);
+
+        $seguimiento = \App\Models\CorrespondenciaSeguimiento::firstOrNew([
+            'usuario_id'         => $user->contexto()->id,
+            'correspondencia_id' => $correspondencia->id,
+        ]);
+        // Solo pisar la nota si vino en la petición: el toggle de la estrella no
+        // manda nota y no debe borrar la que ya estaba escrita.
+        if ($request->has('nota')) {
+            $seguimiento->nota = $request->input('nota');
+        }
+        $seguimiento->save();
+
+        return $this->successResponse(
+            ['en_seguimiento' => true, 'nota' => $seguimiento->nota],
+            "{$correspondencia->folio} quedó en seguimiento"
+        );
+    }
+
+    /** Quita la correspondencia del seguimiento del usuario. */
+    public function dejarDeSeguir(Correspondencia $correspondencia)
+    {
+        $user = Auth::user();
+        if ($user->estaAuditando()) {
+            return $this->errorResponse('En modo auditoría no se puede cambiar el seguimiento.', 403);
+        }
+
+        \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $user->contexto()->id)
+            ->where('correspondencia_id', $correspondencia->id)
+            ->delete();
+
+        return $this->successResponse(
+            ['en_seguimiento' => false],
+            "{$correspondencia->folio} salió de seguimiento"
+        );
+    }
+
+    /**
+     * Lo que el usuario sigue, ordenado por lo MÁS ESTANCADO primero (mayor
+     * tiempo sin movimiento arriba). Es la lista corta y estable que no se
+     * desordena aunque entren correspondencias nuevas todos los días.
+     */
+    public function seguimiento(Request $request)
+    {
+        $user  = Auth::user();
+        $ctxId = $user->contexto()->id;
+
+        $notas = \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $ctxId)
+            ->pluck('nota', 'correspondencia_id');
+
+        if ($notas->isEmpty()) {
+            return $this->successResponse([
+                'items' => [], 'total' => 0, 'page' => 1, 'last_page' => 1, 'per_page' => 0,
+            ]);
+        }
+
+        // El filtro de visibilidad se aplica igual: seguir una correspondencia no
+        // da acceso a ella. Si el usuario deja de tener acceso, deja de verla acá.
+        $paginador = $this->entradasVisibles($user)
+            ->whereIn('id', $notas->keys())
+            ->with([
+                'departamento', 'usuario',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion',
+                'derivaciones.usuarioDestino:id,nombre',
+                'mensajes:id,correspondencia_id,usuario_id',
+            ])
+            // NULL primero (nunca registró actividad), luego lo más antiguo.
+            ->orderByRaw('ultima_actividad_at IS NULL DESC, ultima_actividad_at ASC')
+            ->paginate($request->input('per_page', 30));
+
+        $items = $paginador->getCollection();
+        $items->each(fn ($c) => $c->append('resumen_gestion'));
+        $this->marcarBanderas($items, $ctxId);
+        $items->each(function ($c) use ($notas) {
+            $c->nota_seguimiento   = $notas[$c->id] ?? null;
+            $c->dias_sin_movimiento = $c->diasSinMovimiento();
+            $c->estancada = !$c->estaArchivada()
+                && $c->dias_sin_movimiento !== null
+                && $c->dias_sin_movimiento >= self::DIAS_ESTANCADA;
+        });
+
+        return $this->successResponse([
+            'items'     => $items->values()->all(),
+            'total'     => $paginador->total(),
+            'page'      => $paginador->currentPage(),
+            'last_page' => $paginador->lastPage(),
+            'per_page'  => $paginador->perPage(),
+        ]);
+    }
+
+    /**
+     * Feed de últimos movimientos del municipio (los visibles para el usuario).
+     *
+     * Una sola consulta ordenada sobre `correspondencia_eventos`, que desde
+     * ahora recibe TODO movimiento vía Correspondencia::registrarActividad.
+     * Antes esto habría exigido recomponer derivaciones + acuses + mensajes en
+     * PHP, como hace el hilo del detalle, pero sin poder acotar por fecha.
+     */
+    public function movimientos(Request $request)
+    {
+        $user  = Auth::user();
+        $ctxId = $user->contexto()->id;
+
+        // Techo duro: este endpoint alimenta un panel del dashboard, no un listado.
+        $limite = max(1, min((int) $request->input('limit', 20), 50));
+
+        $visibles = $this->entradasVisibles($user)->select('correspondencia.id');
+
+        $query = \App\Models\CorrespondenciaEvento::whereIn('correspondencia_id', $visibles)
+            ->with([
+                'usuario:id,nombre,cargo',
+                'correspondencia:id,folio,remitente,estado',
+            ])
+            ->orderByDesc('created_at')
+            ->limit($limite);
+
+        if ($request->boolean('solo_seguidas')) {
+            $query->whereIn(
+                'correspondencia_id',
+                \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $ctxId)
+                    ->select('correspondencia_id')
+            );
+        }
+
+        $items = $query->get()->map(fn ($e) => [
+            'id'                 => $e->id,
+            'correspondencia_id' => $e->correspondencia_id,
+            'folio'              => $e->correspondencia?->folio,
+            'remitente'          => $e->correspondencia?->remitente,
+            'estado'             => $e->correspondencia?->estado,
+            'tipo'               => $e->tipo,
+            'autor'              => $e->usuario?->nombre,
+            'cargo'              => $e->usuario?->cargo,
+            'texto'              => ($e->usuario?->nombre ?? 'Sistema') . ' ' . $e->texto,
+            'fecha'              => $e->created_at,
+        ]);
+
+        return $this->successResponse($items);
     }
 
     /**
@@ -289,13 +481,14 @@ class CorrespondenciaController extends Controller
             'archivada_at' => now(),
         ]);
 
-        // Hito permanente en la trazabilidad del hilo
-        $correspondencia->eventos()->create([
-            'usuario_id' => $user->id,
-            'tipo' => 'archivada',
-            'texto' => 'cerró el proceso (completada)',
-        ]);
-        $correspondencia->registrarActividad($user->contexto()->id);
+        // Hito permanente en la trazabilidad del hilo (lo escribe registrarActividad,
+        // único punto por el que pasa todo movimiento).
+        $correspondencia->registrarActividad(
+            $user->contexto()->id,
+            'archivada',
+            'cerró el proceso (completada)',
+            $user->id
+        );
 
         return $this->successResponse(
             $correspondencia->fresh(),
@@ -320,13 +513,13 @@ class CorrespondenciaController extends Controller
             'archivada_at' => null,
         ]);
 
-        // Hito permanente en la trazabilidad del hilo
-        $correspondencia->eventos()->create([
-            'usuario_id' => $user->id,
-            'tipo' => 'desarchivada',
-            'texto' => 'reabrió el proceso (desarchivada)',
-        ]);
-        $correspondencia->registrarActividad($user->contexto()->id);
+        // Hito permanente en la trazabilidad del hilo (lo escribe registrarActividad).
+        $correspondencia->registrarActividad(
+            $user->contexto()->id,
+            'desarchivada',
+            'reabrió el proceso (desarchivada)',
+            $user->id
+        );
 
         return $this->successResponse(
             $correspondencia->fresh(),
@@ -434,6 +627,12 @@ class CorrespondenciaController extends Controller
         $salud = ['derivadas' => 0, 'acuse_completo' => 0, 'acuse_parcial' => 0, 'sin_acuse' => 0, 'respondieron' => 0];
         $requiereAtencion = [];
         $atrasos = [];
+        $estancadas = [];
+
+        // Las que el Alcalde marcó con estrella: se destacan en su panel.
+        $seguidas = \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $ctxId)
+            ->pluck('correspondencia_id')
+            ->flip();
 
         foreach ($corrs as $c) {
             if (in_array($c->estado, ['pendiente', 'derivada_alcaldia'], true)) {
@@ -474,6 +673,24 @@ class CorrespondenciaController extends Controller
                 $requiereAtencion[] = ['id' => $c->id, 'folio' => $c->folio, 'remitente' => $c->remitente, 'motivo' => 'Novedad sin leer'];
             }
 
+            // ESTANCADAS: ya la acusaron —entonces no figura como atraso—, pero
+            // nadie ha hecho nada en semanas. Es el agujero que dejaba el panel:
+            // acusar recibo es el gesto más barato del destinatario y apagaba
+            // toda alarma, dejando la correspondencia fuera del radar del Alcalde.
+            if (in_array($c->estado, ['derivada_funcionario', 'en_proceso', 'completada'], true)) {
+                $diasQuieta = $c->diasSinMovimiento();
+                if ($diasQuieta !== null && $diasQuieta >= self::DIAS_ESTANCADA) {
+                    $estancadas[] = [
+                        'id'             => $c->id,
+                        'folio'          => $c->folio,
+                        'remitente'      => $c->remitente,
+                        'estado'         => $c->estado,
+                        'dias'           => $diasQuieta,
+                        'en_seguimiento' => $seguidas->has($c->id),
+                    ];
+                }
+            }
+
             // Atrasos: derivaciones a un funcionario, sin acuse, hace ≥ umbral días.
             foreach ($c->derivaciones as $d) {
                 if ($d->usuario_destino_id && $d->estado === 'pendiente' && !$d->fecha_recepcion) {
@@ -490,12 +707,18 @@ class CorrespondenciaController extends Controller
         }
 
         usort($atrasos, fn ($a, $b) => $b['dias'] <=> $a['dias']);
+        // Lo seguido primero y, dentro de eso, lo más quieto arriba.
+        usort($estancadas, fn ($a, $b) => [$b['en_seguimiento'], $b['dias']] <=> [$a['en_seguimiento'], $a['dias']]);
 
         return $this->successResponse([
-            'kpis'              => $kpis,
-            'salud'             => $salud,
-            'requiere_atencion' => array_slice($requiereAtencion, 0, 8),
-            'atrasos'           => array_slice($atrasos, 0, 8),
+            'kpis'                => $kpis,
+            'salud'               => $salud,
+            'requiere_atencion'   => array_slice($requiereAtencion, 0, 8),
+            'atrasos'             => array_slice($atrasos, 0, 8),
+            'estancadas'          => array_slice($estancadas, 0, 8),
+            'total_estancadas'    => count($estancadas),
+            'dias_estancada'      => self::DIAS_ESTANCADA,
+            'total_en_seguimiento' => $seguidas->count(),
         ]);
     }
 

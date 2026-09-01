@@ -96,6 +96,33 @@ export interface PanelAlcalde {
   salud: { derivadas: number; acuse_completo: number; acuse_parcial: number; sin_acuse: number; respondieron: number }
   requiere_atencion: Array<{ id: number; folio?: string; remitente: string; motivo: string }>
   atrasos: Array<{ id: number; folio?: string; remitente: string; destinatario?: string | null; dias: number; nivel: 'amarillo' | 'rojo' }>
+  // Acusadas pero sin movimiento hace días: el atraso que el acuse de recibo ocultaba.
+  estancadas: Array<{ id: number; folio?: string; remitente: string; estado: string; dias: number; en_seguimiento: boolean }>
+  total_estancadas: number
+  dias_estancada: number
+  total_en_seguimiento: number
+}
+
+/** Un movimiento del feed: una fila de la bitácora, ya redactada para mostrar. */
+export interface Movimiento {
+  id: number
+  correspondencia_id: number
+  folio?: string | null
+  remitente?: string | null
+  estado?: string | null
+  tipo: 'derivacion' | 'acuse' | 'mensaje' | 'archivada' | 'desarchivada' | string
+  autor?: string | null
+  cargo?: string | null
+  texto: string
+  fecha: string
+}
+
+export interface SeguimientoResponse {
+  items: Correspondencia[]
+  total: number
+  page: number
+  last_page: number
+  per_page: number
 }
 
 export interface PanelFuncionario {
@@ -368,6 +395,33 @@ export const correspondenciaAPI = {
 
   panelFuncionario: async () => {
     const response = await api.get<ApiResponse<PanelFuncionario>>('/correspondencia/panel-funcionario')
+    return response.data
+  },
+
+  /** Últimos movimientos del municipio (los visibles para el usuario). */
+  movimientos: async (params?: { limit?: number; solo_seguidas?: boolean }) => {
+    const response = await api.get<ApiResponse<Movimiento[]>>('/correspondencia/movimientos', { params })
+    return response.data
+  },
+
+  /** Lo que el usuario sigue, con lo más estancado primero. */
+  listaSeguimiento: async (params?: { page?: number; per_page?: number }) => {
+    const response = await api.get<ApiResponse<SeguimientoResponse>>('/correspondencia/seguimiento', { params })
+    return response.data
+  },
+
+  seguir: async (id: number, nota?: string) => {
+    const response = await api.post<ApiResponse<{ en_seguimiento: boolean; nota: string | null }>>(
+      `/correspondencia/${id}/seguimiento`,
+      nota === undefined ? {} : { nota }
+    )
+    return response.data
+  },
+
+  dejarDeSeguir: async (id: number) => {
+    const response = await api.delete<ApiResponse<{ en_seguimiento: boolean }>>(
+      `/correspondencia/${id}/seguimiento`
+    )
     return response.data
   },
 

@@ -127,6 +127,12 @@ export interface Correspondencia {
   ultima_actividad_at?: string | null
   // En los listados: la correspondencia tiene acciones nuevas sin leer
   tiene_novedades?: boolean
+  // En los listados: el usuario la marcó con estrella para seguirla
+  en_seguimiento?: boolean
+  // Solo en la lista de seguimiento
+  nota_seguimiento?: string | null
+  dias_sin_movimiento?: number | null
+  estancada?: boolean
   created_at: string
   updated_at: string
 }
@@ -164,6 +170,8 @@ export interface Derivacion {
   puede_actuar?: boolean
   // Solo en la bandeja: la correspondencia tiene acciones nuevas sin leer
   tiene_novedades?: boolean
+  // Solo en la bandeja: el usuario marcó la correspondencia con estrella
+  en_seguimiento?: boolean
 }
 
 // Tipos OIRS

@@ -264,8 +264,20 @@ class DerivacionController extends Controller
             $correspondencia->update(['estado' => $nuevoEstado]);
         }
 
-        // Novedad para los destinatarios (quien deriva queda "al día").
-        $correspondencia->registrarActividad($ctx->id);
+        // Novedad para los destinatarios (quien deriva queda "al día") y hito
+        // en la bitácora, que alimenta el feed de últimos movimientos.
+        $nombresDestino = $destinatarios->pluck('nombre')
+            ->merge($departamentosDestino->pluck('nombre'))
+            ->filter()
+            ->values();
+        $correspondencia->registrarActividad(
+            $ctx->id,
+            'derivacion',
+            'derivó a ' . ($nombresDestino->isNotEmpty()
+                ? $nombresDestino->join(', ', ' y ')
+                : 'su destinatario'),
+            $user->id
+        );
 
         $derivacion->load([
             'correspondencia',
@@ -716,14 +728,22 @@ class DerivacionController extends Controller
         // frontend muestra "Solo lectura" aunque el usuario sea el destinatario.
         // Además marca si la correspondencia tiene novedades sin leer para el
         // contexto (actividad más reciente que su última lectura).
+        $idsCorresp = $derivaciones->getCollection()->pluck('correspondencia_id')->filter()->unique();
         $lecturas = \App\Models\CorrespondenciaLectura::where('usuario_id', $ctx->id)
-            ->whereIn('correspondencia_id', $derivaciones->getCollection()->pluck('correspondencia_id')->filter()->unique())
+            ->whereIn('correspondencia_id', $idsCorresp)
             ->pluck('leido_at', 'correspondencia_id');
-        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user, $lecturas) {
+        // Estrella de seguimiento: se pinta en la misma celda del folio que el
+        // punto de novedades, así que se resuelve en la misma pasada.
+        $seguidas = \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $ctx->id)
+            ->whereIn('correspondencia_id', $idsCorresp)
+            ->pluck('correspondencia_id')
+            ->flip();
+        $derivaciones->getCollection()->transform(function (Derivacion $d) use ($user, $lecturas, $seguidas) {
             $d->puede_actuar = $d->esDestinatario($user);
             $act = $d->correspondencia?->ultima_actividad_at;
             $leido = $lecturas[$d->correspondencia_id] ?? null;
             $d->tiene_novedades = $act && (!$leido || $act->gt($leido));
+            $d->en_seguimiento = $seguidas->has($d->correspondencia_id);
             // Resumen de gestión (acuses / respondieron) para mostrarlo en la bandeja.
             $d->correspondencia?->append('resumen_gestion');
             return $d;
@@ -911,7 +931,12 @@ class DerivacionController extends Controller
 
         // El acuse es una novedad para el resto (quien recibió queda "al día").
         if ($correspondencia) {
-            $correspondencia->registrarActividad($user->contexto()->id);
+            $correspondencia->registrarActividad(
+                $user->contexto()->id,
+                'acuse',
+                'acusó recibo',
+                $user->id
+            );
         }
 
         return $this->successResponse($derivacion, 'Derivación recibida');

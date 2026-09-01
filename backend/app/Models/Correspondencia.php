@@ -64,16 +64,47 @@ class Correspondencia extends Model
 
     /**
      * Registra que ocurrió una acción (mensaje, acuse, derivación, cierre…):
-     * actualiza la marca de actividad y, para el actor, marca como leído (su
-     * propia acción no debe aparecerle como novedad sin leer).
+     * actualiza la marca de actividad, deja el hito en la bitácora y, para el
+     * actor, marca como leído (su propia acción no debe aparecerle como
+     * novedad sin leer).
+     *
+     * Este es el único punto por el que pasa TODO movimiento del módulo, así
+     * que también es el único que escribe `correspondencia_eventos`. De ahí
+     * sale el feed de "últimos movimientos" con una sola consulta ordenada,
+     * sin recomponer derivaciones + acuses + mensajes en PHP como hace el
+     * hilo del detalle.
+     *
+     * @param  int|null     $ctxId   Contexto institucional (subrogado si hay actuando-como).
+     *                               Es quien queda "al día": la lectura se marca para él,
+     *                               porque es su bandeja la que no debe encenderse.
+     * @param  string|null  $tipo    Tipo de movimiento (derivacion, acuse, mensaje, archivada…).
+     * @param  string|null  $texto   Descripción legible, en tercera persona y sin el nombre
+     *                               del actor: el feed lo antepone ("Juan Pérez " . $texto).
+     * @param  int|null     $autorId Actor REAL que ejecutó la acción, para la trazabilidad
+     *                               del hito (ver convención de subrogancia: trazabilidad =
+     *                               actor real, visibilidad = contexto). Si se omite, se
+     *                               asume que actor y contexto son la misma persona.
      */
-    public function registrarActividad(?int $actorId = null): void
-    {
+    public function registrarActividad(
+        ?int $ctxId = null,
+        ?string $tipo = null,
+        ?string $texto = null,
+        ?int $autorId = null
+    ): void {
         $this->forceFill(['ultima_actividad_at' => now()])->save();
 
-        if ($actorId) {
+        if ($tipo && $texto) {
+            $this->eventos()->create([
+                'usuario_id' => $autorId ?? $ctxId,
+                'tipo'       => $tipo,
+                // La columna es varchar(300): recortar antes que reventar el insert.
+                'texto'      => mb_substr($texto, 0, 300),
+            ]);
+        }
+
+        if ($ctxId) {
             CorrespondenciaLectura::updateOrCreate(
-                ['usuario_id' => $actorId, 'correspondencia_id' => $this->id],
+                ['usuario_id' => $ctxId, 'correspondencia_id' => $this->id],
                 ['leido_at' => now()]
             );
         }
@@ -82,6 +113,22 @@ class Correspondencia extends Model
     public function lecturas()
     {
         return $this->hasMany(CorrespondenciaLectura::class);
+    }
+
+    public function seguimientos()
+    {
+        return $this->hasMany(CorrespondenciaSeguimiento::class);
+    }
+
+    /**
+     * Días sin ningún movimiento. Null si nunca registró actividad (datos
+     * anteriores al indicador de novedades).
+     */
+    public function diasSinMovimiento(): ?int
+    {
+        return $this->ultima_actividad_at
+            ? (int) $this->ultima_actividad_at->diffInDays(now())
+            : null;
     }
 
     /** ¿Proceso cerrado por el Alcalde? Solo lectura hasta desarchivar. */

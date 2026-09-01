@@ -14,6 +14,8 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
+  Tabs,
+  Tab,
 } from '@mui/material'
 import {
   Mail as MailIcon,
@@ -29,8 +31,15 @@ import {
   MarkEmailUnread as UnreadIcon,
   WarningAmber as WarningIcon,
   PriorityHigh as PriorityIcon,
+  History as HistoryIcon,
+  Star as StarIcon,
+  Bedtime as EstancadaIcon,
+  SwapHoriz as DerivacionIcon,
+  HowToReg as AcuseIcon,
+  ChatBubbleOutline as MensajeIcon,
+  TaskAlt as CierreIcon,
 } from '@mui/icons-material'
-import { correspondenciaAPI, PanelAlcalde, PanelFuncionario } from '../../api/correspondencia'
+import { correspondenciaAPI, Movimiento, PanelAlcalde, PanelFuncionario } from '../../api/correspondencia'
 import { useAuth } from '../../contexts/AuthContext'
 import { Correspondencia } from '../../types'
 import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
@@ -44,6 +53,18 @@ interface Stats {
   archivadas: number
 }
 
+/** Icono por tipo de movimiento, para que el feed se lea de un vistazo. */
+const iconoMovimiento = (tipo: string) => {
+  switch (tipo) {
+    case 'derivacion': return <DerivacionIcon fontSize="small" color="info" />
+    case 'acuse': return <AcuseIcon fontSize="small" color="success" />
+    case 'mensaje': return <MensajeIcon fontSize="small" color="primary" />
+    case 'archivada': return <CierreIcon fontSize="small" color="success" />
+    case 'desarchivada': return <HistoryIcon fontSize="small" color="warning" />
+    default: return <HistoryIcon fontSize="small" color="disabled" />
+  }
+}
+
 const CorrespondenciaDashboard = () => {
   const navigate = useNavigate()
   const { isOficial, isAdmin, isAlcalde } = useAuth()
@@ -52,11 +73,36 @@ const CorrespondenciaDashboard = () => {
   const [panel, setPanel] = useState<PanelAlcalde | null>(null)
   const [panelFunc, setPanelFunc] = useState<PanelFuncionario | null>(null)
   const [loading, setLoading] = useState(true)
+  // Feed de últimos movimientos: "Todo" lo visible vs. solo lo que el usuario sigue.
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([])
+  const [tabMov, setTabMov] = useState(0)
+  const [cargandoMov, setCargandoMov] = useState(false)
 
   const puedeIngresar = isOficial() || isAdmin()
   const esAlcalde = isAlcalde()
   // Funcionario común: recibe correspondencia derivada (no alcalde/admin/oficial).
   const esFuncionario = !isAlcalde() && !isAdmin() && !isOficial()
+
+  // El feed vive en su propio efecto: cambiar entre "Todo" y "Solo lo que sigo"
+  // no debe re-pedir estadísticas ni el panel completo.
+  useEffect(() => {
+    const cargarMovimientos = async () => {
+      setCargandoMov(true)
+      try {
+        const res = await correspondenciaAPI.movimientos({
+          limit: 15,
+          solo_seguidas: tabMov === 1,
+        })
+        setMovimientos(res.data ?? [])
+      } catch (e) {
+        console.error('No se pudieron cargar los últimos movimientos:', e)
+        setMovimientos([])
+      } finally {
+        setCargandoMov(false)
+      }
+    }
+    cargarMovimientos()
+  }, [tabMov])
 
   useEffect(() => {
     const load = async () => {
@@ -281,6 +327,49 @@ const CorrespondenciaDashboard = () => {
               </List>
             )}
           </Paper>
+
+          {/* ESTANCADAS: ya acusaron recibo —por eso no aparecen como atraso—
+              pero nadie mueve el asunto hace días. Sin esto, acusar recibo
+              apagaba toda alarma y la correspondencia salía del radar. */}
+          <Paper elevation={1} sx={{ mb: 2 }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <EstancadaIcon color="error" fontSize="small" />
+              <Typography variant="subtitle1" fontWeight={700}>
+                Estancadas · en gestión sin movimiento hace {panel.dias_estancada}+ días
+              </Typography>
+              {panel.total_estancadas > panel.estancadas.length && (
+                <Chip size="small" label={`${panel.total_estancadas} en total`} variant="outlined" />
+              )}
+            </Box>
+            {panel.estancadas.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Nada estancado. Todo lo que está en gestión tuvo movimiento reciente.
+                </Typography>
+              </Box>
+            ) : (
+              <List disablePadding>
+                {panel.estancadas.map((e, i) => (
+                  <Box key={`${e.id}-${i}`}>
+                    {i > 0 && <Divider component="li" />}
+                    <ListItem button onClick={() => navigate(`/correspondencia/${e.id}`)}
+                      secondaryAction={<Chip size="small" label={`${e.dias} d`} color="error" />}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        {e.en_seguimiento
+                          ? <StarIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                          : <EstancadaIcon color="error" />}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={<Typography variant="body2" fontWeight={600}>{e.folio || `#${e.id}`} — {e.remitente}</Typography>}
+                        secondary={`${e.dias} días sin movimiento · ${estadoCorrespondencia(e.estado).label}`}
+                      />
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            )}
+          </Paper>
         </>
       )}
 
@@ -371,6 +460,63 @@ const CorrespondenciaDashboard = () => {
           </Paper>
         </>
       )}
+
+      {/* ÚLTIMOS MOVIMIENTOS: el pulso del módulo, para no depender de abrir
+          cada correspondencia para saber qué pasó. */}
+      <Paper elevation={1} sx={{ mb: 2 }}>
+        <Box sx={{ p: 2, pb: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HistoryIcon color="action" fontSize="small" />
+          <Typography variant="subtitle1" fontWeight={700}>Últimos movimientos</Typography>
+        </Box>
+        <Tabs
+          value={tabMov}
+          onChange={(_, v) => setTabMov(v)}
+          sx={{ px: 2, borderBottom: 1, borderColor: 'divider', minHeight: 40 }}
+        >
+          <Tab label="Todo" sx={{ minHeight: 40 }} />
+          <Tab label="Solo lo que sigo" sx={{ minHeight: 40 }} />
+        </Tabs>
+        {cargandoMov ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={24} /></Box>
+        ) : movimientos.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              {tabMov === 1
+                ? 'No sigues ninguna correspondencia todavía.'
+                : 'Todavía no hay movimientos registrados.'}
+            </Typography>
+            {tabMov === 1 && (
+              <Typography variant="caption" color="text.secondary">
+                Marca la estrella ☆ en la bandeja o en el listado para seguir un asunto.
+              </Typography>
+            )}
+          </Box>
+        ) : (
+          <List disablePadding>
+            {movimientos.map((m, i) => (
+              <Box key={m.id}>
+                {i > 0 && <Divider component="li" />}
+                <ListItem button onClick={() => navigate(`/correspondencia/${m.correspondencia_id}`)}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>{iconoMovimiento(m.tipo)}</ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2">
+                        <Box component="span" fontWeight={600}>{m.folio || `#${m.correspondencia_id}`}</Box>
+                        {m.remitente ? ` — ${m.remitente}` : ''}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption" color="text.secondary">
+                        {m.texto} · {format(new Date(m.fecha), "d 'de' MMMM, HH:mm", { locale: es })}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        )}
+      </Paper>
 
       {!panel && !panelFunc && (
       <Grid container spacing={2}>
