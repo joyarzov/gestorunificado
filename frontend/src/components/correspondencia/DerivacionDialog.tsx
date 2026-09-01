@@ -27,7 +27,7 @@ import { correspondenciaAPI, CreateDerivacionData } from '../../api/corresponden
 import { Departamento, Derivacion, User } from '../../types'
 import { useAuth } from '../../contexts/AuthContext'
 import FirmaGobModal, { FirmaParams } from './FirmaGobModal'
-import { PuntoPresencia } from '../layout/GloboPresencia'
+import PuntoPresencia from '../common/PuntoPresencia'
 
 const ACCIONES_PARA_OPTIONS = [
   'Tomar conocimiento',

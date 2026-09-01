@@ -185,3 +185,66 @@ export const presenciaAPI = {
     return response.data
   },
 }
+
+// ---------------------------------------------------------------------------
+// Chat interno (canal informal; lo formal va a la Conversación del expediente)
+// ---------------------------------------------------------------------------
+
+export interface ChatInterlocutor {
+  id: number
+  nombre: string
+  cargo?: string | null
+}
+
+export interface ChatConversacionResumen {
+  id: number
+  interlocutor: ChatInterlocutor | null
+  ultimo_mensaje: { cuerpo: string; mio: boolean; fecha: string } | null
+  no_leidos: number
+  ultimo_mensaje_at?: string | null
+}
+
+export interface ChatMensaje {
+  id: number
+  cuerpo: string
+  mio: boolean
+  autor?: string | null
+  fecha: string
+}
+
+export interface ChatHilo {
+  conversacion_id: number
+  interlocutor: ChatInterlocutor | null
+  mensajes: ChatMensaje[]
+}
+
+export const chatAPI = {
+  conversaciones: async () => {
+    const response = await api.get<ApiResponse<{ conversaciones: ChatConversacionResumen[]; no_leidos: number }>>('/chat')
+    return response.data
+  },
+
+  /** Solo el contador, para el badge: mucho más barato que traer todo. */
+  noLeidos: async () => {
+    const response = await api.get<ApiResponse<{ no_leidos: number }>>('/chat/no-leidos')
+    return response.data
+  },
+
+  mensajes: async (conversacionId: number) => {
+    const response = await api.get<ApiResponse<ChatHilo>>(`/chat/${conversacionId}/mensajes`)
+    return response.data
+  },
+
+  enviar: async (destinatarioId: number, cuerpo: string) => {
+    const response = await api.post<ApiResponse<{ conversacion_id: number; mensaje: ChatMensaje }>>(
+      '/chat/mensajes',
+      { destinatario_id: destinatarioId, cuerpo }
+    )
+    return response.data
+  },
+
+  marcarLeida: async (conversacionId: number) => {
+    const response = await api.post<ApiResponse<{ leido: boolean }>>(`/chat/${conversacionId}/leida`)
+    return response.data
+  },
+}

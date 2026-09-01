@@ -140,6 +140,17 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
     // Presencia: quién está conectado ahora (globo flotante del layout).
     Route::get('presencia', [\App\Http\Controllers\PresenciaController::class, 'index']);
 
+    // Chat interno uno a uno (canal informal; lo formal va a la Conversación
+    // del expediente o de la correspondencia).
+    Route::prefix('chat')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ChatController::class, 'index']);
+        // Antes de las rutas con {conversacion} para que no la capturen.
+        Route::get('/no-leidos', [\App\Http\Controllers\ChatController::class, 'noLeidos']);
+        Route::post('/mensajes', [\App\Http\Controllers\ChatController::class, 'enviar']);
+        Route::get('/{conversacion}/mensajes', [\App\Http\Controllers\ChatController::class, 'mensajes']);
+        Route::post('/{conversacion}/leida', [\App\Http\Controllers\ChatController::class, 'marcarLeida']);
+    });
+
     // Usuarios: el directorio (funcionarios) es para cualquier autenticado;
     // la gestión (CRUD, activar, resetear contraseña) es solo de admin.
     Route::prefix('users')->group(function () {
