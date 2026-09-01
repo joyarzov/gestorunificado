@@ -80,6 +80,9 @@ return new class extends Migration
             FROM derivaciones d
             LEFT JOIN users u ON u.id = d.usuario_destino_id
             LEFT JOIN departamentos dep ON dep.id = d.departamento_destino_id
+            -- `derivaciones` es POLIMÓRFICA (derivable_id/derivable_type): las de
+            -- expediente traen correspondencia_id NULL y no van en esta bitácora.
+            WHERE d.correspondencia_id IS NOT NULL
             GROUP BY d.correspondencia_id,
                      d.usuario_origen_id,
                      DATE_FORMAT(d.created_at, '%Y-%m-%d %H:%i')
@@ -97,6 +100,7 @@ return new class extends Migration
                    d.fecha_recepcion
             FROM derivaciones d
             WHERE d.fecha_recepcion IS NOT NULL
+              AND d.correspondencia_id IS NOT NULL
         ");
 
         // Mensajes del hilo.
