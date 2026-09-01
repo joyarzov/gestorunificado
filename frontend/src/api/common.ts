@@ -219,6 +219,10 @@ export interface ChatMensaje {
 export interface ChatHilo {
   conversacion_id: number
   interlocutor: ChatInterlocutor | null
+  /** Hasta cuándo leyó el interlocutor: con esto se marcan como vistos los mensajes propios. */
+  leido_por_el_otro?: string | null
+  /** true = `mensajes` es solo el incremento posterior a `desde`, no el hilo completo. */
+  incremental?: boolean
   mensajes: ChatMensaje[]
 }
 
@@ -234,8 +238,16 @@ export const chatAPI = {
     return response.data
   },
 
-  mensajes: async (conversacionId: number) => {
-    const response = await api.get<ApiResponse<ChatHilo>>(`/chat/${conversacionId}/mensajes`)
+  /**
+   * @param desde Id del último mensaje ya recibido. Con él, el servidor
+   *              devuelve solo lo posterior: es lo que permite sondear cada dos
+   *              segundos sin reenviar el hilo entero cada vez.
+   */
+  mensajes: async (conversacionId: number, desde?: number) => {
+    const response = await api.get<ApiResponse<ChatHilo>>(
+      `/chat/${conversacionId}/mensajes`,
+      desde ? { params: { desde } } : undefined
+    )
     return response.data
   },
 

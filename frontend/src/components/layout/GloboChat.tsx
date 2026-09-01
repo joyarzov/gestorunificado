@@ -8,6 +8,8 @@ import {
   Forum as ChatIcon,
   Send as SendIcon,
   ArrowBack as VolverIcon,
+  Done as EnviadoIcon,
+  DoneAll as LeidoIcon,
   VolumeUp as ConSonidoIcon,
   VolumeOff as SinSonidoIcon,
 } from '@mui/icons-material'
@@ -78,7 +80,7 @@ const GloboChat = () => {
   const abierto = Boolean(ancla)
   const { usuarios, totalEnLinea } = usePresencia(activo)
   const {
-    conversaciones, mensajes, setMensajes, noLeidos,
+    conversaciones, mensajes, setMensajes, leidoPorElOtro, noLeidos,
     cargandoHilo, cargarConversaciones, cargarHilo, enviar,
   } = useChat(activo, abierto ? conversacionId : null)
 
@@ -228,9 +230,18 @@ const GloboChat = () => {
                       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         {m.cuerpo}
                       </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', textAlign: 'right', fontSize: 10 }}>
-                        {horaCorta(m.fecha)}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4, opacity: 0.75 }}>
+                        <Typography variant="caption" sx={{ fontSize: 10 }}>
+                          {horaCorta(m.fecha)}
+                        </Typography>
+                        {/* Solo en los propios: un tilde = enviado, dos = el
+                            otro ya abrió la conversación después de este mensaje. */}
+                        {m.mio && (
+                          leidoPorElOtro && new Date(m.fecha) <= new Date(leidoPorElOtro)
+                            ? <LeidoIcon sx={{ fontSize: 13 }} titleAccess="Leído" />
+                            : <EnviadoIcon sx={{ fontSize: 13 }} titleAccess="Enviado" />
+                        )}
+                      </Box>
                     </Box>
                   </Box>
                 ))

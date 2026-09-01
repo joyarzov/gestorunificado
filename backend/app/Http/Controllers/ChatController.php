@@ -125,8 +125,15 @@ class ChatController extends Controller
     }
 
     /**
-     * Mensajes de una conversación (los más recientes primero en la consulta,
-     * devueltos en orden cronológico) y marca de leído.
+     * Mensajes de una conversación y estado de lectura del interlocutor.
+     *
+     * Admite dos modos:
+     *  - Sin `desde`: la carga inicial, con los últimos mensajes en orden
+     *    cronológico.
+     *  - Con `desde=<id>`: SOLO lo posterior a ese mensaje. Es el que usa el
+     *    sondeo, y es lo que hace viable consultar cada dos segundos: cuando no
+     *    hay nada nuevo —la inmensa mayoría de las veces— la respuesta pesa
+     *    unas decenas de bytes en vez de reenviar el hilo completo.
      */
     public function mensajes(Request $request, ChatConversacion $conversacion)
     {
@@ -135,17 +142,31 @@ class ChatController extends Controller
             return $this->errorResponse('Esta conversación no es tuya.', 403);
         }
 
-        $mensajes = $conversacion->mensajes()
-            ->with('usuario:id,nombre,cargo')
-            ->orderByDesc('id')
-            ->limit((int) $request->input('limit', self::MENSAJES_POR_PAGINA))
-            ->get()
-            ->reverse()
-            ->values();
+        $desde = (int) $request->input('desde', 0);
+        $consulta = $conversacion->mensajes()->with('usuario:id,nombre,cargo');
 
-        // Abrir la conversación es leerla. En modo auditoría NO: el admin que
-        // mira como otro no debe apagarle los no leídos al funcionario real.
-        if (!Auth::user()->estaAuditando()) {
+        if ($desde > 0) {
+            $mensajes = $consulta->where('id', '>', $desde)
+                ->orderBy('id')
+                ->limit(self::MENSAJES_POR_PAGINA)
+                ->get();
+        } else {
+            $mensajes = $consulta->orderByDesc('id')
+                ->limit((int) $request->input('limit', self::MENSAJES_POR_PAGINA))
+                ->get()
+                ->reverse()
+                ->values();
+        }
+
+        // Tener la conversación a la vista es leerla, pero la marca solo se
+        // toca cuando hay algo nuevo que leer (o en la carga inicial): con el
+        // sondeo cada dos segundos, escribir siempre sería un UPDATE constante
+        // por cada persona con el chat abierto, para nada.
+        //
+        // En modo auditoría NO se marca: el admin que mira como otro no debe
+        // apagarle los no leídos al funcionario real.
+        $hayAjenos = $mensajes->contains(fn (ChatMensaje $m) => $m->usuario_id !== $yo->id);
+        if (!Auth::user()->estaAuditando() && ($desde === 0 || $hayAjenos)) {
             ChatLectura::updateOrCreate(
                 ['usuario_id' => $yo->id, 'conversacion_id' => $conversacion->id],
                 ['leido_at' => now()]
@@ -154,16 +175,28 @@ class ChatController extends Controller
 
         $otro = $conversacion->interlocutorDe($yo->id);
 
+        // Hasta cuándo leyó el OTRO: con eso el frontend marca como vistos los
+        // mensajes propios anteriores a esa hora.
+        $leidoPorElOtro = $otro
+            ? ChatLectura::where('usuario_id', $otro->id)
+                ->where('conversacion_id', $conversacion->id)
+                ->value('leido_at')
+            : null;
+
         return $this->successResponse([
-            'conversacion_id' => $conversacion->id,
-            'interlocutor'    => $otro ? ['id' => $otro->id, 'nombre' => $otro->nombre, 'cargo' => $otro->cargo] : null,
-            'mensajes'        => $mensajes->map(fn (ChatMensaje $m) => [
+            'conversacion_id'   => $conversacion->id,
+            'interlocutor'      => $otro ? ['id' => $otro->id, 'nombre' => $otro->nombre, 'cargo' => $otro->cargo] : null,
+            'leido_por_el_otro' => $leidoPorElOtro,
+            // Con `desde` esto es solo el incremento; el frontend lo añade a lo
+            // que ya tiene en pantalla.
+            'incremental'       => $desde > 0,
+            'mensajes'          => $mensajes->map(fn (ChatMensaje $m) => [
                 'id'     => $m->id,
                 'cuerpo' => $m->cuerpo,
                 'mio'    => $m->usuario_id === $yo->id,
                 'autor'  => $m->usuario?->nombre,
                 'fecha'  => $m->created_at,
-            ])->all(),
+            ])->values()->all(),
         ]);
     }
 
