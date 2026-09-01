@@ -100,7 +100,33 @@ export interface PanelAlcalde {
   estancadas: Array<{ id: number; folio?: string; remitente: string; estado: string; dias: number; en_seguimiento: boolean }>
   total_estancadas: number
   dias_estancada: number
+  /** A partir de aquí ya no es "se detuvo", es trabajo terminado sin cerrar. */
+  dias_rezago: number
+  /** Cuántas esperan el cierre del Alcalde desde hace más de `dias_rezago`. */
+  rezago_por_cerrar: number
   total_en_seguimiento: number
+}
+
+/** Una correspondencia a la espera del cierre formal. */
+export interface CorrespondenciaPorCerrar {
+  id: number
+  folio?: string | null
+  remitente: string
+  descripcion?: string | null
+  departamento?: string | null
+  fecha_recibo?: string | null
+  dias_sin_movimiento: number | null
+  /** Ya se despachó una respuesta al remitente: casi siempre, trabajo terminado. */
+  respondida: boolean
+}
+
+export interface PorCerrarResponse {
+  items: CorrespondenciaPorCerrar[]
+  total: number
+  page: number
+  last_page: number
+  per_page: number
+  dias_rezago: number
 }
 
 /** Un movimiento del feed: una fila de la bitácora, ya redactada para mostrar. */
@@ -414,6 +440,21 @@ export const correspondenciaAPI = {
     const response = await api.post<ApiResponse<{ en_seguimiento: boolean; nota: string | null }>>(
       `/correspondencia/${id}/seguimiento`,
       nota === undefined ? {} : { nota }
+    )
+    return response.data
+  },
+
+  /** Lo que está en gestión y espera el cierre del Alcalde. */
+  porCerrar: async (params?: { page?: number; per_page?: number; solo_respondidas?: boolean; dias_min?: number }) => {
+    const response = await api.get<ApiResponse<PorCerrarResponse>>('/correspondencia/por-cerrar', { params })
+    return response.data
+  },
+
+  /** Cierra varios procesos de una vez. Cada cierre queda en la bitácora. */
+  cerrarLote: async (ids: number[]) => {
+    const response = await api.post<ApiResponse<{ cerradas: number; omitidas: Array<{ folio: string; motivo: string }>; folios: string[] }>>(
+      '/correspondencia/cerrar-lote',
+      { ids }
     )
     return response.data
   },

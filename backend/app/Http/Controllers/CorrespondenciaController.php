@@ -7,6 +7,7 @@ use App\Models\Derivacion;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class CorrespondenciaController extends Controller
@@ -86,6 +87,126 @@ class CorrespondenciaController extends Controller
             $c->tiene_novedades = $act && (!$leido || $act->gt($leido));
             $c->en_seguimiento = $seguidas->has($c->id);
         }
+    }
+
+    // =====================================================
+    // CIERRE DE PROCESOS (poner al día el rezago)
+    // =====================================================
+
+    /**
+     * Días sin movimiento a partir de los cuales una correspondencia deja de
+     * ser "se detuvo" y pasa a ser rezago administrativo: trabajo que
+     * seguramente terminó pero que nadie formalizó.
+     */
+    private const DIAS_REZAGO = 30;
+
+    /**
+     * Lo que está en gestión y espera el cierre del Alcalde.
+     *
+     * Nace de un hecho medido: de 387 correspondencias de entrada, solo 15
+     * estaban cerradas. No es que no se quiera cerrar —el Alcalde sabe que le
+     * corresponde—, es que hacerlo de a una, 348 veces, no cabe en el día.
+     *
+     * Por eso este listado trae lo que hace falta para decidir sin abrir cada
+     * una: cuánto lleva quieta y, sobre todo, si ya se despachó una respuesta
+     * al remitente. Una correspondencia respondida es, casi siempre, una
+     * correspondencia terminada.
+     */
+    public function porCerrar(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isAlcalde() && !$user->isAdmin()) {
+            return $this->errorResponse('Solo el Alcalde puede cerrar procesos.', 403);
+        }
+
+        $query = Correspondencia::entradas()
+            ->where('estado', 'completada')
+            ->with(['departamento:id,nombre'])
+            ->withCount(['respuestas as respuestas_despachadas' => fn ($q) => $q->whereNotNull('fecha_despacho')]);
+
+        // Filtros pensados para poder avanzar por tandas seguras.
+        if ($request->boolean('solo_respondidas')) {
+            $query->whereHas('respuestas', fn ($q) => $q->whereNotNull('fecha_despacho'));
+        }
+        if ($request->filled('dias_min')) {
+            $query->where('ultima_actividad_at', '<=', now()->subDays((int) $request->input('dias_min')));
+        }
+
+        $paginador = $query->orderBy('ultima_actividad_at')
+            ->paginate($request->input('per_page', 50));
+
+        $items = $paginador->getCollection()->map(fn (Correspondencia $c) => [
+            'id'                 => $c->id,
+            'folio'              => $c->folio,
+            'remitente'          => $c->remitente,
+            'descripcion'        => $c->descripcion ? mb_strimwidth($c->descripcion, 0, 90, '…') : null,
+            'departamento'       => $c->departamento?->nombre,
+            'fecha_recibo'       => $c->fecha_recibo,
+            'dias_sin_movimiento' => $c->diasSinMovimiento(),
+            'respondida'         => $c->respuestas_despachadas > 0,
+        ]);
+
+        return $this->successResponse([
+            'items'     => $items->values()->all(),
+            'total'     => $paginador->total(),
+            'page'      => $paginador->currentPage(),
+            'last_page' => $paginador->lastPage(),
+            'per_page'  => $paginador->perPage(),
+            'dias_rezago' => self::DIAS_REZAGO,
+        ]);
+    }
+
+    /**
+     * Cierra varios procesos de una vez.
+     *
+     * Cerrar sigue siendo un acto formal del Alcalde y cada cierre queda en la
+     * bitácora igual que si se hiciera de a uno: lo único que cambia es que no
+     * hay que entrar 348 veces. Se valida una por una y las que no cumplan se
+     * informan en vez de romper el lote entero.
+     */
+    public function cerrarLote(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isAlcalde()) {
+            return $this->errorResponse('Solo el Alcalde puede cerrar el proceso de una correspondencia.', 403);
+        }
+
+        $request->validate([
+            'ids'   => 'required|array|min:1|max:200',
+            'ids.*' => 'integer',
+        ]);
+
+        $cerradas = [];
+        $omitidas = [];
+
+        foreach (Correspondencia::whereIn('id', $request->input('ids'))->get() as $c) {
+            if ($c->direccion !== 'entrada' || $c->estado !== 'completada') {
+                $omitidas[] = ['folio' => $c->folio, 'motivo' => 'No está en gestión'];
+                continue;
+            }
+
+            DB::transaction(function () use ($c, $user, &$cerradas) {
+                $c->update([
+                    'estado'        => 'archivado',
+                    'archivada_por' => $user->id,
+                    'archivada_at'  => now(),
+                ]);
+                $c->registrarActividad(
+                    $user->contexto()->id,
+                    'archivada',
+                    'cerró el proceso (completada)',
+                    $user->id
+                );
+                $cerradas[] = $c->folio;
+            });
+        }
+
+        return $this->successResponse(
+            ['cerradas' => count($cerradas), 'omitidas' => $omitidas, 'folios' => $cerradas],
+            count($cerradas) === 1
+                ? 'Se cerró 1 proceso'
+                : 'Se cerraron ' . count($cerradas) . ' procesos'
+        );
     }
 
     // =====================================================
@@ -628,6 +749,9 @@ class CorrespondenciaController extends Controller
         $requiereAtencion = [];
         $atrasos = [];
         $estancadas = [];
+        // Rezago: en gestión y sin movimiento hace más de DIAS_REZAGO. No es
+        // urgencia, es trabajo por formalizar; se ataca con el cierre en lote.
+        $rezago = 0;
 
         // Las que el Alcalde marcó con estrella: se destacan en su panel.
         $seguidas = \App\Models\CorrespondenciaSeguimiento::where('usuario_id', $ctxId)
@@ -677,9 +801,23 @@ class CorrespondenciaController extends Controller
             // nadie ha hecho nada en semanas. Es el agujero que dejaba el panel:
             // acusar recibo es el gesto más barato del destinatario y apagaba
             // toda alarma, dejando la correspondencia fuera del radar del Alcalde.
+            //
+            // Es una VENTANA (7 a 30 días), no un piso. Con un piso, el rezago
+            // de meses sepultaba lo accionable: en la medición del 2026-09-01
+            // eran 306 de 387, con las 27 que de verdad se acababan de detener
+            // perdidas entre 200 de más de un mes. Lo más antiguo que eso no es
+            // algo que "se detuvo": es trabajo terminado sin cerrar, y va al
+            // contador de rezago, que se resuelve cerrando en lote.
             if (in_array($c->estado, ['derivada_funcionario', 'en_proceso', 'completada'], true)) {
                 $diasQuieta = $c->diasSinMovimiento();
-                if ($diasQuieta !== null && $diasQuieta >= self::DIAS_ESTANCADA) {
+
+                if ($diasQuieta !== null && $diasQuieta > self::DIAS_REZAGO && $c->estado === 'completada') {
+                    $rezago++;
+                }
+
+                if ($diasQuieta !== null
+                    && $diasQuieta >= self::DIAS_ESTANCADA
+                    && $diasQuieta <= self::DIAS_REZAGO) {
                     $estancadas[] = [
                         'id'             => $c->id,
                         'folio'          => $c->folio,
@@ -718,6 +856,8 @@ class CorrespondenciaController extends Controller
             'estancadas'          => array_slice($estancadas, 0, 8),
             'total_estancadas'    => count($estancadas),
             'dias_estancada'      => self::DIAS_ESTANCADA,
+            'dias_rezago'         => self::DIAS_REZAGO,
+            'rezago_por_cerrar'   => $rezago,
             'total_en_seguimiento' => $seguidas->count(),
         ]);
     }

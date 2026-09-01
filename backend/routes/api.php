@@ -186,6 +186,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::get('/panel-alcalde', [CorrespondenciaController::class, 'panelAlcalde']);
         // Seguimiento personal ("estrella") y feed de últimos movimientos.
         Route::get('/seguimiento', [CorrespondenciaController::class, 'seguimiento']);
+        // Puesta al día del rezago: lo que espera el cierre del Alcalde.
+        Route::get('/por-cerrar', [CorrespondenciaController::class, 'porCerrar']);
+        Route::post('/cerrar-lote', [CorrespondenciaController::class, 'cerrarLote']);
         Route::get('/movimientos', [CorrespondenciaController::class, 'movimientos']);
         Route::get('/panel-funcionario', [CorrespondenciaController::class, 'panelFuncionario']);
         Route::get('/registro', [CorrespondenciaController::class, 'registro']);

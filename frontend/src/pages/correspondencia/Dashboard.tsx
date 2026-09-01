@@ -40,6 +40,7 @@ import {
   TaskAlt as CierreIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, Movimiento, PanelAlcalde, PanelFuncionario } from '../../api/correspondencia'
+import CierreEnLoteDialog from '../../components/correspondencia/CierreEnLoteDialog'
 import { useAuth } from '../../contexts/AuthContext'
 import { Correspondencia } from '../../types'
 import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
@@ -77,6 +78,7 @@ const CorrespondenciaDashboard = () => {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [tabMov, setTabMov] = useState(0)
   const [cargandoMov, setCargandoMov] = useState(false)
+  const [cierreAbierto, setCierreAbierto] = useState(false)
 
   const puedeIngresar = isOficial() || isAdmin()
   const esAlcalde = isAlcalde()
@@ -328,6 +330,29 @@ const CorrespondenciaDashboard = () => {
             )}
           </Paper>
 
+          {/* REZAGO: procesos terminados que solo esperan la firma del cierre.
+              Se muestra aparte de "Estancadas" porque no es lo mismo: esto no
+              requiere gestionar nada, solo formalizar. Mezclarlos hacía que
+              200 pendientes administrativos sepultaran lo accionable. */}
+          {panel.rezago_por_cerrar > 0 && (
+            <Paper elevation={1} sx={{ mb: 2, borderLeft: '4px solid', borderLeftColor: 'warning.main' }}>
+              <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: 1, minWidth: 240 }}>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    {panel.rezago_por_cerrar} procesos esperan tu cierre
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Llevan más de {panel.dias_rezago} días sin movimiento: el trabajo terminó,
+                    falta formalizarlo. Puedes cerrarlos por tandas, sin entrar a cada uno.
+                  </Typography>
+                </Box>
+                <Button variant="contained" color="warning" onClick={() => setCierreAbierto(true)}>
+                  Revisar y cerrar
+                </Button>
+              </Box>
+            </Paper>
+          )}
+
           {/* ESTANCADAS: ya acusaron recibo —por eso no aparecen como atraso—
               pero nadie mueve el asunto hace días. Sin esto, acusar recibo
               apagaba toda alarma y la correspondencia salía del radar. */}
@@ -335,7 +360,7 @@ const CorrespondenciaDashboard = () => {
             <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
               <EstancadaIcon color="error" fontSize="small" />
               <Typography variant="subtitle1" fontWeight={700}>
-                Estancadas · en gestión sin movimiento hace {panel.dias_estancada}+ días
+                Estancadas · sin movimiento entre {panel.dias_estancada} y {panel.dias_rezago} días
               </Typography>
               {panel.total_estancadas > panel.estancadas.length && (
                 <Chip size="small" label={`${panel.total_estancadas} en total`} variant="outlined" />
@@ -344,7 +369,7 @@ const CorrespondenciaDashboard = () => {
             {panel.estancadas.length === 0 ? (
               <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Nada estancado. Todo lo que está en gestión tuvo movimiento reciente.
+                  Nada recién detenido. Lo que está en gestión tuvo movimiento estos días.
                 </Typography>
               </Box>
             ) : (
@@ -370,6 +395,14 @@ const CorrespondenciaDashboard = () => {
               </List>
             )}
           </Paper>
+          <CierreEnLoteDialog
+            open={cierreAbierto}
+            onClose={() => setCierreAbierto(false)}
+            onCerradas={() => {
+              // Al cerrar procesos cambian los KPIs y el rezago: se recarga el panel.
+              correspondenciaAPI.panelAlcalde().then(r => setPanel(r.data)).catch(() => {})
+            }}
+          />
         </>
       )}
 
