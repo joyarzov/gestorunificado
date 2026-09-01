@@ -8,6 +8,8 @@ import {
   Forum as ChatIcon,
   Send as SendIcon,
   ArrowBack as VolverIcon,
+  VolumeUp as ConSonidoIcon,
+  VolumeOff as SinSonidoIcon,
 } from '@mui/icons-material'
 import { formatDistanceToNow, format, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -15,6 +17,7 @@ import { usePresencia } from '../../hooks/usePresencia'
 import { useChat } from '../../hooks/useChat'
 import { ChatInterlocutor, EstadoPresencia, UsuarioPresencia } from '../../api/common'
 import PuntoPresencia from '../common/PuntoPresencia'
+import { estaSilenciado, silenciar } from '../../utils/sonidoChat'
 import { useAuth } from '../../contexts/AuthContext'
 
 const iniciales = (nombre: string) =>
@@ -68,6 +71,7 @@ const GloboChat = () => {
   const [destinatario, setDestinatario] = useState<ChatInterlocutor | null>(null)
   const [conversacionId, setConversacionId] = useState<number | null>(null)
   const [borrador, setBorrador] = useState('')
+  const [silencio, setSilencio] = useState(estaSilenciado)
   const [enviando, setEnviando] = useState(false)
   const finRef = useRef<HTMLDivElement | null>(null)
 
@@ -242,7 +246,7 @@ const GloboChat = () => {
                 }}
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: 10 }}>
-                Conversación informal: no queda registrada en el expediente.
+                Conversación informal
               </Typography>
             </Box>
           </>
@@ -347,10 +351,19 @@ const GloboChat = () => {
               )}
             </Box>
 
-            <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-                "En línea" significa que la persona tiene la plataforma abierta.
+            <Box sx={{ px: 2, py: 0.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, flex: 1 }}>
+                "En línea" significa que la persona tiene la plataforma a la vista.
               </Typography>
+              <Tooltip title={silencio ? 'Activar el aviso sonoro' : 'Silenciar el aviso sonoro'}>
+                <IconButton
+                  size="small"
+                  onClick={() => { const v = !silencio; setSilencio(v); silenciar(v) }}
+                  aria-label={silencio ? 'Activar sonido' : 'Silenciar sonido'}
+                >
+                  {silencio ? <SinSonidoIcon fontSize="small" /> : <ConSonidoIcon fontSize="small" color="primary" />}
+                </IconButton>
+              </Tooltip>
             </Box>
           </>
         )}

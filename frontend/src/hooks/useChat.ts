@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { chatAPI, ChatConversacionResumen, ChatMensaje } from '../api/common'
+import { sonarMensajeNuevo } from '../utils/sonidoChat'
 
 /** Sondeo del contador de no leídos (panel cerrado). */
 const INTERVALO_BADGE = 30000
@@ -21,12 +22,23 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
   const [noLeidos, setNoLeidos] = useState(0)
   const [cargandoHilo, setCargandoHilo] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Referencias para detectar la LLEGADA de un mensaje y avisar con sonido.
+  // La primera carga nunca suena: si no, entrar a la plataforma con mensajes
+  // pendientes dispararía el aviso de algo que no acaba de pasar.
+  const noLeidosPrevios = useRef<number | null>(null)
+  const ajenosPrevios = useRef<number | null>(null)
 
   const cargarBadge = useCallback(async () => {
     if (!habilitado) return
     try {
       const res = await chatAPI.noLeidos()
-      if (res.success) setNoLeidos(res.data.no_leidos)
+      if (!res.success) return
+      const actual = res.data.no_leidos
+      if (noLeidosPrevios.current !== null && actual > noLeidosPrevios.current) {
+        sonarMensajeNuevo()
+      }
+      noLeidosPrevios.current = actual
+      setNoLeidos(actual)
     } catch { /* sondeo silencioso */ }
   }, [habilitado])
 
@@ -42,10 +54,23 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
   }, [habilitado])
 
   const cargarHilo = useCallback(async (id: number, conSpinner = false) => {
-    if (conSpinner) setCargandoHilo(true)
+    if (conSpinner) {
+      setCargandoHilo(true)
+      // Abrir una conversación reinicia la cuenta: los mensajes que ya estaban
+      // no son novedad.
+      ajenosPrevios.current = null
+    }
     try {
       const res = await chatAPI.mensajes(id)
-      if (res.success) setMensajes(res.data.mensajes)
+      if (!res.success) return
+      // Con el hilo abierto el contador no sube (se marca leído al vuelo), así
+      // que el aviso se dispara contando los mensajes del otro.
+      const ajenos = res.data.mensajes.filter(m => !m.mio).length
+      if (ajenosPrevios.current !== null && ajenos > ajenosPrevios.current) {
+        sonarMensajeNuevo()
+      }
+      ajenosPrevios.current = ajenos
+      setMensajes(res.data.mensajes)
     } catch { /* sondeo silencioso */ } finally {
       if (conSpinner) setCargandoHilo(false)
     }
