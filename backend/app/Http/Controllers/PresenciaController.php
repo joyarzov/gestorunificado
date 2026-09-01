@@ -23,9 +23,16 @@ class PresenciaController extends Controller
     {
         $user = Auth::user();
 
-        // En modo auditoría el admin mira la plataforma con los ojos de otro,
-        // pero la presencia es un hecho físico: se responde siempre respecto
-        // del usuario REAL. Así el auditor no aparece ni desaparece a nadie.
+        // Consultar la lista ES la señal de presencia: el frontend solo llama
+        // aquí mientras hay alguien frente a la pantalla (deja de hacerlo con la
+        // pestaña oculta o sin actividad). En modo auditoría NO se marca: el
+        // admin mira con los ojos de otro y no debe aparecer como ese otro.
+        if (!$user->estaAuditando()) {
+            $this->presencia->registrar($user);
+        }
+
+        // La presencia es un hecho físico: se responde siempre respecto del
+        // usuario REAL, no del contexto de subrogancia.
         return $this->successResponse([
             'usuarios' => $this->presencia->listado($user),
             'umbrales' => [

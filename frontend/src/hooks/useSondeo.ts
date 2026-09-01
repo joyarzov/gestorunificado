@@ -33,7 +33,17 @@ const EVENTOS_ACTIVIDAD = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touch
 export const useSondeo = (
   tarea: () => void,
   intervaloMs: number,
-  habilitado: boolean
+  habilitado: boolean,
+  /**
+   * Si el sondeo debe detenerse cuando nadie toca el equipo.
+   *
+   * Verdadero para la presencia: de eso depende que el verde no mienta.
+   * FALSO para el chat y las notificaciones, que necesitan seguir avisando
+   * aunque la persona lleve un rato leyendo sin tocar el mouse. Pueden
+   * hacerlo sin ensuciar la presencia porque esta tiene su propia señal
+   * (`users.presencia_at`), que solo marca el endpoint de presencia.
+   */
+  respetarInactividad = true
 ) => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const ultimaActividadRef = useRef<number>(Date.now())
@@ -46,7 +56,8 @@ export const useSondeo = (
     if (!habilitado) return
 
     const hayAlguien = () =>
-      !document.hidden && (Date.now() - ultimaActividadRef.current) < MS_INACTIVIDAD
+      !document.hidden
+      && (!respetarInactividad || (Date.now() - ultimaActividadRef.current) < MS_INACTIVIDAD)
 
     const detener = () => {
       if (timerRef.current) {
@@ -101,5 +112,5 @@ export const useSondeo = (
       EVENTOS_ACTIVIDAD.forEach(e => window.removeEventListener(e, despertar))
       document.removeEventListener('visibilitychange', alCambiarVisibilidad)
     }
-  }, [habilitado, intervaloMs])
+  }, [habilitado, intervaloMs, respetarInactividad])
 }

@@ -10,14 +10,12 @@ use Illuminate\Support\Facades\DB;
 /**
  * Quién está conectado a la plataforma, ahora mismo.
  *
- * No hace falta un "latido" propio ni WebSockets: cada petición autenticada
- * refresca `personal_access_tokens.last_used_at`, y el sondeo de la campana de
- * notificaciones (cada 30 s mientras la pestaña esté abierta) lo mantiene
- * fresco solo. La presencia es, entonces, un efecto secundario gratuito de algo
- * que la aplicación ya hacía.
- *
- * Es la MISMA noción que usa AuthController::sesionPropiaViva() para avisar
- * "su sesión ya está en uso": si allá se considera viva, aquí se ve conectado.
+ * La señal es `users.presencia_at`, que marca ÚNICAMENTE el endpoint de
+ * presencia. Antes se deducía de `personal_access_tokens.last_used_at`, pero esa
+ * marca la refresca cualquier petición: bastaba con que el chat sondeara para
+ * dejar verde a quien no estaba. Con una señal propia, el sondeo de presencia
+ * puede detenerse cuando la persona se va del puesto —y así el verde significa
+ * algo— mientras el chat sigue consultando para poder avisar de un mensaje.
  *
  * ⚠️ Ojo con la hora: MySQL corre en UTC y la aplicación en America/Punta_Arenas
  * (UTC-3). Todos los cortes se calculan con `now()` de PHP —zona de la app—, que
@@ -27,9 +25,6 @@ use Illuminate\Support\Facades\DB;
  */
 class PresenciaService
 {
-    /** Nombre del token de sesión de usuario (AuthController::TOKEN_PROPIO). */
-    public const TOKEN_SESION = 'usuario';
-
     /**
      * Hasta cuántos minutos desde la última señal se considera "en línea".
      *
@@ -44,21 +39,20 @@ class PresenciaService
      */
     public const MINUTOS_EN_LINEA = 5;
 
+    /** Deja constancia de que este usuario está frente a la pantalla ahora. */
+    public function registrar(User $user): void
+    {
+        $user->forceFill(['presencia_at' => now()])->saveQuietly();
+    }
+
     /**
-     * Última actividad registrada por usuario: [usuario_id => Carbon].
-     *
-     * Solo cuenta los tokens de sesión de usuario. Los tokens de servicio o de
-     * verificación no representan a una persona sentada frente a la pantalla.
+     * Última señal de presencia por usuario: [usuario_id => Carbon].
      */
     public function ultimasActividades(): Collection
     {
-        return DB::table('personal_access_tokens')
-            ->where('tokenable_type', User::class)
-            ->where('name', self::TOKEN_SESION)
-            ->whereNotNull('last_used_at')
-            ->groupBy('tokenable_id')
-            ->select('tokenable_id', DB::raw('MAX(last_used_at) as visto'))
-            ->pluck('visto', 'tokenable_id')
+        return DB::table('users')
+            ->whereNotNull('presencia_at')
+            ->pluck('presencia_at', 'id')
             ->map(fn ($fecha) => $fecha ? Carbon::parse($fecha) : null)
             ->filter();
     }

@@ -29,8 +29,9 @@ export const usePresencia = (isAuthenticated: boolean) => {
     }
   }, [isAuthenticated])
 
-  // El sondeo se detiene solo cuando la pestaña deja de estar a la vista o
-  // cuando nadie toca el equipo: de eso depende que "en línea" signifique algo.
+  // Este es el único sondeo que SÍ se detiene por inactividad: consultar la
+  // lista es lo que marca la propia presencia, así que dejar de consultar es
+  // exactamente lo que hace que el verde se apague al irse del puesto.
   useSondeo(cargar, INTERVALO, isAuthenticated)
 
   return { usuarios, enLinea, totalEnLinea: enLinea.length, loading, recargar: cargar }

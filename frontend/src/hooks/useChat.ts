@@ -88,14 +88,17 @@ export const useChat = (habilitado: boolean, conversacionAbierta: number | null)
   }, [cargarConversaciones])
 
   // El hilo abierto manda el ritmo; si no hay ninguno, solo el contador.
-  // useSondeo se encarga de detenerlo con la pestaña oculta o sin actividad.
+  // Se detiene con la pestaña oculta, pero NO por falta de actividad: si no,
+  // quien lleva unos minutos leyendo sin tocar el mouse no se entera de que le
+  // escribieron. Puede permitírselo porque la presencia tiene señal propia.
   useSondeo(
     () => {
       if (conversacionAbierta) cargarHilo(conversacionAbierta)
       cargarBadge()
     },
     conversacionAbierta ? INTERVALO_HILO : INTERVALO_BADGE,
-    habilitado
+    habilitado,
+    false // el aviso debe llegar aunque la persona lleve un rato sin tocar el mouse
   )
 
   // Al deshabilitarse (cierre de sesión, pantalla chica) no debe quedar rastro.

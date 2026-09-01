@@ -41,13 +41,14 @@ export const useNotificaciones = (isAuthenticated: boolean) => {
     }
   }, [])
 
-  // El sondeo lo gobierna useSondeo: se detiene con la pestaña oculta o sin
-  // actividad. Además de ahorrar peticiones, evita que este sondeo mantenga
-  // "en línea" a quien dejó el navegador abierto y se fue.
+  // Se detiene con la pestaña oculta, pero NO por falta de actividad: los
+  // avisos deben llegar aunque la persona lleve un rato sin tocar el equipo.
+  // Ya no ensucia la presencia, que se marca por su cuenta.
   useSondeo(
     () => { if (isAuthenticated) fetchNoLeidas() },
     POLLING_INTERVAL,
-    isAuthenticated
+    isAuthenticated,
+    false // el aviso debe llegar aunque la persona lleve un rato sin tocar el mouse
   )
 
   // Al cerrar sesión no debe quedar nada en pantalla.

@@ -45,6 +45,7 @@ import CorporateColorBar from '../branding/CorporateColorBar'
 import NotificacionesBell from './NotificacionesBell'
 import ModuleSwitcher from './ModuleSwitcher'
 import GloboChat from './GloboChat'
+import { prepararAudio } from '../../utils/sonidoChat'
 import { documentosAPI } from '../../api/gestor'
 import { usersAPI } from '../../api/common'
 import type { User as UserType } from '../../types'
@@ -123,6 +124,11 @@ const AppLayout = () => {
     await salirAuditoria()
     navigate('/portal')
   }
+
+  // Deja el audio del chat habilitado en el primer clic o tecla del usuario:
+  // los navegadores no permiten reproducir sonido nacido de un temporizador si
+  // antes no hubo un gesto real sobre la página.
+  useEffect(() => prepararAudio(), [])
 
   useEffect(() => {
     if (!hasAplicacion('gestor_documental')) return

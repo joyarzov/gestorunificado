@@ -17,7 +17,7 @@ import { usePresencia } from '../../hooks/usePresencia'
 import { useChat } from '../../hooks/useChat'
 import { ChatInterlocutor, EstadoPresencia, UsuarioPresencia } from '../../api/common'
 import PuntoPresencia from '../common/PuntoPresencia'
-import { estaSilenciado, silenciar } from '../../utils/sonidoChat'
+import { estaSilenciado, silenciar, sonarMensajeNuevo } from '../../utils/sonidoChat'
 import { useAuth } from '../../contexts/AuthContext'
 
 const iniciales = (nombre: string) =>
@@ -370,10 +370,18 @@ const GloboChat = () => {
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, flex: 1 }}>
                 "En línea": tiene la plataforma abierta y está usando el equipo.
               </Typography>
-              <Tooltip title={silencio ? 'Activar el aviso sonoro' : 'Silenciar el aviso sonoro'}>
+              <Tooltip title={silencio ? 'Activar el aviso sonoro' : 'Silenciar el aviso sonoro (pulsa para probarlo)'}>
                 <IconButton
                   size="small"
-                  onClick={() => { const v = !silencio; setSilencio(v); silenciar(v) }}
+                  onClick={() => {
+                    const v = !silencio
+                    setSilencio(v)
+                    silenciar(v)
+                    // Al activarlo se reproduce de inmediato: confirma que se oye
+                    // y, de paso, desbloquea el audio del navegador —esto ocurre
+                    // dentro de un clic, que es cuando se permite.
+                    if (!v) sonarMensajeNuevo(true)
+                  }}
                   aria-label={silencio ? 'Activar sonido' : 'Silenciar sonido'}
                 >
                   {silencio ? <SinSonidoIcon fontSize="small" /> : <ConSonidoIcon fontSize="small" color="primary" />}

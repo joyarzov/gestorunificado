@@ -32,6 +32,7 @@ class User extends Authenticatable
         'firma_modo_preferido',
         'debe_cambiar_password',
         'ultimo_acceso',
+        'presencia_at',
     ];
 
     protected $hidden = [
@@ -51,6 +52,7 @@ class User extends Authenticatable
         'firma_desatendida_habilitada' => 'boolean',
         'debe_cambiar_password' => 'boolean',
         'ultimo_acceso' => 'datetime',
+        'presencia_at' => 'datetime',
         'subrogancia_activa' => 'boolean',
         'subrogancia_desde' => 'datetime',
         'subrogancia_hasta' => 'datetime',
