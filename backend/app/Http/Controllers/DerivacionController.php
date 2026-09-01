@@ -964,4 +964,37 @@ class DerivacionController extends Controller
 
         return $this->successResponse($derivacion, 'Derivación archivada');
     }
+
+    /**
+     * Devuelve a la bandeja activa una derivación que el funcionario había
+     * archivado. Es el reverso exacto de archivar(): vuelve a 'recibido', el
+     * estado en que estaba.
+     *
+     * Igual que aquel, es archivo PERSONAL: no toca el estado de la
+     * correspondencia. Si el proceso completo está cerrado por el Alcalde, no
+     * hay nada que devolver a la bandeja: eso lo reabre él con "Reabrir proceso".
+     */
+    public function desarchivar(Derivacion $derivacion)
+    {
+        $user = Auth::user();
+
+        if (!$derivacion->esDestinatario($user)) {
+            return $this->errorResponse('No tienes permiso para desarchivar esta derivación', 403);
+        }
+
+        if ($derivacion->estado !== 'archivado') {
+            return $this->errorResponse('Esta derivación no está archivada.', 422);
+        }
+
+        if ($derivacion->correspondencia?->estaArchivada()) {
+            return $this->errorResponse(
+                'El proceso completo está cerrado por el Alcalde. Solicítale reabrirlo.',
+                422
+            );
+        }
+
+        $derivacion->update(['estado' => 'recibido']);
+
+        return $this->successResponse($derivacion, 'Derivación devuelta a tu bandeja');
+    }
 }

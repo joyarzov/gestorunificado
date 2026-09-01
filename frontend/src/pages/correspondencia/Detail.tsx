@@ -433,10 +433,58 @@ const CorrespondenciaDetail = () => {
     ? correspondencia.derivaciones?.find(esMiDerivacionPendiente)
     : undefined
 
+  /**
+   * MI derivación, esté en el estado que esté. Mismo criterio de destinatario
+   * que el backend (usuario, o departamento cuando la derivación no apunta a
+   * una persona), para que con dos destinatarios del mismo departamento cada
+   * uno actúe sobre la suya y no sobre la del otro.
+   */
+  const miDerivacion = correspondencia?.derivaciones?.find(
+    (d) => d.usuario_destino_id === ctxUserId
+      || (d.usuario_destino_id == null && d.departamento_destino_id === ctxDepartamentoId)
+  )
+  // Archivar es archivo PERSONAL: saca la correspondencia de la bandeja propia
+  // sin tocar el proceso. Nada que ver con "Cerrar proceso", que es del Alcalde.
+  const puedoArchivarMiDerivacion = isFuncionario && miDerivacion?.estado === 'recibido'
+    && correspondencia?.estado !== 'archivado'
+  const puedoDesarchivarMiDerivacion = isFuncionario && miDerivacion?.estado === 'archivado'
+    && correspondencia?.estado !== 'archivado'
+
   // Derivación pendiente para el alcalde (cuando recibe desde Oficina de Partes)
   const derivacionPendienteParaAlcalde = isAlcalde() && correspondencia?.estado === 'derivada_alcaldia'
     ? correspondencia.derivaciones?.find(esMiDerivacionPendiente)
     : undefined
+
+  // Archivo personal del funcionario (su derivación), distinto del cierre del proceso.
+  const [archivoPersonalLoading, setArchivoPersonalLoading] = useState(false)
+
+  const handleArchivarMiDerivacion = async () => {
+    if (!miDerivacion) return
+    setArchivoPersonalLoading(true)
+    try {
+      const res = await correspondenciaAPI.archivarDerivacion(miDerivacion.id)
+      setSnackbar({ open: true, message: res.message || 'Archivada en tu bandeja' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo archivar' })
+    } finally {
+      setArchivoPersonalLoading(false)
+    }
+  }
+
+  const handleDesarchivarMiDerivacion = async () => {
+    if (!miDerivacion) return
+    setArchivoPersonalLoading(true)
+    try {
+      const res = await correspondenciaAPI.desarchivarDerivacion(miDerivacion.id)
+      setSnackbar({ open: true, message: res.message || 'Devuelta a tu bandeja' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo devolver a la bandeja' })
+    } finally {
+      setArchivoPersonalLoading(false)
+    }
+  }
 
   const handleMarcarRecibida = async () => {
     const derivacion = derivacionPendienteParaUsuario || derivacionPendienteParaAlcalde
@@ -697,6 +745,31 @@ const CorrespondenciaDetail = () => {
               disabled={recibirLoading}
             >
               {recibirLoading ? 'Procesando...' : 'Marcar como Recibida'}
+            </Button>
+          )}
+          {/* Archivo PERSONAL del funcionario, pedido por quienes reciben
+              derivaciones: tras acusar recibo tenían que volver a la Bandeja
+              para archivar. El nombre dice "en mi bandeja" a propósito, para
+              que no se confunda con "Cerrar proceso", que es del Alcalde y
+              cierra el trámite para todo el municipio. */}
+          {puedoArchivarMiDerivacion && (
+            <Button
+              variant="outlined"
+              startIcon={archivoPersonalLoading ? <CircularProgress size={18} /> : <ArchivarIcon />}
+              onClick={handleArchivarMiDerivacion}
+              disabled={archivoPersonalLoading}
+            >
+              Archivar en mi bandeja
+            </Button>
+          )}
+          {puedoDesarchivarMiDerivacion && (
+            <Button
+              variant="outlined"
+              startIcon={archivoPersonalLoading ? <CircularProgress size={18} /> : <DesarchivarIcon />}
+              onClick={handleDesarchivarMiDerivacion}
+              disabled={archivoPersonalLoading}
+            >
+              Devolver a mi bandeja
             </Button>
           )}
         </Box>

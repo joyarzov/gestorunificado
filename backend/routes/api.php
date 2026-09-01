@@ -233,6 +233,7 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::post('/{derivacion}/recibir', [DerivacionController::class, 'recibir']);
         Route::get('/{derivacion}/pdf', [DerivacionController::class, 'pdf']);
         Route::post('/{derivacion}/archivar', [DerivacionController::class, 'archivar']);
+        Route::post('/{derivacion}/desarchivar', [DerivacionController::class, 'desarchivar']);
     });
     Route::apiResource('derivaciones', DerivacionController::class)->only(['index', 'store', 'show']);
 

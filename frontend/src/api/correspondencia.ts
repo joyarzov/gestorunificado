@@ -543,6 +543,12 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  /** Devuelve a la bandeja activa una derivación que el funcionario archivó. */
+  desarchivarDerivacion: async (id: number) => {
+    const response = await api.post<ApiResponse<Derivacion>>(`/derivaciones/${id}/desarchivar`)
+    return response.data
+  },
+
   // Adjuntos
   subirAdjunto: async (correspondenciaId: number, file: File) => {
     const formData = new FormData()
