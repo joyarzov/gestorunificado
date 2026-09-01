@@ -31,9 +31,12 @@ return new class extends Migration
             // "prometí respuesta para el viernes"). Privada de quien la escribió.
             $table->string('nota', 300)->nullable();
             $table->timestamps();
-            $table->unique(['usuario_id', 'correspondencia_id']);
+            // Nombres de índice EXPLÍCITOS y cortos: el que genera Laravel por
+            // convención ("correspondencia_seguimientos_usuario_id_correspondencia_id_unique")
+            // tiene 65 caracteres y MySQL corta en 64 → error 1059 al migrar.
+            $table->unique(['usuario_id', 'correspondencia_id'], 'corresp_seg_usuario_corresp_unique');
             // Listar "lo que sigo", ordenado por lo más reciente marcado.
-            $table->index(['usuario_id', 'created_at']);
+            $table->index(['usuario_id', 'created_at'], 'corresp_seg_usuario_created_index');
         });
 
         Schema::table('correspondencia', function (Blueprint $table) {
