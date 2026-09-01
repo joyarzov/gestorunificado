@@ -61,7 +61,7 @@ $cab = '<div class="cabecera">'
     . '<div class="inst-sub">Plataforma de Gestión Documental Municipal · Módulo de Correspondencia</div></td>'
     . '</tr></table><div class="regla-azul"></div></div>';
 
-$pie = '<div class="pie">Ilustre Municipalidad de Cabo de Hornos · Manual de usuario · Módulo de Correspondencia · Agosto 2026</div>';
+$pie = '<div class="pie">Ilustre Municipalidad de Cabo de Hornos · Manual de usuario · Módulo de Correspondencia · Septiembre 2026</div>';
 
 // ==================== BLOQUES COMPARTIDOS ====================
 
@@ -125,6 +125,40 @@ los demás formatos se descargan al computador.</p>
 <div class="tip">Si el hilo es largo, la plataforma muestra lo más reciente y deja un botón
 <em>"Ver registros anteriores"</em> arriba para retroceder en la historia. Nada se borra nunca:
 la trazabilidad completa es la garantía de todos.</div>
+HTML;
+
+$seguimiento = <<<HTML
+<h1>No perder el hilo: el seguimiento y los últimos movimientos</h1>
+<p>Con el correr de las semanas entra correspondencia nueva todos los días, y los asuntos que
+importan van quedando abajo en las listas. Para eso existen dos herramientas que trabajan juntas.</p>
+
+<h2>La estrella: marcar lo que no quiere perder de vista</h2>
+<p>En la <strong>Bandeja de Entrada</strong> y en <strong>Todas las correspondencias</strong>, junto al
+folio de cada fila hay una <b>estrella</b>. Púlsela y esa correspondencia queda <em>en seguimiento</em>;
+vuelva a pulsarla para quitarla. No hay que guardar nada: el cambio queda al instante.</p>
+<div class="tip">El seguimiento es <strong>suyo y solo suyo</strong>. Nadie más ve lo que usted marcó,
+y lo que marque otra persona no le aparece a usted. Cada quien arma su propia lista de asuntos
+prioritarios.</div>
+<p>Todo lo marcado se reúne en la pestaña <b>En seguimiento</b> de su Bandeja, que muestra entre
+paréntesis cuántos asuntos lleva. Esa lista tiene una particularidad importante: <strong>no está
+ordenada por fecha de llegada, sino por tiempo sin movimiento</strong>. Lo que lleva más días detenido
+aparece arriba. Además de la etiqueta de estado, cada fila indica hace cuánto no ocurre nada
+(<em>"Hace 12 días"</em>) y, si el asunto lleva demasiado tiempo quieto, esa marca se pinta en rojo.</p>
+
+<h2>Últimos movimientos: el pulso de la correspondencia</h2>
+<p>En el <strong>Panel de Correspondencia</strong> (la pantalla de inicio del módulo) encontrará el
+recuadro <b>Últimos movimientos</b>. Es una lista, del más reciente al más antiguo, de todo lo que ha
+ido ocurriendo: quién derivó a quién, quién acusó recibo, quién escribió en una conversación y qué
+procesos se cerraron. Cada línea indica el folio, el remitente y la hora, y con un clic lo lleva
+directamente al documento.</p>
+<p>El recuadro tiene dos pestañas:</p>
+<ul>
+<li><b>Todo</b> — el movimiento de toda la correspondencia que usted puede ver.</li>
+<li><b>Solo lo que sigo</b> — únicamente los asuntos que marcó con la estrella.</li>
+</ul>
+<div class="tip">La forma más rápida de retomar el trabajo después de unos días fuera: entrar al
+panel, abrir <em>Solo lo que sigo</em> y leer de arriba hacia abajo. En pocos segundos sabrá qué
+pasó con lo que le interesa, sin tener que abrir documento por documento.</div>
 HTML;
 
 // ==================== MANUAL OFICINA DE PARTES ====================
@@ -204,6 +238,7 @@ recibo del Alcalde) verá la etiqueta <em>"Solo lectura"</em>: puede mirar, no i
 
 $estados
 $conversacion
+$seguimiento
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -217,6 +252,8 @@ $conversacion
 <dd>Poder, se puede — pero el sentido de que el despacho pase por la Oficina de Partes es justamente su revisión. Lo que se despacha queda con su nombre en el registro.</dd>
 <dt>¿Cada cuánto se emite el libro?</dt>
 <dd>Lo define el municipio: típicamente mensual. El sistema no obliga a una frecuencia; usted elige el período cada vez.</dd>
+<dt>Necesito hacerle seguimiento a un ingreso puntual hasta que salga la respuesta.</dt>
+<dd>Márquelo con la <b>estrella</b> desde el listado. Queda en su pestaña <b>En seguimiento</b>, con el tiempo que lleva sin movimiento a la vista, y puede seguir su avance desde <em>Últimos movimientos</em> en el panel. Es una lista privada suya.</dd>
 </dl>
 HTML;
 
@@ -224,11 +261,12 @@ HTML;
 
 $mAlcalde = <<<HTML
 <h1>2. El despacho digital: la Bandeja de Entrada</h1>
-<p>Su bandeja tiene tres pestañas que ordenan el trabajo:</p>
+<p>Su bandeja tiene cuatro pestañas que ordenan el trabajo:</p>
 <ul>
 <li><b>Activas</b> — lo que requiere atención o está en gestión: correspondencia <em>por recibir</em> (a la espera de su acuse) y la que ya derivó y va en camino.</li>
 <li><b>Recibidas</b> — el historial de lo que ya acusó.</li>
 <li><b>Archivadas</b> — los procesos que usted cerró. Desde aquí puede entrar a cualquiera y desarchivarla si hace falta.</li>
+<li><b>En seguimiento</b> — los asuntos que usted marcó con la estrella para no perderlos de vista, ordenados por tiempo sin movimiento. Se explica más adelante.</li>
 </ul>
 <p>Cuando Oficina de Partes le deriva algo, le avisa la campana de la plataforma y un correo a su
 casilla institucional, siempre con el folio para identificar de qué se trata.</p>
@@ -301,7 +339,24 @@ que responder— puede darle el cierre formal con el botón <b>Cerrar proceso</b
 desde la pestaña Archivadas, pulse el botón, y el proceso vuelve a estar operativo. La reapertura
 también queda registrada — la historia nunca se pierde.</p>
 
-<h1>7. Durante sus ausencias: la subrogancia</h1>
+<h1>7. Lo que se quedó quieto: la correspondencia estancada</h1>
+<p>Hay un punto ciego que conviene conocer. Cuando usted deriva y el funcionario <b>acusa recibo</b>,
+el asunto deja de figurar como atrasado — y es correcto, porque efectivamente llegó a destino. Pero
+acusar recibo es apenas el primer gesto: no significa que el encargo se haya trabajado. Un asunto
+puede quedarse semanas sin que nadie escriba una línea, y hasta ahora eso no se veía en ninguna parte.</p>
+<p>Por eso su panel muestra el recuadro <b>Estancadas</b>: correspondencia que está en gestión y en la
+que <strong>no ocurre ningún movimiento hace varios días</strong> —ni un mensaje, ni un acuse, ni una
+derivación—. Cada línea indica el folio, el remitente, el estado y cuántos días lleva detenida, y los
+asuntos que usted marcó con la estrella aparecen primero.</p>
+<div class="ojo">No confunda los dos avisos, porque señalan cosas distintas:
+<b>Atrasos</b> es lo que <em>nadie ha recibido</em> todavía (el funcionario no ha acusado);
+<b>Estancadas</b> es lo que <em>ya recibieron pero nadie ha movido</em>. El segundo caso es el que
+suele pasar inadvertido.</div>
+<p>Un clic en cualquier línea lo lleva al documento, donde puede escribir en la Conversación para
+pedir un estado de avance, o cerrar el proceso si en realidad ya estaba terminado y solo faltaba
+formalizarlo.</p>
+
+<h1>8. Durante sus ausencias: la subrogancia</h1>
 <p>Antes de ausentarse (vacaciones, cometido), asegúrese de tener definido su <b>subrogante</b> en su
 perfil. Con la subrogancia activa, el subrogante puede <em>"Actuar como"</em> usted: ve su bandeja,
 acusa recibos y deriva en su nombre — con tres resguardos que protegen a ambos:</p>
@@ -313,6 +368,7 @@ acusa recibos y deriva en su nombre — con tres resguardos que protegen a ambos
 
 $estados
 $conversacion
+$seguimiento
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -325,7 +381,13 @@ $conversacion
 <dt>Cerré un proceso y un funcionario necesita agregar un informe.</dt>
 <dd>Desarchívela desde la pestaña Archivadas, permita que agregue lo suyo, y vuelva a cerrarla. Ambos movimientos quedan en la historia.</dd>
 <dt>¿Qué pasa si un funcionario nunca acusa recibo?</dt>
-<dd>La correspondencia queda en "Derivada a Funcionario" y usted lo ve en el detalle (quién acusó y quién no). Un recordatorio por la Conversación suele bastar.</dd>
+<dd>La correspondencia queda en "Derivada a Funcionario" y usted lo ve en el detalle (quién acusó y quién no). Un recordatorio por la Conversación suele bastar. Además aparece en el recuadro <b>Atrasos</b> de su panel.</dd>
+<dt>Acusaron recibo hace tres semanas y nadie me ha informado nada.</dt>
+<dd>Ese caso aparece en el recuadro <b>Estancadas</b> de su panel, ordenado por los días que lleva detenido. Entre al documento y pida el estado de avance por la Conversación: el funcionario recibe el aviso de inmediato.</dd>
+<dt>¿Los funcionarios ven qué correspondencia marqué con la estrella?</dt>
+<dd>No. El seguimiento es privado de cada usuario: nadie ve su lista, ni usted la de otros.</dd>
+<dt>Marqué una estrella por error.</dt>
+<dd>Vuelva a pulsarla y sale del seguimiento de inmediato. Marcar y desmarcar no afecta en nada al documento ni deja registro en la Conversación.</dd>
 <dt>Mi clave OTP no funciona.</dt>
 <dd>El OTP es el código dinámico de su firma electrónica avanzada (FirmaGob/SEGPRES). Verifique la hora de su dispositivo generador; si persiste, contacte a Informática.</dd>
 </dl>
@@ -376,6 +438,7 @@ registrados en la historia del documento.</p>
 
 $estados
 $conversacion
+$seguimiento
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -389,6 +452,8 @@ $conversacion
 <dd>Defina su subrogante en su perfil antes de salir. Mientras dure su ausencia, este verá su bandeja, podrá actuar en su nombre (todo queda registrado como subrogancia) y recibirá sus notificaciones.</dd>
 <dt>No me llegan los correos de aviso.</dt>
 <dd>Revise que su correo institucional esté bien escrito en su ficha (puede verlo en su perfil) y mire la carpeta de spam. Si sigue fallando, avise a Informática.</dd>
+<dt>Tengo varios encargos a la vez y se me pierden entre lo que va llegando.</dt>
+<dd>Marque con la <b>estrella</b> los que esté trabajando: quedan reunidos en la pestaña <b>En seguimiento</b> de su bandeja, con el más detenido arriba. Es su lista privada, nadie más la ve.</dd>
 </dl>
 HTML;
 
@@ -404,7 +469,7 @@ foreach ($manuales as $m) {
         . $cab . $pie
         . "<div class=\"portada\"><div class=\"tit\">Manual de Usuario<br/>Módulo de Correspondencia</div>"
         . "<div class=\"sub\">{$m['rol']}</div>"
-        . "<div class=\"ver\">Plataforma de Gestión Documental Municipal · Versión Agosto 2026<br/>"
+        . "<div class=\"ver\">Plataforma de Gestión Documental Municipal · Versión Septiembre 2026<br/>"
         . "https://docmunicipal.local · Manuales: /manuales</div></div>"
         . "<div class=\"salto\"></div>"
         . $acceso

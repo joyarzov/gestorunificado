@@ -20,19 +20,19 @@ const MANUALES = [
     archivo: '/manuales/manual-oficina-de-partes.pdf',
     rol: 'Oficina de Partes',
     icono: <OficialIcon sx={{ fontSize: 42 }} color="primary" />,
-    descripcion: 'Ingreso de correspondencia, derivación a Alcaldía, salidas (reserva, despacho, devoluciones), libro de correspondencia firmado y supervisión.',
+    descripcion: 'Ingreso de correspondencia, derivación a Alcaldía, salidas (reserva, despacho, devoluciones), libro de correspondencia firmado, supervisión y seguimiento de ingresos.',
   },
   {
     archivo: '/manuales/manual-alcalde.pdf',
     rol: 'Alcalde y Subrogante',
     icono: <AlcaldeIcon sx={{ fontSize: 42 }} color="primary" />,
-    descripcion: 'Bandeja del despacho, acuse con providencia firmada (OTP), derivación a funcionarios, preparar respuestas, cierre del proceso y subrogancia.',
+    descripcion: 'Bandeja del despacho, acuse con providencia firmada (OTP), derivación a funcionarios, preparar respuestas, cierre del proceso, seguimiento de asuntos, correspondencia estancada y subrogancia.',
   },
   {
     archivo: '/manuales/manual-funcionarios.pdf',
     rol: 'Funcionarios Municipales',
     icono: <FuncionariosIcon sx={{ fontSize: 42 }} color="primary" />,
-    descripcion: 'Acceso y contraseñas, notificaciones, acuse de recibo, detalle de la correspondencia y conversación con archivos adjuntos.',
+    descripcion: 'Acceso y contraseñas, notificaciones, acuse de recibo, detalle de la correspondencia, conversación con archivos adjuntos y seguimiento de encargos.',
   },
 ]
 
