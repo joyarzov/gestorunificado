@@ -118,6 +118,14 @@ export interface CorrespondenciaPorCerrar {
   dias_sin_movimiento: number | null
   /** Ya se despachó una respuesta al remitente: casi siempre, trabajo terminado. */
   respondida: boolean
+  /** Destinatarios de gestión (sin contar las derivaciones de tránsito). */
+  destinatarios: number
+  /** Cuántos de ellos acusaron recibo. */
+  con_acuse: number
+  /** Cuántos destinatarios escribieron en la conversación. */
+  respondieron: number
+  /** Mensajes de la conversación (de cualquiera, no solo destinatarios). */
+  mensajes: number
 }
 
 export interface PorCerrarResponse {

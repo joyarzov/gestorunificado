@@ -108,9 +108,14 @@ class CorrespondenciaController extends Controller
      * corresponde—, es que hacerlo de a una, 348 veces, no cabe en el día.
      *
      * Por eso este listado trae lo que hace falta para decidir sin abrir cada
-     * una: cuánto lleva quieta y, sobre todo, si ya se despachó una respuesta
-     * al remitente. Una correspondencia respondida es, casi siempre, una
-     * correspondencia terminada.
+     * una: cuánto lleva quieta, cuántos destinatarios acusaron recibo, cuánto
+     * se conversó y si se despachó una respuesta al remitente.
+     *
+     * La respuesta despachada es la señal más fuerte pero también la más rara
+     * —exige reservar el folio desde la entrada y que Partes lo despache—, y
+     * muchas entradas van "para conocimiento" y nunca se responden. Ahí el
+     * acuse completo y la conversación son la evidencia de que el asunto se
+     * trabajó; sin mostrarlas, el Alcalde tendría que abrir la ficha igual.
      */
     public function porCerrar(Request $request)
     {
@@ -121,7 +126,15 @@ class CorrespondenciaController extends Controller
 
         $query = Correspondencia::entradas()
             ->where('estado', 'completada')
-            ->with(['departamento:id,nombre'])
+            ->with([
+                'departamento:id,nombre',
+                // Los selects son los que exige resumen_gestion (ver su docblock):
+                // sin usuario_origen_id / actuando_como_user_id las derivaciones de
+                // tránsito inflan el denominador y el "2 de 3" no cuadra con el detalle.
+                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion',
+                'derivaciones.usuarioDestino:id,nombre',
+                'mensajes:id,correspondencia_id,usuario_id',
+            ])
             ->withCount(['respuestas as respuestas_despachadas' => fn ($q) => $q->whereNotNull('fecha_despacho')]);
 
         // Filtros pensados para poder avanzar por tandas seguras.
@@ -135,16 +148,32 @@ class CorrespondenciaController extends Controller
         $paginador = $query->orderBy('ultima_actividad_at')
             ->paginate($request->input('per_page', 50));
 
-        $items = $paginador->getCollection()->map(fn (Correspondencia $c) => [
-            'id'                 => $c->id,
-            'folio'              => $c->folio,
-            'remitente'          => $c->remitente,
-            'descripcion'        => $c->descripcion ? mb_strimwidth($c->descripcion, 0, 90, '…') : null,
-            'departamento'       => $c->departamento?->nombre,
-            'fecha_recibo'       => $c->fecha_recibo,
-            'dias_sin_movimiento' => $c->diasSinMovimiento(),
-            'respondida'         => $c->respuestas_despachadas > 0,
-        ]);
+        $items = $paginador->getCollection()->map(function (Correspondencia $c) {
+            // La respuesta despachada es la señal más fuerte, pero es escasa:
+            // solo existe si se reservó el folio DESDE la entrada y Partes lo
+            // despachó. Para las muchas que son "para conocimiento" o se
+            // resolvieron conversando, el acuse y la conversación son la única
+            // evidencia de que el asunto se trabajó. Sin ellas, cerrar en lote
+            // obliga a abrir la ficha igual y el listado no sirve de nada.
+            $g = $c->resumen_gestion;
+
+            return [
+                'id'                 => $c->id,
+                'folio'              => $c->folio,
+                'remitente'          => $c->remitente,
+                'descripcion'        => $c->descripcion ? mb_strimwidth($c->descripcion, 0, 90, '…') : null,
+                'departamento'       => $c->departamento?->nombre,
+                'fecha_recibo'       => $c->fecha_recibo,
+                'dias_sin_movimiento' => $c->diasSinMovimiento(),
+                'respondida'         => $c->respuestas_despachadas > 0,
+                'destinatarios'      => $g['destinatarios'],
+                'con_acuse'          => $g['con_acuse'],
+                // Cuántos de los destinatarios escribieron en la conversación,
+                // y cuánto se habló en total (el Alcalde y Partes incluidos).
+                'respondieron'       => count($g['respondieron']),
+                'mensajes'           => $c->mensajes->count(),
+            ];
+        });
 
         return $this->successResponse([
             'items'     => $items->values()->all(),
