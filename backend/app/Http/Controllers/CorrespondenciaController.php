@@ -43,12 +43,7 @@ class CorrespondenciaController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('remitente', 'like', "%{$search}%")
-                    ->orWhere('numero_documento', 'like', "%{$search}%")
-                    ->orWhere('descripcion', 'like', "%{$search}%");
-            });
+            $this->aplicarBusqueda($query, $request->search);
         }
 
         $correspondencias = $query->orderBy('created_at', 'desc')
@@ -57,6 +52,34 @@ class CorrespondenciaController extends Controller
         $this->marcarBanderas($correspondencias->getCollection(), Auth::user()->contexto()->id);
 
         return $this->successResponse($correspondencias);
+    }
+
+    /**
+     * Filtro de texto del listado, la búsqueda avanzada y la exportación.
+     *
+     * Busca por FOLIO además de remitente, número de documento y materia. Sin
+     * el folio la búsqueda era inservible: es el identificador que la gente
+     * tiene a mano —está impreso en la providencia y es la primera columna de
+     * todas las tablas— y buscarlo devolvía cero resultados siempre.
+     *
+     * Se busca por TOKENS, no por la frase completa: "edelmag alumbrado"
+     * encuentra la que menciona las dos cosas aunque estén en campos distintos.
+     * Cada palabra debe aparecer en ALGÚN campo (AND de ORs), que es lo que uno
+     * espera al agregar palabras para achicar el resultado; con la frase literal,
+     * escribir dos palabras casi siempre devolvía nada.
+     */
+    private function aplicarBusqueda($query, string $termino): void
+    {
+        $tokens = preg_split('/\s+/', trim($termino), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        foreach ($tokens as $token) {
+            $query->where(function ($q) use ($token) {
+                $q->where('folio', 'like', "%{$token}%")
+                    ->orWhere('remitente', 'like', "%{$token}%")
+                    ->orWhere('numero_documento', 'like', "%{$token}%")
+                    ->orWhere('descripcion', 'like', "%{$token}%");
+            });
+        }
     }
 
     /**
@@ -458,13 +481,7 @@ class CorrespondenciaController extends Controller
             $query->whereDate('fecha_recibo', '<=', $request->fecha_hasta);
         }
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('remitente', 'like', "%{$search}%")
-                    ->orWhere('numero_documento', 'like', "%{$search}%")
-                    ->orWhere('folio', 'like', "%{$search}%")
-                    ->orWhere('descripcion', 'like', "%{$search}%");
-            });
+            $this->aplicarBusqueda($query, $request->search);
         }
 
         $correspondencias = $query->orderBy('created_at', 'desc')
@@ -1000,12 +1017,7 @@ class CorrespondenciaController extends Controller
             $query->whereDate('fecha_recibo', '<=', $request->fecha_hasta);
         }
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('remitente', 'like', "%{$search}%")
-                    ->orWhere('numero_documento', 'like', "%{$search}%")
-                    ->orWhere('descripcion', 'like', "%{$search}%");
-            });
+            $this->aplicarBusqueda($query, $request->search);
         }
 
         $correspondencias = $query->orderBy('fecha_recibo')->orderBy('id')->get();

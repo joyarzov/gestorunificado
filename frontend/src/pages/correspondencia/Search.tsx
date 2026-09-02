@@ -18,6 +18,8 @@ import {
   IconButton,
   CircularProgress,
   MenuItem,
+  Alert,
+  Pagination,
 } from '@mui/material'
 import {
   Search as SearchIcon,
@@ -31,11 +33,17 @@ import { es } from 'date-fns/locale'
 
 import { ESTADO_CORRESPONDENCIA, ESTADOS_ENTRADA, estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 
+const POR_PAGINA = 25
+
 const CorrespondenciaSearch = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<Correspondencia[]>([])
   const [searched, setSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
 
   const [filters, setFilters] = useState({
     search: '',
@@ -44,27 +52,42 @@ const CorrespondenciaSearch = () => {
     fecha_hasta: null as Date | null,
   })
 
-  const handleSearch = async () => {
+  // La fecha se manda como día local. Con toISOString() se convierte a UTC y en
+  // Punta Arenas (UTC-3) el día retrocede: buscar "desde el 5" traía también
+  // las del 4. Ver la memoria de zonas horarias del proyecto.
+  const aDiaLocal = (d: Date | null) => (d ? format(d, 'yyyy-MM-dd') : undefined)
+
+  const buscar = async (pagina = 1) => {
     setLoading(true)
     setSearched(true)
+    setError(null)
     try {
-      const params = {
-        search: filters.search,
+      const response = await correspondenciaAPI.search(filters.search.trim(), {
         estado: filters.estado || undefined,
-        fecha_desde: filters.fecha_desde?.toISOString().split('T')[0],
-        fecha_hasta: filters.fecha_hasta?.toISOString().split('T')[0],
-      }
-      const response = await correspondenciaAPI.search(filters.search, params)
+        fecha_desde: aDiaLocal(filters.fecha_desde),
+        fecha_hasta: aDiaLocal(filters.fecha_hasta),
+        page: pagina,
+        per_page: POR_PAGINA,
+      })
       setResults(response.data.data)
-    } catch (error) {
-      console.error('Error en búsqueda:', error)
+      setTotal(response.data.total)
+      setLastPage(response.data.last_page)
+      setPage(response.data.current_page)
+    } catch (err) {
+      console.error('Error en búsqueda:', err)
+      setError('No se pudo completar la búsqueda. Inténtalo de nuevo.')
+      setResults([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
   }
 
+  // Cambiar cualquier filtro invalida la página en que se estaba: la siguiente
+  // búsqueda parte de la primera.
   const handleChange = (field: string, value: unknown) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
+    setPage(1)
   }
 
   return (
@@ -80,10 +103,11 @@ const CorrespondenciaSearch = () => {
               <TextField
                 fullWidth
                 label="Buscar"
-                placeholder="Remitente, número de documento..."
+                placeholder="Folio, remitente, N° de documento o materia"
                 value={filters.search}
                 onChange={(e) => handleChange('search', e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && buscar(1)}
+                helperText="Varias palabras achican el resultado: se buscan todas."
               />
             </Grid>
             <Grid item xs={12} md={2}>
@@ -121,7 +145,7 @@ const CorrespondenciaSearch = () => {
                 fullWidth
                 variant="contained"
                 startIcon={loading ? <CircularProgress size={20} /> : <SearchIcon />}
-                onClick={handleSearch}
+                onClick={() => buscar(1)}
                 disabled={loading}
                 sx={{ height: 56 }}
               >
@@ -132,8 +156,18 @@ const CorrespondenciaSearch = () => {
         </CardContent>
       </Card>
 
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+
       {searched && (
         <Card>
+          {!loading && total > 0 && (
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="body2" color="text.secondary">
+                {total === 1 ? '1 resultado' : `${total} resultados`}
+                {lastPage > 1 && ` · página ${page} de ${lastPage}`}
+              </Typography>
+            </Box>
+          )}
           <TableContainer>
             <Table>
               <TableHead>
@@ -164,7 +198,12 @@ const CorrespondenciaSearch = () => {
                   </TableRow>
                 ) : (
                   results.map((item) => (
-                    <TableRow key={item.id} hover>
+                    <TableRow
+                      key={item.id}
+                      hover
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/correspondencia/${item.id}`)}
+                    >
                       <TableCell><strong>{item.folio || `#${item.id}`}</strong></TableCell>
                       <TableCell>{item.numero_documento || '-'}</TableCell>
                       <TableCell>{item.remitente}</TableCell>
@@ -182,7 +221,7 @@ const CorrespondenciaSearch = () => {
                       <TableCell align="center">
                         <IconButton
                           size="small"
-                          onClick={() => navigate(`/correspondencia/${item.id}`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/correspondencia/${item.id}`) }}
                         >
                           <ViewIcon />
                         </IconButton>
@@ -193,6 +232,17 @@ const CorrespondenciaSearch = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {!loading && lastPage > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <Pagination
+                count={lastPage}
+                page={page}
+                onChange={(_, v) => buscar(v)}
+                color="primary"
+              />
+            </Box>
+          )}
         </Card>
       )}
     </Box>
