@@ -161,6 +161,48 @@ panel, abrir <em>Solo lo que sigo</em> y leer de arriba hacia abajo. En pocos se
 pasó con lo que le interesa, sin tener que abrir documento por documento.</div>
 HTML;
 
+$chat = <<<HTML
+<h1>El globo: quién está conectado y el chat interno</h1>
+<p>Abajo a la izquierda de la pantalla hay un <strong>globo azul</strong> que lo acompaña por toda la
+plataforma —Correspondencia, Expedientes, Cero Papel— sin importar en qué sección esté trabajando.
+Sirve para dos cosas: ver quién está conectado en este momento y conversar con un colega.</p>
+
+<h2>Quién está conectado</h2>
+<p>Al pulsar el globo se abre la pestaña <b>En línea</b> con los funcionarios que están usando la
+plataforma ahora, cada uno con su cargo y departamento. Más abajo aparecen los demás, con la
+indicación de cuándo estuvieron por última vez (<em>"activo hace 20 minutos"</em>).</p>
+<div class="tip"><b>Qué significa exactamente "en línea":</b> que esa persona tiene la plataforma
+abierta y está usando su computador en este momento. Si cierra la pestaña, se cambia a otro
+programa por un buen rato o se retira de su puesto, deja de aparecer en línea sola. No es un
+control de asistencia: es una ayuda para saber a quién puede pedirle algo con respuesta rápida.</div>
+<p>Ese mismo indicador aparece al momento de <strong>derivar</strong>: junto al nombre de cada
+funcionario verá el punto verde si está conectado. Para un asunto urgente, eso ayuda a decidir a
+quién enviarlo.</p>
+
+<h2>Conversar con un colega</h2>
+<div class="paso"><b class="n">Paso 1.</b> Abra el globo y pulse sobre el nombre de la persona con
+quien quiere hablar. Si ya conversaron antes, encuéntrela en la pestaña <b>Chats</b>.</div>
+<div class="paso"><b class="n">Paso 2.</b> Escriba su mensaje y pulse Enter (o el botón de enviar).
+La conversación es privada entre ustedes dos: nadie más la ve.</div>
+<div class="paso"><b class="n">Paso 3.</b> Bajo cada mensaje suyo verá un <b>tilde</b> cuando fue
+enviado y <b>dos tildes</b> cuando la otra persona ya abrió la conversación.</div>
+
+<h2>Cómo se entera de un mensaje nuevo</h2>
+<ul>
+<li>Un <b>aviso</b> aparece unos segundos en la esquina superior derecha, con quién le escribió y las primeras palabras. Si lo pulsa, se abre esa conversación.</li>
+<li>Un <b>sonido</b> breve. Puede silenciarlo con el ícono de altavoz, abajo en el mismo globo; al activarlo suena una vez para que compruebe que se oye.</li>
+<li>El <b>número rojo</b> sobre el globo, con los mensajes sin leer.</li>
+<li>Si está en otra pestaña del navegador, el <b>título de la pestaña</b> muestra la cantidad: <span class="kbd">(2) Correspondencia…</span></li>
+</ul>
+
+<div class="ojo"><b>El chat es para coordinar, no para dejar constancia.</b> Lo que conversen ahí
+no queda registrado en el expediente ni en la correspondencia. Si algo tiene valor para el
+trámite —un informe, una instrucción, una respuesta formal— debe ir sí o sí a la
+<strong>Conversación</strong> de la correspondencia o del expediente, que es la que deja huella y
+la que cualquiera podrá consultar después. El chat sirve para el <em>"¿viste el oficio que te
+derivé?"</em>; la Conversación, para todo lo demás.</div>
+HTML;
+
 // ==================== MANUAL OFICINA DE PARTES ====================
 
 $mPartes = <<<HTML
@@ -239,6 +281,7 @@ recibo del Alcalde) verá la etiqueta <em>"Solo lectura"</em>: puede mirar, no i
 $estados
 $conversacion
 $seguimiento
+$chat
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -252,6 +295,8 @@ $seguimiento
 <dd>Poder, se puede — pero el sentido de que el despacho pase por la Oficina de Partes es justamente su revisión. Lo que se despacha queda con su nombre en el registro.</dd>
 <dt>¿Cada cuánto se emite el libro?</dt>
 <dd>Lo define el municipio: típicamente mensual. El sistema no obliga a una frecuencia; usted elige el período cada vez.</dd>
+<dt>Necesito preguntarle algo rápido a un funcionario.</dt>
+<dd>Use el globo de abajo a la izquierda: vea si está conectado y escríbale. Recuerde que esa conversación no queda en el expediente; lo que importe para el trámite va a la Conversación de la correspondencia.</dd>
 <dt>Necesito hacerle seguimiento a un ingreso puntual hasta que salga la respuesta.</dt>
 <dd>Márquelo con la <b>estrella</b> desde el listado. Queda en su pestaña <b>En seguimiento</b>, con el tiempo que lleva sin movimiento a la vista, y puede seguir su avance desde <em>Últimos movimientos</em> en el panel. Es una lista privada suya.</dd>
 </dl>
@@ -345,16 +390,33 @@ el asunto deja de figurar como atrasado — y es correcto, porque efectivamente 
 acusar recibo es apenas el primer gesto: no significa que el encargo se haya trabajado. Un asunto
 puede quedarse semanas sin que nadie escriba una línea, y hasta ahora eso no se veía en ninguna parte.</p>
 <p>Por eso su panel muestra el recuadro <b>Estancadas</b>: correspondencia que está en gestión y en la
-que <strong>no ocurre ningún movimiento hace varios días</strong> —ni un mensaje, ni un acuse, ni una
-derivación—. Cada línea indica el folio, el remitente, el estado y cuántos días lleva detenida, y los
-asuntos que usted marcó con la estrella aparecen primero.</p>
-<div class="ojo">No confunda los dos avisos, porque señalan cosas distintas:
+que <strong>no ocurre ningún movimiento entre una y cuatro semanas</strong> —ni un mensaje, ni un
+acuse, ni una derivación—. Cada línea indica el folio, el remitente, el estado y cuántos días lleva
+detenida, y los asuntos que usted marcó con la estrella aparecen primero.</p>
+<div class="ojo">No confunda los avisos, porque señalan cosas distintas:
 <b>Atrasos</b> es lo que <em>nadie ha recibido</em> todavía (el funcionario no ha acusado);
 <b>Estancadas</b> es lo que <em>ya recibieron pero nadie ha movido</em>. El segundo caso es el que
 suele pasar inadvertido.</div>
 <p>Un clic en cualquier línea lo lleva al documento, donde puede escribir en la Conversación para
 pedir un estado de avance, o cerrar el proceso si en realidad ya estaba terminado y solo faltaba
 formalizarlo.</p>
+
+<h2>Lo que solo espera su firma: cerrar por tandas</h2>
+<p>Hay una diferencia importante entre algo que <em>se detuvo</em> y algo que <em>terminó pero
+nadie cerró</em>. Lo primero requiere gestionar; lo segundo, solo formalizar.</p>
+<p>Cuando una correspondencia lleva más de un mes sin movimiento, la plataforma deja de tratarla
+como estancada y la cuenta aparte, en el aviso <b>"N procesos esperan tu cierre"</b>. Ahí no hay
+nada que gestionar: es trabajo terminado al que le falta el cierre formal.</p>
+<div class="paso"><b class="n">Paso 1.</b> Pulse <b>Revisar y cerrar</b> en ese aviso. Se abre una
+lista con lo más antiguo primero, indicando de cada una cuánto lleva quieta y si ya se despachó
+una respuesta al remitente.</div>
+<div class="paso"><b class="n">Paso 2.</b> Marque las que correspondan —o use la casilla del
+encabezado para tomar toda la página de una vez— y pulse <b>Cerrar</b>. Puede avanzar por tandas,
+sin entrar a cada correspondencia.</div>
+<div class="tip">Empiece por las que aparecen como <b>Respondidas</b>: si la respuesta ya salió al
+remitente, el proceso terminó y cerrarlo es seguro.</div>
+<p>Cada cierre queda registrado con su nombre, la fecha y la hora, exactamente igual que si lo
+hiciera entrando a la ficha una por una. Y cualquiera de ellos se puede reabrir después.</p>
 
 <h1>8. Durante sus ausencias: la subrogancia</h1>
 <p>Antes de ausentarse (vacaciones, cometido), asegúrese de tener definido su <b>subrogante</b> en su
@@ -369,6 +431,7 @@ acusa recibos y deriva en su nombre — con tres resguardos que protegen a ambos
 $estados
 $conversacion
 $seguimiento
+$chat
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -384,6 +447,10 @@ $seguimiento
 <dd>La correspondencia queda en "Derivada a Funcionario" y usted lo ve en el detalle (quién acusó y quién no). Un recordatorio por la Conversación suele bastar. Además aparece en el recuadro <b>Atrasos</b> de su panel.</dd>
 <dt>Acusaron recibo hace tres semanas y nadie me ha informado nada.</dt>
 <dd>Ese caso aparece en el recuadro <b>Estancadas</b> de su panel, ordenado por los días que lleva detenido. Entre al documento y pida el estado de avance por la Conversación: el funcionario recibe el aviso de inmediato.</dd>
+<dt>Cerré procesos por tandas y uno no correspondía.</dt>
+<dd>Ábralo y pulse <b>Reabrir proceso</b>: vuelve a estar operativo. Tanto el cierre como la reapertura quedan registrados.</dd>
+<dt>¿Por qué no aparece nadie conectado en el globo?</dt>
+<dd>Solo aparece quien tiene la plataforma abierta y está usando su computador en ese momento. A primera hora, en colación o si todos están en terreno, la lista puede estar vacía sin que haya nada mal.</dd>
 <dt>¿Los funcionarios ven qué correspondencia marqué con la estrella?</dt>
 <dd>No. El seguimiento es privado de cada usuario: nadie ve su lista, ni usted la de otros.</dd>
 <dt>Marqué una estrella por error.</dt>
@@ -419,9 +486,18 @@ las observaciones suelen señalar el plazo.</div>
 <div class="paso"><b class="n">Paso 4.</b> Trabaje el encargo y utilice la <b>Conversación</b> para
 todo lo demás: informar su avance, hacer consultas al Alcalde o a otros participantes, y adjuntar
 su informe o respuesta cuando esté lista. Todos los involucrados reciben aviso de cada mensaje.</div>
+<div class="paso"><b class="n">Paso 5.</b> Cuando termine con el encargo, pulse
+<b>Archivar en mi bandeja</b> —está en la misma pantalla del detalle, no hace falta volver a la
+Bandeja—. La correspondencia sale de sus pendientes y queda guardada en la pestaña
+<b>Archivadas</b>. Si después necesita retomarla, ábrala desde ahí y pulse
+<b>Devolver a mi bandeja</b>.</div>
 <div class="tip">Acusar recibo NO bloquea nada: después del acuse puede seguir escribiendo,
 adjuntando y gestionando con normalidad. Son dos cosas distintas: el acuse confirma que recibió;
 la Conversación es donde ocurre el trabajo.</div>
+<div class="ojo"><b>Archivar en su bandeja no cierra el trámite.</b> Solo lo saca de SUS
+pendientes: para el resto del municipio la correspondencia sigue su curso, y usted puede volver a
+ella cuando quiera. El cierre formal del proceso —el que lo da por terminado para todos— lo hace
+únicamente el Alcalde.</div>
 
 <h1>4. Los archivos: ver y compartir documentos</h1>
 <ul>
@@ -439,6 +515,7 @@ registrados en la historia del documento.</p>
 $estados
 $conversacion
 $seguimiento
+$chat
 
 <h1>Preguntas frecuentes</h1>
 <dl class="faq">
@@ -452,6 +529,12 @@ $seguimiento
 <dd>Defina su subrogante en su perfil antes de salir. Mientras dure su ausencia, este verá su bandeja, podrá actuar en su nombre (todo queda registrado como subrogancia) y recibirá sus notificaciones.</dd>
 <dt>No me llegan los correos de aviso.</dt>
 <dd>Revise que su correo institucional esté bien escrito en su ficha (puede verlo en su perfil) y mire la carpeta de spam. Si sigue fallando, avise a Informática.</dd>
+<dt>Archivé una correspondencia en mi bandeja y necesito retomarla.</dt>
+<dd>Búsquela en la pestaña <b>Archivadas</b> de su bandeja, ábrala y pulse <b>Devolver a mi bandeja</b>. Vuelve a sus pendientes tal como estaba.</dd>
+<dt>¿Lo que converso por el chat queda en el expediente?</dt>
+<dd>No. El chat es para coordinar; no deja registro en la correspondencia. Todo lo que tenga valor para el trámite debe ir a la <b>Conversación</b> del documento.</dd>
+<dt>No escucho el sonido de los mensajes.</dt>
+<dd>Abra el globo y pulse el ícono de altavoz que está abajo: al activarlo suena una vez. Si igual no se oye, revise el volumen del equipo y que la pestaña no esté silenciada en el navegador.</dd>
 <dt>Tengo varios encargos a la vez y se me pierden entre lo que va llegando.</dt>
 <dd>Marque con la <b>estrella</b> los que esté trabajando: quedan reunidos en la pestaña <b>En seguimiento</b> de su bandeja, con el más detenido arriba. Es su lista privada, nadie más la ve.</dd>
 </dl>
