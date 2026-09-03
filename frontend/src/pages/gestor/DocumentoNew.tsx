@@ -1276,7 +1276,7 @@ const DocumentoNew = () => {
               fullWidth
               label="Expediente"
               value={expedientesSeleccionados.length > 0
-                ? `${expedientesSeleccionados[0].identificador || expedientesSeleccionados[0].numero_expediente || ''} - ${expedientesSeleccionados[0].titulo}`
+                ? `${expedientesSeleccionados[0].identificador} - ${expedientesSeleccionados[0].titulo}`
                 : 'Cargando...'}
               disabled
             />
@@ -1284,7 +1284,7 @@ const DocumentoNew = () => {
             <Autocomplete
               multiple
               options={expedientes}
-              getOptionLabel={(option) => `${option.numero_expediente} - ${option.titulo.substring(0, 40)}`}
+              getOptionLabel={(option) => `${option.identificador} - ${option.titulo.substring(0, 40)}`}
               value={expedientesSeleccionados}
               onChange={(_, newValue) => setExpedientesSeleccionados(newValue)}
               renderInput={(params) => (
@@ -1300,7 +1300,7 @@ const DocumentoNew = () => {
               renderTags={(value, getTagProps) =>
                 value.map((option, index) => (
                   <Chip
-                    label={option.numero_expediente}
+                    label={option.identificador}
                     {...getTagProps({ index })}
                     key={option.id}
                   />
@@ -1666,7 +1666,7 @@ const DocumentoNew = () => {
               <Typography><strong>Nivel de Acceso:</strong> {NIVELES_ACCESO.find(n => n.value === nivelAcceso)?.label}</Typography>
               {expedientesSeleccionados.length > 0 && (
                 <Typography>
-                  <strong>Expedientes:</strong> {expedientesSeleccionados.map(e => e.numero_expediente).join(', ')}
+                  <strong>Expedientes:</strong> {expedientesSeleccionados.map(e => e.identificador).join(', ')}
                 </Typography>
               )}
               <Typography>

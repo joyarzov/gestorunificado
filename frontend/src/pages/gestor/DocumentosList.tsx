@@ -305,7 +305,7 @@ const DocumentosList = () => {
                     <TableCell>{item.tipo_documental?.nombre || '-'}</TableCell>
                     <TableCell>
                       {item.expedientes && item.expedientes.length > 0
-                        ? item.expedientes.map((e: any) => e.numero_expediente || e.identificador).join(', ')
+                        ? item.expedientes.map((e: any) => e.identificador).join(', ')
                         : '-'}
                     </TableCell>
                     <TableCell>

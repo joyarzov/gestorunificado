@@ -245,8 +245,8 @@ export interface TipoDocumental {
 
 export interface Expediente {
   id: number
-  identificador?: string
-  numero_expediente: string
+  /** Folio del expediente (columna `identificador`, NOT NULL). */
+  identificador: string
   numero?: string
   titulo: string
   caratula?: string

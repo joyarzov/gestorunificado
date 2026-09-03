@@ -972,7 +972,7 @@ const DocumentoDetail = () => {
                         <FolderIcon color="primary" />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`${exp.identificador || exp.numero_expediente} — ${exp.titulo}`}
+                        primary={`${exp.identificador} — ${exp.titulo}`}
                         primaryTypographyProps={{ color: 'primary.main', variant: 'body2', fontWeight: 'medium' }}
                       />
                     </ListItem>

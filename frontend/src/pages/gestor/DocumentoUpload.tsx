@@ -537,7 +537,7 @@ const DocumentoUpload = () => {
                   value={expedienteSel}
                   onChange={(_, val) => setExpedienteSel(val)}
                   disabled={!!expedienteFijadoId}
-                  getOptionLabel={(opt) => `${opt.numero_expediente || opt.identificador || ''} — ${opt.titulo}`}
+                  getOptionLabel={(opt) => `${opt.identificador} — ${opt.titulo}`}
                   renderInput={(params) => (
                     <TextField
                       {...params}
