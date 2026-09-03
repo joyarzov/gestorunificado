@@ -757,10 +757,23 @@ class DocumentoController extends Controller
             'actualizado_por' => Auth::id()
         ]);
 
-        DocumentoTrazabilidad::registrar($documento->id, 'enviado_a_firma', 'Documento enviado a firma');
-
         // Firma secuencial: notificar solo al firmante en turno (el primero de la cadena).
         $enTurno = $documento->firmanteEnTurno();
+
+        $totalFirmantes = max(
+            $documento->firmantesAsignados()->count(),
+            $documento->firmante_asignado_id ? 1 : 0
+        );
+        DocumentoTrazabilidad::registrar(
+            $documento->id,
+            'enviado_a_firma',
+            $enTurno
+                ? "Enviado a la firma de {$enTurno->nombre}"
+                    . ($totalFirmantes > 1 ? " (1 de {$totalFirmantes} firmantes)" : '')
+                : 'Documento enviado a firma',
+            ['firmante_en_turno_id' => optional($enTurno)->id, 'total_firmantes' => $totalFirmantes]
+        );
+
         if ($enTurno) {
             NotificacionService::enviar(
                 $enTurno,
@@ -927,6 +940,14 @@ class DocumentoController extends Controller
             $documento->refresh();
             $completo = $documento->estado === Documento::ESTADO_FIRMADO;
 
+            if ($completo) {
+                DocumentoTrazabilidad::registrar(
+                    $documento->id,
+                    'firma_completa',
+                    'Firmado por todos los firmantes: el documento queda cerrado'
+                );
+            }
+
             if ($completo && $documento->creado_por) {
                 // Solo el aviso de "completo" (evita doble notificación con "firma registrada")
                 NotificacionService::enviar(
@@ -941,6 +962,26 @@ class DocumentoController extends Controller
                 // Aún faltan firmas: notificar al SIGUIENTE firmante de la cadena (su turno).
                 $siguiente = $documento->firmanteEnTurno();
                 if ($siguiente) {
+                    // La trazabilidad se cortaba en "firmado" y no decía dónde
+                    // quedó el documento: quien lo consulta necesita saber a quién
+                    // le toca ahora y cuánto falta.
+                    $totalFirmantes = max(
+                        $documento->firmantesAsignados()->count(),
+                        $documento->firmante_asignado_id ? 1 : 0
+                    );
+                    $yaFirmaron = $documento->firmas()->where('estado', 'firmado')->count();
+                    DocumentoTrazabilidad::registrar(
+                        $documento->id,
+                        'pasa_a_firmante',
+                        "Pasa a la firma de {$siguiente->nombre}"
+                            . ($totalFirmantes ? " ({$yaFirmaron} de {$totalFirmantes} firmas)" : ''),
+                        [
+                            'siguiente_firmante_id' => $siguiente->id,
+                            'firmas_registradas' => $yaFirmaron,
+                            'total_firmantes' => $totalFirmantes,
+                        ]
+                    );
+
                     NotificacionService::enviar(
                         $siguiente,
                         'cero_papel',

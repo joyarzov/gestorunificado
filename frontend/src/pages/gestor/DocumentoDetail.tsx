@@ -125,6 +125,8 @@ const trazabilidadIconMap: Record<string, { icon: React.ReactElement; color: str
   rectificado: { icon: <RectificarIcon />, color: '#ed6c02' },
   dejado_sin_efecto: { icon: <SinEfectoIcon />, color: '#d32f2f' },
   rectificacion_aplicada: { icon: <VerifiedIcon />, color: '#ed6c02' },
+  pasa_a_firmante: { icon: <PendienteIcon />, color: '#ff9800' },
+  firma_completa: { icon: <VerifiedIcon />, color: '#4caf50' },
 }
 
 const accionLabels: Record<string, string> = {
@@ -144,6 +146,8 @@ const accionLabels: Record<string, string> = {
   rectificado: 'Rectificado',
   dejado_sin_efecto: 'Dejado sin efecto',
   rectificacion_aplicada: 'Rectificación con efecto',
+  pasa_a_firmante: 'Pasa al siguiente firmante',
+  firma_completa: 'Firma completa',
 }
 
 
