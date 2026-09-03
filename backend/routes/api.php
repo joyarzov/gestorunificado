@@ -345,6 +345,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::post('/{documento}/firmar', [DocumentoController::class, 'firmar']);
         Route::post('/{documento}/rechazar-firma', [DocumentoController::class, 'rechazarFirma']);
         Route::post('/{documento}/devolver-a-borrador', [DocumentoController::class, 'devolverABorrador']);
+        // Rectificación de documentos firmes (no se editan: se corrigen con otro documento)
+        Route::post('/{documento}/rectificar', [DocumentoController::class, 'rectificar']);
+        Route::get('/{documento}/candidatos-rectificatorios', [DocumentoController::class, 'candidatosRectificatorios']);
         Route::post('/{documento}/agregar-firmante', [DocumentoController::class, 'agregarFirmante']);
         Route::get('/{documento}/trazabilidad', [DocumentoController::class, 'trazabilidad']);
         Route::put('/{documento}/metadatos', [DocumentoController::class, 'actualizarMetadatos']);

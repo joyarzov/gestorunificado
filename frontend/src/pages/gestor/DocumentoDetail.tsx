@@ -26,6 +26,13 @@ import {
   Slider,
   ToggleButtonGroup,
   ToggleButton,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  AlertTitle,
+  Link as MuiLink,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -44,6 +51,9 @@ import {
   Download as DownloadIcon,
   Folder as FolderIcon,
   Bolt as BoltIcon,
+  EditNote as RectificarIcon,
+  Block as SinEfectoIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material'
 import { documentosAPI, tiposDocumentalesAPI } from '../../api/gestor'
 import api from '../../api/axios'
@@ -53,7 +63,10 @@ import FirmaPagePreview, {
   calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
 } from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
-import { Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, TipoDocumental, User } from '../../types'
+import {
+  Documento, DocumentoEnvio, DocumentoFirma, DocumentoTrazabilidad, DocumentoVinculado,
+  TipoDocumental, TipoRectificacion, User,
+} from '../../types'
 
 const NIVELES_ACCESO = [
   { value: 1, label: 'Público' },
@@ -106,6 +119,11 @@ const trazabilidadIconMap: Record<string, { icon: React.ReactElement; color: str
   eliminado: { icon: <DeleteIcon />, color: '#f44336' },
   incorporado: { icon: <FolderIcon />, color: '#4caf50' },
   asociado: { icon: <FolderIcon />, color: '#2196f3' },
+  rectificacion_iniciada: { icon: <RectificarIcon />, color: '#ed6c02' },
+  rectificatorio_creado: { icon: <RectificarIcon />, color: '#ed6c02' },
+  rectificado: { icon: <RectificarIcon />, color: '#ed6c02' },
+  dejado_sin_efecto: { icon: <SinEfectoIcon />, color: '#d32f2f' },
+  rectificacion_aplicada: { icon: <VerifiedIcon />, color: '#ed6c02' },
 }
 
 const accionLabels: Record<string, string> = {
@@ -120,6 +138,11 @@ const accionLabels: Record<string, string> = {
   eliminado: 'Eliminado',
   incorporado: 'Adjuntado como antecedente',
   asociado: 'Asociado a expediente',
+  rectificacion_iniciada: 'Rectificación iniciada',
+  rectificatorio_creado: 'Emitido como rectificatorio',
+  rectificado: 'Rectificado',
+  dejado_sin_efecto: 'Dejado sin efecto',
+  rectificacion_aplicada: 'Rectificación con efecto',
 }
 
 
@@ -153,6 +176,15 @@ const DocumentoDetail = () => {
   const [firmarDialogOpen, setFirmarDialogOpen] = useState(false)
   const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false)
   const [rechazoMotivo, setRechazoMotivo] = useState('')
+  // Rectificación de un documento firme (no se edita: se corrige con otro documento)
+  const [rectificarDialogOpen, setRectificarDialogOpen] = useState(false)
+  const [rectTipo, setRectTipo] = useState<TipoRectificacion>('rectifica')
+  const [rectMotivo, setRectMotivo] = useState('')
+  const [rectVia, setRectVia] = useState<'redactar' | 'vincular'>('redactar')
+  const [rectCandidatos, setRectCandidatos] = useState<DocumentoVinculado[]>([])
+  const [rectVinculado, setRectVinculado] = useState<DocumentoVinculado | null>(null)
+  const [rectLoading, setRectLoading] = useState(false)
+  const [rectError, setRectError] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [firmaDesatendida, setFirmaDesatendida] = useState(false)
   const [firmaGobEnabled, setFirmaGobEnabled] = useState(false)
@@ -381,6 +413,65 @@ const DocumentoDetail = () => {
     }
   }
 
+  /**
+   * Abre el diálogo de rectificación. Para un documento sin plantilla (PDF subido o
+   * antecedente) no hay contenido que copiar, así que el único camino es vincular
+   * un documento que ya esté en el expediente: se precargan los candidatos.
+   */
+  const abrirRectificar = async () => {
+    if (!id) return
+    setRectTipo('rectifica')
+    setRectMotivo('')
+    setRectVinculado(null)
+    setRectError('')
+    setRectVia(esSubido ? 'vincular' : 'redactar')
+    setRectificarDialogOpen(true)
+    try {
+      const res = await documentosAPI.candidatosRectificatorios(parseInt(id))
+      setRectCandidatos(res.data || [])
+    } catch {
+      // Sin candidatos solo se pierde la opción de vincular; redactar sigue disponible.
+      setRectCandidatos([])
+    }
+  }
+
+  const handleRectificar = async () => {
+    if (!id) return
+    if (rectMotivo.trim().length < 5) {
+      setRectError('Explica brevemente qué se corrige: queda registrado en el expediente.')
+      return
+    }
+    if (rectVia === 'vincular' && !rectVinculado) {
+      setRectError('Elige el documento que rectifica a este.')
+      return
+    }
+
+    setRectLoading(true)
+    setRectError('')
+    try {
+      const res = await documentosAPI.rectificar(parseInt(id), {
+        tipo_rectificacion: rectTipo,
+        motivo: rectMotivo.trim(),
+        ...(rectVia === 'vincular' && rectVinculado ? { documento_rectificatorio_id: rectVinculado.id } : {}),
+      })
+      setRectificarDialogOpen(false)
+      const nuevo = res.data.rectificatorio
+      if (res.data.requiere_edicion) {
+        // Se creó el borrador con el contenido copiado: al editor, que es donde
+        // el redactor corrige lo que estaba mal.
+        setSnackbar({ open: true, message: 'Borrador rectificatorio creado. Corrige y envía a firma.', severity: 'success' })
+        navigate(`/documentos/${nuevo.id}/editar`)
+      } else {
+        setSnackbar({ open: true, message: 'Documento vinculado como rectificatorio.', severity: 'success' })
+        loadDocumento(parseInt(id))
+      }
+    } catch (err: any) {
+      setRectError(err?.response?.data?.message || 'No se pudo rectificar el documento')
+    } finally {
+      setRectLoading(false)
+    }
+  }
+
   const handleEnviarDocumento = async (destinatarioIds?: number[]) => {
     if (!id) return
     setActionLoading(true)
@@ -450,6 +541,29 @@ const DocumentoDetail = () => {
   const firmaRechazo = (documento?.firmas || []).filter(f => f.estado === 'rechazado').slice(-1)[0]
   const motivoRechazo = firmaRechazo?.observacion || firmaRechazo?.observaciones || ''
   const puedeCorregir = documento?.estado === 'rechazado' && esCreadorOAdmin
+
+  /**
+   * Rectificación: solo sobre documentos ya firmes (firmado o antecedente
+   * incorporado), que son los que no admiten edición. Los borradores se editan y
+   * los rechazados se devuelven a borrador; para esos, rectificar sería ensuciar
+   * el expediente con un documento de más.
+   */
+  const esFirme = documento?.estado === 'firmado' || documento?.estado === 'incorporado'
+  const firmoEsteDocumento = (documento?.firmas || []).some(
+    f => f.estado === 'firmado' && (f.usuario_id === user?.id || f.actuando_como_user_id === user?.id),
+  )
+  // La rectificación ya emitida y con efecto (la que está en borrador aún no cuenta).
+  const rectificacionFirme = (documento?.rectificaciones || []).find(
+    r => r.estado === 'firmado' || r.estado === 'incorporado',
+  )
+  // Un rectificatorio en curso: emitido pero todavía sin firmar.
+  const rectificacionEnCurso = (documento?.rectificaciones || []).find(
+    r => r.estado === 'borrador' || r.estado === 'pendiente_firma',
+  )
+  // Con un rectificatorio ya emitido y sin firmar, emitir otro sería duplicar la
+  // corrección: primero se cierra el que está en trámite.
+  const puedeRectificar = esFirme && !rectificacionFirme && !rectificacionEnCurso &&
+    (esCreadorOAdmin || firmoEsteDocumento)
 
   // Documento subido/externo: no tiene plantilla ni contenido editable; sus datos se editan
   // por metadatos (título, tipo, nivel) en vez del editor de plantilla.
@@ -711,8 +825,91 @@ const DocumentoDetail = () => {
               Corregir y reenviar
             </Button>
           )}
+          {puedeRectificar && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<RectificarIcon />}
+              onClick={abrirRectificar}
+              disabled={actionLoading}
+            >
+              Rectificar
+            </Button>
+          )}
         </Box>
       </Box>
+
+      {/* Este documento fue corregido por otro: quien lo lee tiene que saberlo antes
+          de usarlo, sobre todo si quedó sin efecto. */}
+      {rectificacionFirme && (
+        <Alert
+          severity={documento.estado === 'anulado' ? 'error' : 'warning'}
+          icon={documento.estado === 'anulado' ? <SinEfectoIcon /> : <RectificarIcon />}
+          sx={{ mb: 2 }}
+        >
+          <AlertTitle>
+            {documento.estado === 'anulado'
+              ? 'Documento dejado sin efecto'
+              : 'Documento rectificado'}
+          </AlertTitle>
+          {documento.estado === 'anulado'
+            ? 'Este documento ya no produce efectos. Fue reemplazado por '
+            : 'Este documento fue corregido por '}
+          <MuiLink
+            component="button"
+            type="button"
+            onClick={() => navigate(`/documentos/${rectificacionFirme.id}`)}
+            sx={{ fontWeight: 600 }}
+          >
+            {rectificacionFirme.numero || rectificacionFirme.identificador} — {rectificacionFirme.titulo}
+          </MuiLink>
+          {rectificacionFirme.motivo_rectificacion ? <>. Motivo: «{rectificacionFirme.motivo_rectificacion}»</> : '.'}
+        </Alert>
+      )}
+
+      {/* Rectificatorio emitido pero todavía sin firmar: aún no surte efecto. */}
+      {!rectificacionFirme && rectificacionEnCurso && (
+        <Alert severity="info" icon={<RectificarIcon />} sx={{ mb: 2 }}>
+          <AlertTitle>Rectificación en trámite</AlertTitle>
+          Se emitió{' '}
+          <MuiLink
+            component="button"
+            type="button"
+            onClick={() => navigate(`/documentos/${rectificacionEnCurso.id}`)}
+            sx={{ fontWeight: 600 }}
+          >
+            {rectificacionEnCurso.numero || rectificacionEnCurso.identificador}
+          </MuiLink>{' '}
+          para corregir este documento, pero todavía no está firmado: mientras tanto,
+          este documento sigue vigente.
+        </Alert>
+      )}
+
+      {/* Y al revés: este documento es el que corrige a otro. */}
+      {documento.rectifica_a && (
+        <Alert severity="info" icon={<LinkIcon />} sx={{ mb: 2 }}>
+          <AlertTitle>
+            {documento.tipo_rectificacion === 'deja_sin_efecto'
+              ? 'Deja sin efecto a otro documento'
+              : 'Documento rectificatorio'}
+          </AlertTitle>
+          {documento.tipo_rectificacion === 'deja_sin_efecto'
+            ? 'Este documento reemplaza a '
+            : 'Este documento corrige a '}
+          <MuiLink
+            component="button"
+            type="button"
+            onClick={() => navigate(`/documentos/${documento.rectifica_a!.id}`)}
+            sx={{ fontWeight: 600 }}
+          >
+            {documento.rectifica_a.numero || documento.rectifica_a.identificador} — {documento.rectifica_a.titulo}
+          </MuiLink>
+          {documento.motivo_rectificacion ? <>. Motivo: «{documento.motivo_rectificacion}»</> : '.'}
+          {documento.estado === 'borrador' && (
+            <> Recuerda dejar constancia de la rectificación en el texto del documento.</>
+          )}
+        </Alert>
+      )}
 
       {documento.estado === 'rechazado' && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -1280,6 +1477,130 @@ const DocumentoDetail = () => {
             startIcon={actionLoading ? <CircularProgress size={20} /> : undefined}
           >
             Rechazar Firma
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de rectificación de un documento firme */}
+      <Dialog
+        open={rectificarDialogOpen}
+        onClose={() => !rectLoading && setRectificarDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Rectificar documento</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Un documento firmado no se edita: tiene folio, código de verificación y firma.
+            Lo que se hace es emitir otro documento que lo corrige, y ambos quedan
+            vinculados y a la vista en el expediente.
+          </Alert>
+
+          <FormControl sx={{ mb: 2 }}>
+            <FormLabel sx={{ fontWeight: 600, mb: 0.5 }}>¿Qué pasa con el documento original?</FormLabel>
+            <RadioGroup value={rectTipo} onChange={(e) => setRectTipo(e.target.value as TipoRectificacion)}>
+              <FormControlLabel
+                value="rectifica"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>Rectificar</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Sigue vigente, con la nota de que fue corregido. Para errores puntuales.
+                    </Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="deja_sin_efecto"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>Dejar sin efecto</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Queda anulado y el nuevo lo reemplaza. Su verificación pública lo advertirá.
+                    </Typography>
+                  </Box>
+                }
+              />
+            </RadioGroup>
+          </FormControl>
+
+          <FormControl sx={{ mb: 2, display: 'block' }}>
+            <FormLabel sx={{ fontWeight: 600, mb: 0.5 }}>¿Con qué documento se corrige?</FormLabel>
+            <RadioGroup
+              value={rectVia}
+              onChange={(e) => setRectVia(e.target.value as 'redactar' | 'vincular')}
+            >
+              <FormControlLabel
+                value="redactar"
+                control={<Radio />}
+                disabled={esSubido}
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>Redactarlo ahora</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {esSubido
+                        ? 'No disponible: este documento se incorporó como PDF, no hay contenido que copiar.'
+                        : 'Se crea un borrador con una copia del contenido para que corrijas solo lo que está mal.'}
+                    </Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="vincular"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>Ya está en el expediente</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Vincular un documento ya cargado como el que rectifica a este.
+                    </Typography>
+                  </Box>
+                }
+              />
+            </RadioGroup>
+          </FormControl>
+
+          {rectVia === 'vincular' && (
+            <Autocomplete
+              options={rectCandidatos}
+              value={rectVinculado}
+              onChange={(_, v) => setRectVinculado(v)}
+              getOptionLabel={(o) => `${o.numero || o.identificador} — ${o.titulo}`}
+              noOptionsText="No hay otros documentos en este expediente"
+              renderInput={(params) => (
+                <TextField {...params} label="Documento rectificatorio" sx={{ mb: 2 }} />
+              )}
+              sx={{ mb: 2 }}
+            />
+          )}
+
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Motivo de la rectificación"
+            value={rectMotivo}
+            onChange={(e) => setRectMotivo(e.target.value)}
+            placeholder="Ej: se corrige el monto del punto 3, que decía $1.200.000 y debe decir $1.500.000"
+            helperText="Queda registrado en la trazabilidad de ambos documentos y en la hoja de ruta del expediente."
+          />
+
+          {rectError && <Alert severity="error" sx={{ mt: 2 }}>{rectError}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRectificarDialogOpen(false)} disabled={rectLoading}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleRectificar}
+            disabled={rectLoading}
+            startIcon={rectLoading ? <CircularProgress size={20} /> : <RectificarIcon />}
+          >
+            {rectVia === 'redactar' ? 'Crear rectificatorio' : 'Vincular'}
           </Button>
         </DialogActions>
       </Dialog>

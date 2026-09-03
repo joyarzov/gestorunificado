@@ -32,6 +32,12 @@ class Documento extends Model
     const MECANISMO_FISICO = 1;     // Digitalizado desde físico
     const MECANISNO_DIGITAL = 2;    // Nativo digital
 
+    // Modalidad de rectificación de un documento firme (ver rectificaA()).
+    // RECTIFICA: el original sigue vigente y el nuevo corrige una parte de él.
+    // DEJA_SIN_EFECTO: el original queda anulado y el nuevo lo reemplaza.
+    const RECT_RECTIFICA = 'rectifica';
+    const RECT_DEJA_SIN_EFECTO = 'deja_sin_efecto';
+
     // Origen del documento
     const ORIGEN_CREADO = 'creado';   // Generado desde plantilla en la plataforma
     const ORIGEN_SUBIDO = 'subido';   // PDF subido externamente
@@ -45,6 +51,10 @@ class Documento extends Model
         'tipo_documental_id',
         'plantilla_id',
         'expediente_id',
+        'rectifica_a_id',
+        'tipo_rectificacion',
+        'motivo_rectificacion',
+        'rectificacion_aplicada_at',
         'creado_por',
         'emitido_en_nombre_de_id',
         'actualizado_por',
@@ -81,6 +91,7 @@ class Documento extends Model
         'completado' => 'boolean',
         'fecha_firma' => 'datetime',
         'fecha_creacion' => 'datetime',
+        'rectificacion_aplicada_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -123,6 +134,23 @@ class Documento extends Model
     {
         return $this->belongsToMany(Expediente::class, 'documento_expediente')
             ->withTimestamps();
+    }
+
+    /**
+     * Documento firme al que este rectifica (null si no es un rectificatorio).
+     */
+    public function rectificaA()
+    {
+        return $this->belongsTo(Documento::class, 'rectifica_a_id');
+    }
+
+    /**
+     * Documentos emitidos para rectificar a este. Puede haber más de uno: un
+     * documento se rectifica las veces que haga falta y la cadena queda completa.
+     */
+    public function rectificaciones()
+    {
+        return $this->hasMany(Documento::class, 'rectifica_a_id')->orderBy('id');
     }
 
     public function creador()
@@ -552,6 +580,9 @@ class Documento extends Model
         } catch (\Exception $e) {
             Log::error('Error al generar PDF del documento firmado: ' . $e->getMessage());
         }
+
+        // Si este documento rectifica a otro, recién ahora —firmado— surte efecto.
+        $this->aplicarRectificacionSiCorresponde();
     }
 
     public function puedeSerFirmado(): bool
@@ -658,6 +689,166 @@ class Documento extends Model
     public function puedeFirmarse(): bool
     {
         return $this->estado === self::ESTADO_PENDIENTE_FIRMA;
+    }
+
+    /**
+     * ¿Es un documento cerrado e inmutable? Firmado electrónicamente en la
+     * plataforma, o incorporado como antecedente (PDF externo, ya final).
+     */
+    public function esFirme(): bool
+    {
+        return in_array($this->estado, [self::ESTADO_FIRMADO, self::ESTADO_INCORPORADO], true);
+    }
+
+    public function esRectificatorio(): bool
+    {
+        return $this->rectifica_a_id !== null;
+    }
+
+    /**
+     * La rectificación que ya surtió efecto sobre este documento, si existe.
+     * Un rectificatorio en borrador o esperando firma todavía no rectifica nada.
+     */
+    public function rectificacionFirme(): ?Documento
+    {
+        return $this->rectificaciones()
+            ->whereIn('estado', [self::ESTADO_FIRMADO, self::ESTADO_INCORPORADO])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function estaRectificado(): bool
+    {
+        return $this->rectificacionFirme() !== null;
+    }
+
+    /**
+     * Rectificatorio ya emitido pero todavía sin firmar. Mientras exista, el
+     * original sigue vigente y no corresponde emitir un segundo rectificatorio:
+     * serían dos documentos corrigiendo lo mismo.
+     */
+    public function rectificacionEnCurso(): ?Documento
+    {
+        return $this->rectificaciones()
+            ->whereIn('estado', [self::ESTADO_BORRADOR, self::ESTADO_PENDIENTE_FIRMA])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Solo se rectifica lo que ya no se puede editar. Un borrador se corrige
+     * editándolo, y uno rechazado con "Devolver a borrador"; emitir un
+     * rectificatorio para esos casos ensuciaría el expediente sin necesidad.
+     */
+    public function puedeRectificarse(): bool
+    {
+        return $this->esFirme() && !$this->estaRectificado() && !$this->rectificacionEnCurso();
+    }
+
+    /**
+     * Quién puede rectificar: quien lo redactó, quien lo firmó (es el responsable
+     * del contenido) o la administración. Sigue al actor real, no al contexto:
+     * rectificar es un acto que se le imputa a quien lo ejecuta.
+     */
+    public function puedeSerRectificadoPor(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ((int) $this->creado_por === (int) $user->id) {
+            return true;
+        }
+
+        return $this->firmas()
+            ->where('estado', 'firmado')
+            ->where(function ($q) use ($user) {
+                $q->where('usuario_id', $user->id)
+                  ->orWhere('actuando_como_user_id', $user->id);
+            })
+            ->exists();
+    }
+
+    /**
+     * Surte el efecto del rectificatorio sobre el documento original, una sola vez
+     * y solo cuando el rectificatorio ya quedó firme. Con la modalidad
+     * "deja sin efecto" el original pasa a anulado; con "rectifica" queda vigente
+     * y solo se anota el vínculo.
+     *
+     * Es idempotente: se invoca desde todos los caminos por los que un documento
+     * puede quedar firme (firma electrónica, cierre de PDF con firmas externas,
+     * vinculación de un documento ya firme) sin riesgo de anular dos veces.
+     */
+    public function aplicarRectificacionSiCorresponde(): void
+    {
+        if (!$this->esRectificatorio() || !$this->esFirme() || $this->rectificacion_aplicada_at) {
+            return;
+        }
+
+        $original = $this->rectificaA()->first();
+        if (!$original) {
+            return;
+        }
+
+        $dejaSinEfecto = $this->tipo_rectificacion === self::RECT_DEJA_SIN_EFECTO;
+        $refNuevo = $this->numero ?: $this->identificador;
+        $refOriginal = $original->numero ?: $original->identificador;
+
+        DB::transaction(function () use ($original, $dejaSinEfecto, $refNuevo, $refOriginal) {
+            $this->forceFill(['rectificacion_aplicada_at' => now()])->save();
+
+            if ($dejaSinEfecto && $original->estado !== self::ESTADO_ANULADO) {
+                $original->forceFill(['estado' => self::ESTADO_ANULADO])->save();
+            }
+
+            $glosaOriginal = $dejaSinEfecto
+                ? "Dejado sin efecto por el documento {$refNuevo}"
+                : "Rectificado por el documento {$refNuevo}";
+
+            \App\Models\DocumentoTrazabilidad::registrar(
+                $original->id,
+                $dejaSinEfecto ? 'dejado_sin_efecto' : 'rectificado',
+                $glosaOriginal . ($this->motivo_rectificacion ? ". Motivo: {$this->motivo_rectificacion}" : ''),
+                [
+                    'rectificatorio_id' => $this->id,
+                    'tipo_rectificacion' => $this->tipo_rectificacion,
+                    'motivo' => $this->motivo_rectificacion,
+                ]
+            );
+
+            \App\Models\DocumentoTrazabilidad::registrar(
+                $this->id,
+                'rectificacion_aplicada',
+                $dejaSinEfecto
+                    ? "Deja sin efecto al documento {$refOriginal}"
+                    : "Rectifica al documento {$refOriginal}",
+                [
+                    'original_id' => $original->id,
+                    'tipo_rectificacion' => $this->tipo_rectificacion,
+                ]
+            );
+
+            // Dejar constancia en la hoja de ruta de los expedientes donde vive el
+            // documento corregido: ahí es donde se lee la historia del asunto.
+            foreach ($original->expedientes()->pluck('expedientes.id') as $expedienteId) {
+                \App\Models\ExpedienteActividad::create([
+                    'expediente_id' => $expedienteId,
+                    'usuario_id' => \Illuminate\Support\Facades\Auth::id(),
+                    'tipo' => $dejaSinEfecto ? 'documento_dejado_sin_efecto' : 'documento_rectificado',
+                    'descripcion' => "{$glosaOriginal}: \"{$original->titulo}\"",
+                    'metadata' => [
+                        'documento_id' => $original->id,
+                        'rectificatorio_id' => $this->id,
+                        'tipo_rectificacion' => $this->tipo_rectificacion,
+                        'motivo' => $this->motivo_rectificacion,
+                    ],
+                ]);
+            }
+        });
     }
 
     public function getNivelAccesoTextoAttribute(): string

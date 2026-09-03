@@ -10,6 +10,7 @@ import {
   Button,
   Grid,
   Alert,
+  AlertTitle,
   Chip,
   Divider,
   CircularProgress,
@@ -166,8 +167,40 @@ const VerificarDocumento = () => {
         {resultado && resultado.tipo_origen === 'documento' && (
           <Card>
             <CardContent>
+              {/* Un documento rectificado se ve idéntico al original: quien valida
+                  el QR tiene que enterarse antes de leer nada más. */}
+              {resultado.rectificado_por && (
+                <Alert
+                  severity={resultado.rectificado_por.tipo_rectificacion === 'deja_sin_efecto' ? 'error' : 'warning'}
+                  sx={{ mb: 3 }}
+                >
+                  <AlertTitle>
+                    {resultado.rectificado_por.tipo_rectificacion === 'deja_sin_efecto'
+                      ? 'Este documento fue dejado sin efecto'
+                      : 'Este documento fue rectificado'}
+                  </AlertTitle>
+                  {resultado.rectificado_por.tipo_rectificacion === 'deja_sin_efecto'
+                    ? 'Ya no produce efectos. Fue reemplazado por el documento '
+                    : 'Su contenido fue corregido por el documento '}
+                  <strong>{resultado.rectificado_por.numero}</strong>
+                  {resultado.rectificado_por.titulo ? ` — ${resultado.rectificado_por.titulo}` : ''}
+                  {resultado.rectificado_por.motivo ? `. Motivo: «${resultado.rectificado_por.motivo}»` : '.'}
+                </Alert>
+              )}
+
+              {resultado.rectifica_a && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <AlertTitle>Documento rectificatorio</AlertTitle>
+                  {resultado.rectifica_a.tipo_rectificacion === 'deja_sin_efecto'
+                    ? 'Este documento deja sin efecto al documento '
+                    : 'Este documento rectifica al documento '}
+                  <strong>{resultado.rectifica_a.numero}</strong>
+                  {resultado.rectifica_a.titulo ? ` — ${resultado.rectifica_a.titulo}` : ''}.
+                </Alert>
+              )}
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                {resultado.firmado ? (
+                {resultado.firmado && resultado.vigente !== false ? (
                   <VerifiedIcon sx={{ fontSize: 48, color: '#2DC700' }} />
                 ) : (
                   <WarningIcon sx={{ fontSize: 48, color: '#EE5825' }} />
@@ -177,9 +210,11 @@ const VerificarDocumento = () => {
                     Documento Verificado
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {resultado.firmado
-                      ? 'Este documento ha sido firmado y es auténtico'
-                      : 'Este documento existe en el sistema pero aún no está completamente firmado'}
+                    {resultado.vigente === false
+                      ? 'Este documento es auténtico, pero su contenido fue corregido por otro documento posterior'
+                      : resultado.firmado
+                        ? 'Este documento ha sido firmado y es auténtico'
+                        : 'Este documento existe en el sistema pero aún no está completamente firmado'}
                   </Typography>
                 </Box>
                 <Chip

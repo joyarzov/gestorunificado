@@ -5,6 +5,8 @@ import {
   Documento,
   DocumentoAdjunto,
   DocumentoEnvio,
+  DocumentoVinculado,
+  TipoRectificacion,
   DocumentoTrazabilidad,
   TipoDocumental,
   DocumentoPlantilla,
@@ -413,6 +415,35 @@ export const documentosAPI = {
   // Devuelve un documento rechazado a borrador para corregirlo y reenviarlo.
   devolverABorrador: async (id: number) => {
     const response = await api.post<ApiResponse<Documento>>(`/documentos/${id}/devolver-a-borrador`)
+    return response.data
+  },
+
+  /**
+   * Rectifica un documento firme emitiendo otro que lo corrige. Sin
+   * `documentoRectificatorioId` se clona el original en un borrador editable;
+   * con él se vincula un documento ya cargado (caso de los PDF incorporados).
+   */
+  rectificar: async (
+    id: number,
+    datos: {
+      tipo_rectificacion: TipoRectificacion
+      motivo: string
+      documento_rectificatorio_id?: number
+    },
+  ) => {
+    const response = await api.post<ApiResponse<{
+      original: Documento
+      rectificatorio: Documento
+      requiere_edicion: boolean
+    }>>(`/documentos/${id}/rectificar`, datos)
+    return response.data
+  },
+
+  // Documentos del mismo expediente que pueden vincularse como rectificatorios.
+  candidatosRectificatorios: async (id: number) => {
+    const response = await api.get<ApiResponse<DocumentoVinculado[]>>(
+      `/documentos/${id}/candidatos-rectificatorios`,
+    )
     return response.data
   },
 

@@ -10,6 +10,7 @@ import {
   Grid,
   MenuItem,
   Alert,
+  AlertTitle,
   CircularProgress,
   Stepper,
   Step,
@@ -49,7 +50,10 @@ import {
 } from '@mui/icons-material'
 import { documentosAPI, expedientesAPI } from '../../api/gestor'
 import { usersAPI, departamentosAPI } from '../../api/common'
-import { DocumentoPlantilla, PlantillaPersonal, PlantillaPersonalContenido, Expediente, User, Departamento } from '../../types'
+import {
+  DocumentoPlantilla, PlantillaPersonal, PlantillaPersonalContenido, Expediente, User, Departamento,
+  DocumentoVinculado, TipoRectificacion,
+} from '../../types'
 import { buildPreviewDoc } from '../../utils/previewDoc'
 import SelectorFirmantes from '../../components/gestor/SelectorFirmantes'
 import { useAuth } from '../../contexts/AuthContext'
@@ -107,6 +111,10 @@ const DocumentoNew = () => {
   const [searchParams] = useSearchParams()
   const { id: editId } = useParams<{ id: string }>()
   const isEditMode = !!editId
+  // Rectificación: el borrador puede ser la corrección de un documento ya firmado.
+  const [rectificaA, setRectificaA] = useState<DocumentoVinculado | null>(null)
+  const [tipoRectificacion, setTipoRectificacion] = useState<TipoRectificacion | null>(null)
+  const [motivoRectificacion, setMotivoRectificacion] = useState('')
   const expedienteIdParam = searchParams.get('expediente_id')
 
   // Estados principales
@@ -387,6 +395,11 @@ const DocumentoNew = () => {
       }
 
       setSelectedPlantilla(doc.plantilla)
+      // Si este borrador nació para corregir a otro documento, hay que decirlo aquí:
+      // es el momento en que se redacta, y el texto debe dejar constancia.
+      setRectificaA(doc.rectifica_a || null)
+      setTipoRectificacion(doc.tipo_rectificacion || null)
+      setMotivoRectificacion(doc.motivo_rectificacion || '')
       setTitulo(doc.titulo || '')
       setNivelAcceso(doc.nivel_acceso || 1)
       setPalabrasClave(doc.palabras_clave || '')
@@ -1707,6 +1720,23 @@ const DocumentoNew = () => {
           {isEditMode ? 'Editar Documento' : 'Nuevo Documento'}
         </Typography>
       </Box>
+
+      {rectificaA && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <AlertTitle>
+            {tipoRectificacion === 'deja_sin_efecto'
+              ? 'Este documento dejará sin efecto a otro'
+              : 'Este documento rectifica a otro'}
+          </AlertTitle>
+          Corrige a <strong>{rectificaA.numero || rectificaA.identificador}</strong> — {rectificaA.titulo}
+          {motivoRectificacion ? <>. Motivo registrado: «{motivoRectificacion}»</> : '.'}
+          <br />
+          El contenido viene copiado del original: corrige solo lo que estaba mal, asigna el
+          número que corresponde y deja escrito en el texto que{' '}
+          {tipoRectificacion === 'deja_sin_efecto' ? 'se deja sin efecto' : 'se rectifica'} el
+          documento {rectificaA.numero || rectificaA.identificador}.
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>

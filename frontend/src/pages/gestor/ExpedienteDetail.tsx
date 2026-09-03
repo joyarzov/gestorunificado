@@ -142,6 +142,9 @@ const TIPOS_HITO = [
   'reapertura',
   'documento_firmado',
   'documento_rechazado',
+  'rectificacion_iniciada',
+  'documento_rectificado',
+  'documento_dejado_sin_efecto',
 ]
 
 /** Movimientos que se muestran antes de pedir el resto. */
@@ -187,9 +190,14 @@ interface SortableDocItemProps {
   onQuitar?: () => void
   /** Bajar el PDF sin entrar al documento y volver. */
   onDescargar?: () => void
+  /**
+   * Vínculo de rectificación con otra pieza del mismo expediente: leer el
+   * expediente sin saber que un documento fue corregido lleva a usar el errado.
+   */
+  vinculo?: { texto: string; anulado: boolean } | null
 }
 
-const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar }: SortableDocItemProps) => {
+const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar, vinculo }: SortableDocItemProps) => {
   const {
     attributes,
     listeners,
@@ -234,6 +242,13 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar }: Sort
       <ListItemText
         onClick={onClick}
         primary={doc.titulo}
+        primaryTypographyProps={
+          // Un documento anulado sigue en el expediente —la historia no se borra—
+          // pero no puede leerse como una pieza vigente más.
+          doc.estado === 'anulado'
+            ? { sx: { textDecoration: 'line-through', color: 'text.disabled' } }
+            : undefined
+        }
         secondary={
           <>
             {format(new Date(doc.incorporado_en || doc.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
@@ -245,6 +260,19 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar }: Sort
                 {doc.estado === 'incorporado' ? 'Adjuntado por ' : 'Incorporado por '}
                 {doc.incorporado_por.nombre}
               </>
+            )}
+            {vinculo && (
+              <Box
+                component="span"
+                sx={{
+                  display: 'block',
+                  mt: 0.25,
+                  fontWeight: 600,
+                  color: vinculo.anulado ? 'error.main' : 'warning.main',
+                }}
+              >
+                {vinculo.texto}
+              </Box>
             )}
           </>
         }
@@ -374,6 +402,39 @@ const ExpedienteDetail = () => {
   )
 
   const docIds = useMemo(() => orderedDocs.map((d: any) => d.id), [orderedDocs])
+
+  /**
+   * Quién corrige a quién dentro del expediente. Se resuelve con los documentos ya
+   * cargados: el vínculo vive en el rectificatorio y apunta al documento errado, y
+   * solo cuenta cuando el rectificatorio ya está firme (un borrador no rectifica nada).
+   */
+  const vinculosRectificacion = useMemo(() => {
+    const porDocumento = new Map<number, { texto: string; anulado: boolean }>()
+    const ref = (d: any) => d.numero || d.identificador || `#${d.id}`
+
+    orderedDocs.forEach((d: any) => {
+      if (!d.rectifica_a_id) return
+      const original = orderedDocs.find((o: any) => o.id === d.rectifica_a_id)
+      const firme = d.estado === 'firmado' || d.estado === 'incorporado'
+      const sinEfecto = d.tipo_rectificacion === 'deja_sin_efecto'
+
+      if (original) {
+        porDocumento.set(original.id, {
+          texto: firme
+            ? `${sinEfecto ? 'Dejado sin efecto' : 'Rectificado'} por ${ref(d)}`
+            : `${sinEfecto ? 'Se dejará sin efecto' : 'En rectificación'} por ${ref(d)} (aún sin firmar)`,
+          anulado: firme && sinEfecto,
+        })
+      }
+
+      porDocumento.set(d.id, {
+        texto: `${sinEfecto ? 'Deja sin efecto' : 'Rectifica'} a ${original ? ref(original) : 'otro documento'}`,
+        anulado: false,
+      })
+    })
+
+    return porDocumento
+  }, [orderedDocs])
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -1062,6 +1123,7 @@ const ExpedienteDetail = () => {
                           onFirmar={() => navigate(`/documentos/${doc.id}`)}
                           onQuitar={puedeQuitarDocs ? () => setDocAQuitar(doc) : undefined}
                           onDescargar={() => handleDescargarDoc(doc)}
+                          vinculo={vinculosRectificacion.get(doc.id) || null}
                         />
                       ))}
                     </List>

@@ -372,7 +372,13 @@ class ExpedienteController extends Controller
             return $this->errorResponse('No tienes acceso a este expediente', 403);
         }
 
-        $expediente->load(['documentos.firmas.usuario']);
+        $expediente->load(['documentos.firmas.usuario', 'documentos.rectificaA:id,numero,identificador']);
+
+        // Vínculos de rectificación dentro del propio expediente: quién corrige a
+        // quién. Se resuelve con los documentos ya cargados, sin más consultas.
+        $rectificadores = $expediente->documentos
+            ->filter(fn ($d) => $d->rectifica_a_id && $d->esFirme())
+            ->keyBy('rectifica_a_id');
 
         $indice = [
             'expediente' => [
@@ -384,7 +390,7 @@ class ExpedienteController extends Controller
                 'fecha_creacion' => $expediente->fecha_creacion,
                 'fecha_cierre' => $expediente->fecha_cierre,
             ],
-            'documentos' => $expediente->documentos->map(function ($doc, $index) {
+            'documentos' => $expediente->documentos->map(function ($doc, $index) use ($rectificadores) {
                 return [
                     'orden' => $index + 1,
                     'numero' => $doc->numero ?? $doc->id,
@@ -392,6 +398,21 @@ class ExpedienteController extends Controller
                     'tipo' => $doc->tipo_documento ?? 'documento',
                     'fecha' => $doc->created_at,
                     'firmado' => $doc->firmas ? $doc->firmas->where('estado', 'firmado')->count() > 0 : false,
+                    'estado' => $doc->estado,
+                    // El índice es la carátula del expediente: tiene que decir qué
+                    // piezas siguen vigentes y cuáles fueron corregidas.
+                    'rectificado_por' => ($r = $rectificadores->get($doc->id))
+                        ? [
+                            'numero' => $r->numero ?: $r->identificador,
+                            'tipo_rectificacion' => $r->tipo_rectificacion,
+                        ]
+                        : null,
+                    'rectifica_a' => $doc->rectificaA
+                        ? [
+                            'numero' => $doc->rectificaA->numero ?: $doc->rectificaA->identificador,
+                            'tipo_rectificacion' => $doc->tipo_rectificacion,
+                        ]
+                        : null,
                 ];
             }),
             'total_documentos' => $expediente->documentos->count(),

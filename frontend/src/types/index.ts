@@ -374,6 +374,25 @@ export interface PlantillaPersonal {
   created_at: string
 }
 
+/**
+ * RECTIFICA: el original sigue vigente y el nuevo corrige una parte de él.
+ * DEJA_SIN_EFECTO: el original queda anulado y el nuevo lo reemplaza.
+ */
+export type TipoRectificacion = 'rectifica' | 'deja_sin_efecto'
+
+/** Ficha mínima de un documento referido desde otro (vínculo de rectificación). */
+export interface DocumentoVinculado {
+  id: number
+  identificador: string
+  numero?: string | null
+  titulo: string
+  estado: Documento['estado']
+  rectifica_a_id?: number | null
+  tipo_rectificacion?: TipoRectificacion | null
+  motivo_rectificacion?: string | null
+  fecha_firma?: string | null
+}
+
 export interface Documento {
   id: number
   identificador: string
@@ -388,6 +407,18 @@ export interface Documento {
   expediente_id?: number
   expediente?: Expediente
   expedientes?: Expediente[]
+  /**
+   * Rectificación: un documento firme no se edita, se corrige emitiendo otro que
+   * lo rectifica. El vínculo vive en el rectificatorio y apunta al original.
+   */
+  rectifica_a_id?: number | null
+  rectifica_a?: DocumentoVinculado | null
+  /** Documentos emitidos para corregir a este (puede haber más de uno en el tiempo). */
+  rectificaciones?: DocumentoVinculado[]
+  tipo_rectificacion?: TipoRectificacion | null
+  motivo_rectificacion?: string | null
+  /** Cuándo el rectificatorio surtió efecto sobre el original (null si aún no es firme). */
+  rectificacion_aplicada_at?: string | null
   creado_por: number
   creador?: User
   // Quién puso el documento en el expediente que se está viendo y cuándo; sale de
@@ -443,6 +474,9 @@ export interface DocumentoFirma {
   firmante_id?: number
   usuario_id?: number
   usuario?: User
+  /** Titular subrogado: quien firmó lo hizo por cuenta de esta persona. */
+  actuando_como_user_id?: number | null
+  cargo_firmado?: string | null
   nombre_cargo?: string
   run?: string
   orden_firma?: number

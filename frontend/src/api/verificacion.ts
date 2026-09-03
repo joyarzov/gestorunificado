@@ -15,6 +15,24 @@ export interface DocumentoVerificado {
   fecha_firma?: string
   firmantes?: Array<{ nombre: string; fecha_firma?: string }>
   anio?: number
+  /**
+   * Vigencia real del documento: false si fue rectificado o dejado sin efecto.
+   * Sin esto, un documento superado se verifica como bueno, porque el papel es
+   * idéntico al del día en que se firmó.
+   */
+  vigente?: boolean
+  rectificado_por?: {
+    numero: string
+    titulo: string
+    tipo_rectificacion: 'rectifica' | 'deja_sin_efecto'
+    motivo?: string | null
+    fecha?: string
+  } | null
+  rectifica_a?: {
+    numero: string
+    titulo: string
+    tipo_rectificacion?: 'rectifica' | 'deja_sin_efecto' | null
+  } | null
   // Providencia fields
   folio?: string
   fecha?: string

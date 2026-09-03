@@ -11,7 +11,12 @@ class VerificacionDocumentoController extends Controller
     public function verificar(string $codigo)
     {
         // Buscar primero en documentos
-        $documento = Documento::with(['tipoDocumental:id,nombre,codigo', 'firmantesAsignados:id,nombre', 'firmas.usuario:id,nombre'])
+        $documento = Documento::with([
+                'tipoDocumental:id,nombre,codigo',
+                'firmantesAsignados:id,nombre',
+                'firmas.usuario:id,nombre',
+                'rectificaA:id,numero,identificador,titulo',
+            ])
             ->where('codigo_verificacion', $codigo)
             ->first();
 
@@ -28,6 +33,11 @@ class VerificacionDocumentoController extends Controller
                     ->toArray();
             }
 
+            // Quien valida un QR tiene que saber si el papel que tiene en la mano
+            // sigue vigente: un documento rectificado o dejado sin efecto se ve
+            // idéntico al original, y sin este aviso se daría por bueno.
+            $rectificacion = $documento->rectificacionFirme();
+
             return $this->successResponse([
                 'tipo_origen' => 'documento',
                 'codigo' => $documento->codigo_verificacion,
@@ -41,6 +51,20 @@ class VerificacionDocumentoController extends Controller
                 'fecha_firma' => $documento->fecha_firma,
                 'firmantes' => $firmantes,
                 'anio' => $documento->anio,
+                'vigente' => $documento->estado !== Documento::ESTADO_ANULADO && !$rectificacion,
+                'rectificado_por' => $rectificacion ? [
+                    'numero' => $rectificacion->numero ?: $rectificacion->identificador,
+                    'titulo' => $rectificacion->titulo,
+                    'tipo_rectificacion' => $rectificacion->tipo_rectificacion,
+                    'motivo' => $rectificacion->motivo_rectificacion,
+                    'fecha' => $rectificacion->fecha_firma ?? $rectificacion->fecha_creacion,
+                ] : null,
+                // Si este mismo documento es el que rectifica a otro, decirlo también.
+                'rectifica_a' => $documento->rectificaA ? [
+                    'numero' => $documento->rectificaA->numero ?: $documento->rectificaA->identificador,
+                    'titulo' => $documento->rectificaA->titulo,
+                    'tipo_rectificacion' => $documento->tipo_rectificacion,
+                ] : null,
             ]);
         }
 

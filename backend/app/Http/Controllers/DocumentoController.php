@@ -367,6 +367,9 @@ class DocumentoController extends Controller
             'firmanteAsignado',
             'firmantesAsignados',
             'adjuntos.usuario:id,nombre',
+            // Vínculo de rectificación: al que corrige y a los que lo corrigen a él.
+            'rectificaA:id,identificador,numero,titulo,estado,fecha_firma',
+            'rectificaciones:id,rectifica_a_id,identificador,numero,titulo,estado,tipo_rectificacion,motivo_rectificacion,fecha_firma',
         ]);
 
         // Firma secuencial: a quién le toca firmar ahora (para que el frontend muestre el botón al firmante en turno).
@@ -1065,6 +1068,338 @@ class DocumentoController extends Controller
             $documento->load(['firmantesAsignados', 'tipoDocumental', 'plantilla']),
             'Documento devuelto a borrador. Ya puedes editarlo y reenviarlo a firma.'
         );
+    }
+
+    /**
+     * Rectificar un documento firme.
+     *
+     * Un documento firmado o incorporado no se edita: tiene folio, código de
+     * verificación y firma, y tocarlo dejaría mintiendo al QR público. Lo que se
+     * hace es emitir OTRO documento que lo corrige, y dejar a los dos vinculados y
+     * a la vista, igual que en el expediente de papel.
+     *
+     * Dos caminos, según cómo se haya originado el documento errado:
+     *  - Documento redactado en la plataforma: se clona su contenido en un borrador
+     *    nuevo para que solo se corrija lo que estaba mal.
+     *  - PDF subido o antecedente incorporado: no hay nada que clonar, así que se
+     *    vincula un documento ya cargado en el expediente (documento_rectificatorio_id).
+     *
+     * El efecto sobre el original (anularlo o dejarlo vigente con la nota) NO ocurre
+     * aquí: ocurre cuando el rectificatorio queda firme. Un borrador no rectifica nada.
+     */
+    public function rectificar(Request $request, Documento $documento)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'tipo_rectificacion' => 'required|in:' . Documento::RECT_RECTIFICA . ',' . Documento::RECT_DEJA_SIN_EFECTO,
+            'motivo' => 'required|string|min:5|max:1000',
+            'documento_rectificatorio_id' => 'nullable|exists:documentos,id',
+        ]);
+
+        if (!$this->puedeVerDocumento($documento)) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
+        if (!$documento->puedeSerRectificadoPor($user)) {
+            return $this->errorResponse(
+                'Solo quien redactó el documento, quien lo firmó o un administrador puede rectificarlo.',
+                403
+            );
+        }
+
+        // Rectificar es el remedio para lo que ya no se puede editar. Si el documento
+        // todavía admite corrección directa, ese es el camino limpio.
+        if (!$documento->esFirme()) {
+            $mensaje = match ($documento->estado) {
+                Documento::ESTADO_BORRADOR => 'Este documento todavía es un borrador: edítalo directamente en vez de rectificarlo.',
+                Documento::ESTADO_PENDIENTE_FIRMA => 'Este documento está esperando firma. Para corregirlo, el firmante debe rechazar la firma y luego puedes devolverlo a borrador.',
+                Documento::ESTADO_RECHAZADO => 'Este documento fue rechazado: usa «Corregir y reenviar» para devolverlo a borrador y editarlo.',
+                Documento::ESTADO_ANULADO => 'Este documento está anulado: ya no produce efectos y no corresponde rectificarlo.',
+                default => 'Solo se puede rectificar un documento firmado o incorporado.',
+            };
+            return $this->errorResponse($mensaje, 400);
+        }
+
+        if ($existente = $documento->rectificacionFirme()) {
+            $ref = $existente->numero ?: $existente->identificador;
+            return $this->errorResponse(
+                "Este documento ya fue rectificado por el documento {$ref}. Si aún hay algo que corregir, rectifica ese documento.",
+                400
+            );
+        }
+
+        if ($enCurso = $documento->rectificacionEnCurso()) {
+            $ref = $enCurso->numero ?: $enCurso->identificador;
+            return $this->errorResponse(
+                "Ya hay un documento rectificatorio en trámite para este documento ({$ref}). "
+                    . 'Termina de firmarlo o descártalo antes de emitir otro.',
+                400
+            );
+        }
+
+        $tipo = $request->tipo_rectificacion;
+        $motivo = trim($request->motivo);
+
+        DB::beginTransaction();
+        try {
+            $rectificatorio = $request->documento_rectificatorio_id
+                ? $this->vincularRectificatorioExistente($documento, (int) $request->documento_rectificatorio_id, $tipo, $motivo)
+                : $this->clonarComoRectificatorio($documento, $tipo, $motivo);
+
+            if ($rectificatorio instanceof \Illuminate\Http\JsonResponse) {
+                DB::rollBack();
+                return $rectificatorio;
+            }
+
+            $refOriginal = $documento->numero ?: $documento->identificador;
+            $glosa = $tipo === Documento::RECT_DEJA_SIN_EFECTO
+                ? "Se emite documento para dejar sin efecto el documento {$refOriginal}"
+                : "Se emite documento rectificatorio del documento {$refOriginal}";
+
+            DocumentoTrazabilidad::registrar(
+                $documento->id,
+                'rectificacion_iniciada',
+                ($tipo === Documento::RECT_DEJA_SIN_EFECTO
+                    ? 'Se inició el trámite para dejarlo sin efecto'
+                    : 'Se inició su rectificación') . ". Motivo: {$motivo}",
+                [
+                    'rectificatorio_id' => $rectificatorio->id,
+                    'tipo_rectificacion' => $tipo,
+                    'motivo' => $motivo,
+                ]
+            );
+
+            DocumentoTrazabilidad::registrar(
+                $rectificatorio->id,
+                'rectificatorio_creado',
+                $glosa . ". Motivo: {$motivo}",
+                [
+                    'original_id' => $documento->id,
+                    'tipo_rectificacion' => $tipo,
+                    'motivo' => $motivo,
+                ]
+            );
+
+            foreach ($documento->expedientes()->pluck('expedientes.id') as $expedienteId) {
+                ExpedienteActividad::create([
+                    'expediente_id' => $expedienteId,
+                    'usuario_id' => $user->id,
+                    'tipo' => 'rectificacion_iniciada',
+                    'descripcion' => $glosa,
+                    'metadata' => [
+                        'documento_id' => $documento->id,
+                        'rectificatorio_id' => $rectificatorio->id,
+                        'tipo_rectificacion' => $tipo,
+                        'motivo' => $motivo,
+                    ],
+                ]);
+            }
+
+            // Si el documento vinculado ya venía firme, el efecto es inmediato.
+            $rectificatorio->refresh();
+            $rectificatorio->aplicarRectificacionSiCorresponde();
+
+            $this->notificarRectificacion($documento, $rectificatorio, $tipo, $motivo, $user);
+
+            DB::commit();
+
+            return $this->successResponse(
+                [
+                    'original' => $documento->fresh(),
+                    'rectificatorio' => $rectificatorio->fresh()->load(['tipoDocumental', 'plantilla', 'firmantesAsignados']),
+                    // El frontend decide si abrir el editor o solo refrescar la ficha.
+                    'requiere_edicion' => $rectificatorio->estado === Documento::ESTADO_BORRADOR,
+                ],
+                $rectificatorio->estado === Documento::ESTADO_BORRADOR
+                    ? 'Documento rectificatorio creado como borrador. Corrige lo que corresponda y envíalo a firma.'
+                    : 'Documento vinculado como rectificatorio.',
+                201
+            );
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al rectificar documento: ' . $e->getMessage());
+            return $this->errorResponse('Error al rectificar el documento: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Copia el documento errado en un borrador nuevo, con folio y código de
+     * verificación propios, para que el redactor solo corrija lo que estaba mal.
+     */
+    private function clonarComoRectificatorio(Documento $original, string $tipo, string $motivo)
+    {
+        if (!$original->plantilla_id || empty($original->contenido_json)) {
+            return $this->errorResponse(
+                'Este documento se incorporó como PDF, así que no hay contenido que copiar. '
+                    . 'Sube al expediente el documento que lo rectifica y vincúlalo desde aquí.',
+                422
+            );
+        }
+
+        // El folio del original no se hereda: el rectificatorio es un documento
+        // nuevo y necesita su propio número, que el redactor asigna al editarlo.
+        $contenido = $original->contenido_json;
+        unset($contenido['numero']);
+
+        $plantilla = DocumentoPlantilla::find($original->plantilla_id);
+        $contenidoHtml = $plantilla ? $this->procesarPlantilla($plantilla, $contenido) : $original->contenido_html;
+
+        $codigoVerificacion = Documento::generarCodigoVerificacion();
+        $contenidoHtml = $this->inyectarFooterVerificacion($contenidoHtml, $codigoVerificacion);
+
+        $rectificatorio = Documento::create([
+            'identificador' => Documento::generarIdentificador(),
+            'codigo_verificacion' => $codigoVerificacion,
+            'titulo' => mb_substr(
+                ($tipo === Documento::RECT_DEJA_SIN_EFECTO ? 'Deja sin efecto: ' : 'Rectifica: ') . $original->titulo,
+                0,
+                500
+            ),
+            'descripcion' => $original->descripcion,
+            'tipo_documental_id' => $original->tipo_documental_id,
+            'plantilla_id' => $original->plantilla_id,
+            'expediente_id' => $original->expediente_id,
+            'rectifica_a_id' => $original->id,
+            'tipo_rectificacion' => $tipo,
+            'motivo_rectificacion' => $motivo,
+            'contenido_json' => $contenido,
+            'contenido_html' => $contenidoHtml,
+            'formato' => 'HTML',
+            'estado' => Documento::ESTADO_BORRADOR,
+            'nivel_acceso' => $original->nivel_acceso,
+            'palabras_clave' => $original->palabras_clave,
+            'fecha_creacion' => now(),
+            'mecanismo_incorporacion' => Documento::MECANISNO_DIGITAL,
+            'origen_carga' => Documento::ORIGEN_CREADO,
+            'creado_por' => Auth::id(),
+            'emitido_en_nombre_de_id' => $original->emitido_en_nombre_de_id,
+            'actualizado_por' => Auth::id(),
+            'departamento_id' => $original->departamento_id,
+            'firmante_asignado_id' => $original->firmante_asignado_id,
+            'firmas_requeridas' => $original->firmas_requeridas,
+            'anio' => date('Y'),
+        ]);
+
+        // Los mismos firmantes, en el mismo orden: quien firmó el errado es quien
+        // debe firmar su corrección.
+        $firmantes = $original->firmantesAsignados()->get();
+        foreach ($firmantes as $i => $firmante) {
+            $rectificatorio->firmantesAsignados()->attach($firmante->id, [
+                'orden' => $i + 1,
+                'subrogando_a_user_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Vive en los mismos expedientes que el documento que corrige.
+        $expedientesIds = $original->expedientes()->pluck('expedientes.id')->all();
+        if (!empty($expedientesIds)) {
+            $rectificatorio->expedientes()->attach($expedientesIds);
+        }
+
+        return $rectificatorio;
+    }
+
+    /**
+     * Vincula un documento que ya está cargado como el rectificatorio del original.
+     * Es el camino para los PDF subidos y antecedentes, donde no hay contenido que clonar.
+     */
+    private function vincularRectificatorioExistente(Documento $original, int $rectificatorioId, string $tipo, string $motivo)
+    {
+        $user = Auth::user();
+
+        if ($rectificatorioId === $original->id) {
+            return $this->errorResponse('Un documento no puede rectificarse a sí mismo.', 422);
+        }
+
+        $rectificatorio = Documento::find($rectificatorioId);
+        if (!$rectificatorio) {
+            return $this->errorResponse('El documento rectificatorio no existe.', 404);
+        }
+
+        if (!$user || !$rectificatorio->esVisiblePara($user)) {
+            return $this->errorResponse('No tienes acceso al documento que quieres vincular.', 403);
+        }
+
+        if ($rectificatorio->rectifica_a_id) {
+            return $this->errorResponse('Ese documento ya está vinculado como rectificatorio de otro documento.', 422);
+        }
+
+        // Solo se vincula lo que comparte expediente con el original: es la garantía
+        // de que ambos pertenecen al mismo asunto y no se cruzan trámites ajenos.
+        $expedientesOriginal = $original->expedientes()->pluck('expedientes.id');
+        $comparteExpediente = $rectificatorio->expedientes()
+            ->whereIn('expedientes.id', $expedientesOriginal)
+            ->exists();
+
+        if (!$comparteExpediente) {
+            return $this->errorResponse(
+                'El documento rectificatorio debe estar en el mismo expediente que el documento que corrige.',
+                422
+            );
+        }
+
+        $rectificatorio->forceFill([
+            'rectifica_a_id' => $original->id,
+            'tipo_rectificacion' => $tipo,
+            'motivo_rectificacion' => $motivo,
+            'actualizado_por' => Auth::id(),
+        ])->save();
+
+        return $rectificatorio;
+    }
+
+    /**
+     * Documentos que pueden vincularse como rectificatorios del indicado: los que
+     * viven en sus mismos expedientes y todavía no rectifican a nadie.
+     */
+    public function candidatosRectificatorios(Documento $documento)
+    {
+        if (!$this->puedeVerDocumento($documento)) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
+        $expedientesIds = $documento->expedientes()->pluck('expedientes.id');
+
+        $candidatos = Documento::query()
+            ->whereKeyNot($documento->id)
+            ->whereNull('rectifica_a_id')
+            ->whereHas('expedientes', fn ($q) => $q->whereIn('expedientes.id', $expedientesIds))
+            ->orderByDesc('id')
+            ->get(['id', 'identificador', 'numero', 'titulo', 'estado', 'fecha_creacion']);
+
+        return $this->successResponse($candidatos);
+    }
+
+    /**
+     * Avisa a quienes tienen algo que decir sobre el documento corregido: quien lo
+     * redactó y quienes lo firmaron. Se enteran cuando empieza la rectificación, no
+     * cuando ya está consumada.
+     */
+    private function notificarRectificacion(Documento $original, Documento $rectificatorio, string $tipo, string $motivo, User $actor): void
+    {
+        $destinatarios = collect([$original->creado_por])
+            ->merge($original->firmas()->where('estado', 'firmado')->pluck('usuario_id'))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === (int) $actor->id)
+            ->unique();
+
+        $ref = $original->numero ?: $original->identificador;
+        $accion = $tipo === Documento::RECT_DEJA_SIN_EFECTO ? 'dejar sin efecto' : 'rectificar';
+
+        foreach ($destinatarios as $destinatarioId) {
+            NotificacionService::enviar(
+                $destinatarioId,
+                'cero_papel',
+                'documento_en_rectificacion',
+                'Documento en rectificación',
+                "{$actor->nombre} inició el trámite para {$accion} el documento \"{$original->titulo}\" ({$ref}). Motivo: {$motivo}",
+                ['documento_id' => $rectificatorio->id, 'url' => '/documentos/' . $rectificatorio->id]
+            );
+        }
     }
 
     /**
