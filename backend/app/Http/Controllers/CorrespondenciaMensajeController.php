@@ -262,11 +262,25 @@ class CorrespondenciaMensajeController extends Controller
         return $this->successResponse($mensaje, 'Mensaje enviado', 201);
     }
 
-    /** Descargar un adjunto de un mensaje del hilo. */
+    /**
+     * Descargar un adjunto de un mensaje del hilo.
+     *
+     * Se autoriza con el MISMO criterio que abre la ficha (esVisiblePara), no
+     * con el de escribir en el hilo. Exigir participación dejaba a quien tiene
+     * permiso de registro leyendo el mensaje que anuncia el informe —"remito
+     * por este medio el Informe de la SECPLAN"— y recibiendo un 403 al pinchar
+     * el archivo: podía ver que existe, su nombre y su peso, pero no abrirlo.
+     * El adjunto de la correspondencia (AdjuntoController::descargar) ya se
+     * autorizaba así; este quedó atrás.
+     *
+     * Escribir en el hilo sigue siendo solo para participantes.
+     */
     public function descargarAdjunto(CorrespondenciaMensajeAdjunto $adjunto)
     {
         $correspondencia = $adjunto->mensaje?->correspondencia;
-        if (!$correspondencia || !$this->esParticipante($correspondencia, Auth::user())) {
+        $user = Auth::user();
+        if (!$correspondencia
+            || (!$this->esParticipante($correspondencia, $user) && !$correspondencia->esVisiblePara($user))) {
             return $this->errorResponse('No autorizado.', 403);
         }
         if (!Storage::disk('public')->exists($adjunto->ruta_archivo)) {
