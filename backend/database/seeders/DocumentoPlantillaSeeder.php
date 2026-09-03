@@ -796,16 +796,20 @@ class DocumentoPlantillaSeeder extends Seeder
         <p style="text-align: justify;">{{vigencia}}</p>
     </div>
 
-    <div style="margin-top: 80px; display: flex; justify-content: space-between;">
-        <div style="text-align: center; width: 45%;">
-            <p>____________________</p>
-            <p><strong>{{parte1}}</strong></p>
-        </div>
-        <div style="text-align: center; width: 45%;">
-            <p>____________________</p>
-            <p><strong>{{parte2}}</strong></p>
-        </div>
-    </div>
+    <!-- Tabla y no flexbox: DomPDF ignora display:flex y apila las columnas,
+         así que las dos partes salían una debajo de la otra en el PDF. -->
+    <table style="margin-top: 80px; width: 100%; border-collapse: collapse; table-layout: fixed;">
+        <tr>
+            <td style="text-align: center; width: 50%; vertical-align: top;">
+                <p>____________________</p>
+                <p><strong>{{parte1}}</strong></p>
+            </td>
+            <td style="text-align: center; width: 50%; vertical-align: top;">
+                <p>____________________</p>
+                <p><strong>{{parte2}}</strong></p>
+            </td>
+        </tr>
+    </table>
 </div>';
     }
 

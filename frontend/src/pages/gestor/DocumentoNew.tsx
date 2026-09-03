@@ -627,26 +627,47 @@ const DocumentoNew = () => {
       filas.push(firmantesSeleccionados.slice(i, i + 3))
     }
 
-    return filas.map(fila => `
-      <div style="display: flex; justify-content: flex-start; gap: 0; margin: 40px 0;">
-        ${fila.map(user => {
-          // El preview debe mostrar el mismo texto que quedará en el sello: si
-          // firma en subrogancia, va el cargo SUBROGADO con "(S)".
-          const titularId = firmantesSubrogancia[user.id]
-          const titular = user.subrogaciones_vigentes?.find(t => t.id === titularId)
-          const cargo = titularId
-            ? `${titular?.cargo || user.cargo || ''} (S)`.trim()
-            : (user.cargo || '')
-          return `
-          <div style="text-align: left; width: 33.33%; padding-right: 24px; box-sizing: border-box;">
+    // Tabla, no flexbox: este HTML lo renderiza DomPDF al generar el PDF, y
+    // DomPDF ignora `display:flex`. Con flex las firmas se veían lado a lado en
+    // la previsualización (que es el navegador) y salían APILADAS en el PDF
+    // definitivo. La tabla la entienden los dos, así que lo que se ve es lo que
+    // queda firmado.
+    return filas.map(fila => {
+      // El ancho de columna sale de cuántos firman: en tercios solo cuando son
+      // tres. Con uno o dos, un tercio deja la columna tan angosta que DomPDF
+      // parte los nombres largos en dos líneas ("Jose Alberto Oyarzo / Vera").
+      const anchoCelda = fila.length >= 3 ? '33.33%' : '50%'
+
+      const celdas = fila.map(user => {
+        // El preview debe mostrar el mismo texto que quedará en el sello: si
+        // firma en subrogancia, va el cargo SUBROGADO con "(S)".
+        const titularId = firmantesSubrogancia[user.id]
+        const titular = user.subrogaciones_vigentes?.find(t => t.id === titularId)
+        const cargo = titularId
+          ? `${titular?.cargo || user.cargo || ''} (S)`.trim()
+          : (user.cargo || '')
+        return `
+          <td style="width: ${anchoCelda}; padding: 0 24px 0 0; vertical-align: top; text-align: left;">
             <div style="border-bottom: 1px solid #000; width: 80%; margin-bottom: 6px;"></div>
             <p style="margin: 0 0 2px 0;"><strong>${user.nombre}</strong></p>
             <p style="margin: 0; font-size: 10pt; color: #666;">${user.rut}</p>
             ${cargo ? `<p style="margin: 0; font-size: 10pt; color: #666;">${cargo}</p>` : ''}
-          </div>
-        `}).join('')}
-      </div>
-    `).join('')
+          </td>`
+      })
+
+      // Relleno a la derecha: con la tabla de ancho fijo, una firma sola ocupa
+      // su media columna y no se estira por toda la página.
+      const columnas = fila.length >= 3 ? 3 : 2
+      while (celdas.length < columnas) {
+        celdas.push(`<td style="width: ${anchoCelda};"></td>`)
+      }
+
+      return `
+      <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 40px 0;">
+        <tr>${celdas.join('')}</tr>
+      </table>
+    `
+    }).join('')
   }, [firmantesSeleccionados, firmantesSubrogancia])
 
   // Generar HTML de distribución
