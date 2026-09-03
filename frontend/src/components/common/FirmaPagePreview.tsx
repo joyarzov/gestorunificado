@@ -31,6 +31,8 @@ export interface FirmaPagePreviewProps {
   }>
   newRow: number
   newCol: number
+  /** Columnas del bloque de firmas del documento (ver calcularRectFirma). */
+  columnasFirma?: number
   /** Miniatura PNG del sello real del firmante (endpoint /firma-sellos/mi-sello). */
   selloUrl?: string | null
   /** Página a previsualizar (la misma donde irá el sello). */
@@ -130,6 +132,13 @@ export function calcularRectFirma(
   col: number,
   escala = ESCALA_POR_DEFECTO,
   row = 0,
+  /**
+   * Columnas del bloque de firmas IMPRESO en el documento (ver
+   * generarFirmasHtml): dos con uno o dos firmantes, tres con tres. El sello se
+   * coloca sobre esas mismas columnas; si se calcula por su cuenta queda al lado
+   * del nombre al que corresponde, no encima.
+   */
+  columnasFirma = 2,
 ): RectFirma {
   const altoSello = STAMP_H_REL * page.h * (escala / 100)
   // Las filas siguientes SUBEN, no bajan: hacia abajo está el bloque de nombre,
@@ -141,22 +150,29 @@ export function calcularRectFirma(
   // sale por la derecha, se corre hacia la izquierda en vez de quedar cortado.
   const bordeIzq = Math.round(COL_X_REL[0] * page.w)
   const bordeDer = Math.round((1 - MARGEN_DER_REL) * page.w)
-  const ancho = Math.min(Math.round(COL_W_REL * page.w * (escala / 100)), bordeDer - bordeIzq)
+  const anchoUtil = bordeDer - bordeIzq
+  // El sello nunca es más ancho que la columna que le toca: si lo fuera,
+  // invadiría el bloque de firma del de al lado.
+  const anchoMaximo = Math.floor(anchoUtil / (columnasFirma >= 3 ? 3 : 2))
+  const ancho = Math.min(Math.round(COL_W_REL * page.w * (escala / 100)), anchoMaximo)
 
-  // Cada columna se ancla a lo que su nombre promete, calculado a partir del
-  // ancho REAL del sello: izquierda al margen izquierdo, derecha al derecho y
-  // centro al eje de la página.
-  //
-  // Antes las tres partían de una X fija (71/233/395) pensada para un sello de
-  // 160pt. Al agrandarlo el sello crecía solo hacia la derecha, así que "centro"
-  // dejaba de estar centrado: con el tamaño 130 que usa la municipalidad, el
-  // sello quedaba más de 1 cm a la derecha del bloque de firma del documento.
+  // El sello va SOBRE la columna del bloque de firma que le corresponde, con el
+  // mismo reparto que usa el documento impreso. Antes se anclaba a los márgenes
+  // de la página: con dos firmantes el segundo bloque empieza en la mitad (313)
+  // y el sello "derecha" se pegaba al margen (347..555), quedando corrido a la
+  // derecha del nombre que venía a firmar.
+  const cols = columnasFirma >= 3 ? 3 : 2
+  const anchoCol = anchoUtil / cols
   const columna = ((col % 3) + 3) % 3
   const llx = columna === 0
+    // Primera columna.
     ? bordeIzq
     : columna === 1
-      ? Math.round((page.w - ancho) / 2)
-      : bordeDer - ancho
+      // Columna del medio si el documento la tiene; si no (dos firmantes), el
+      // centro de la página, que es lo que espera quien firma solo.
+      ? (cols >= 3 ? Math.round(bordeIzq + anchoCol) : Math.round((page.w - ancho) / 2))
+      // Última columna.
+      : Math.round(bordeIzq + (cols - 1) * anchoCol)
 
   return {
     llx,
@@ -172,6 +188,7 @@ export default function FirmaPagePreview({
   existingFirmas,
   newRow,
   newCol,
+  columnasFirma = 2,
   selloUrl,
   previewPage = 'last',
   onPageSize,
@@ -252,7 +269,7 @@ export default function FirmaPagePreview({
 
   // Posición y tamaño del sello nuevo, calculados con la MISMA función que usa
   // el padre al firmar: lo que se ve aquí es lo que se manda a FirmaGob.
-  const nuevoRect = calcularRectFirma(pageSize, firmaYPos, newCol, escala, newRow)
+  const nuevoRect = calcularRectFirma(pageSize, firmaYPos, newCol, escala, newRow, columnasFirma)
   const newStampW = Math.round((nuevoRect.urx - nuevoRect.llx) * scale)
   const newStampH = Math.round((nuevoRect.ury - nuevoRect.lly) * scale)
   const newCssTop = llyToCssTop(nuevoRect.lly, newStampH)

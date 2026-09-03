@@ -197,6 +197,12 @@ const DocumentoDetail = () => {
   // Fila del sello: con el sello al 130% solo caben dos por línea, así que del
   // tercer firmante en adelante el sello sube a una segunda fila.
   const [firmaRow, setFirmaRow] = useState(0)
+  // Columnas del bloque de firmas impreso: el sello se coloca sobre ellas, así
+  // que se cuenta igual que al generar el documento (dos, o tres si son tres).
+  const columnasFirma = Math.min(
+    3,
+    Math.max(documento?.firmantes_asignados?.length ?? 0, documento?.firmas_requeridas ?? 0, 1),
+  ) >= 3 ? 3 : 2
   // Tamaño real (pt) de la página que se previsualiza; la reporta FirmaPagePreview
   const [firmaPageSize, setFirmaPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
   // Tamaño del sello: lo fija la administración, no el firmante.
@@ -357,7 +363,7 @@ const DocumentoDetail = () => {
     try {
       // Coordenadas sobre la página REAL (un PDF subido puede ser A4, oficio o
       // un escaneo con caja mayor): así el sello queda donde muestra la vista previa.
-      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow)
+      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow, columnasFirma)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
       await documentosAPI.firmar(
@@ -1308,7 +1314,7 @@ const DocumentoDetail = () => {
                 // Aviso en vivo: el sello elegido pisa a uno ya estampado. Con
                 // varias firmas es fácil elegir una columna ocupada y dejar los
                 // dos sellos montados en el documento definitivo.
-                const rectElegido = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow)
+                const rectElegido = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow, columnasFirma)
                 const pisaA = existingFirmaPositions.find(
                   f => f.rect && seSuperponen(rectElegido, f.rect),
                 )
@@ -1327,6 +1333,7 @@ const DocumentoDetail = () => {
                         existingFirmas={existingFirmaPositions}
                         newRow={firmaRow}
                         newCol={firmaCol}
+                        columnasFirma={columnasFirma}
                         selloUrl={selloUrl}
                         previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
                         onPageSize={setFirmaPageSize}
