@@ -104,11 +104,25 @@ class FirmaGobService
             return [[$llx, $lly, $urx, (int) $p['firma_y2']], $pageH];
         }
 
-        // Columnas alineadas a los márgenes del documento (2,5 cm izq. / 2 cm der.)
-        $colXCoords = [[71, 231], [233, 393], [395, 555]];
-        [$llx, $urx] = $colXCoords[$col % 3];
+        // Sin caja del cliente: se deriva de los márgenes del documento
+        // (2,5 cm izq. / 2 cm der.) y del ancho REAL del sello, no de una X fija.
+        // Espeja a calcularRectFirma() del frontend: izquierda al margen
+        // izquierdo, derecha al derecho y centro al eje de la página. Con una X
+        // fija, al agrandar el sello este crecía solo hacia la derecha y el
+        // "centro" dejaba de estarlo.
+        $bordeIzq = (int) round(71 * ($pageW / 612));
+        $bordeDer = (int) round($pageW - 57 * ($pageW / 612));
+        $ancho = min($anchoMax, $bordeDer - $bordeIzq);
 
-        return [[$llx, $lly, $urx, $lly + 70], $pageH];
+        $llx = match ($col % 3) {
+            0 => $bordeIzq,
+            1 => (int) round(($pageW - $ancho) / 2),
+            default => $bordeDer - $ancho,
+        };
+
+        $alto = (int) round(70 * ($pageH / 792) * (self::escalaSello() / 100));
+
+        return [[$llx, $lly, $llx + $ancho, $lly + $alto], $pageH];
     }
 
     /**

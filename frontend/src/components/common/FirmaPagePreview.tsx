@@ -50,6 +50,8 @@ export const PAGINA_CARTA: TamanoPagina = { w: 612, h: 792 }
 const MARGEN_INF_REL = 10 / 792
 const RANGO_Y_REL = 702 / 792
 const STAMP_H_REL = 70 / 792
+// Solo se usa el primer valor (margen izquierdo del documento): las columnas ya
+// no se anclan a una X fija, se derivan del ancho real del sello (ver calcularRectFirma).
 const COL_X_REL = [71 / 612, 233 / 612, 395 / 612]
 const COL_W_REL = 160 / 612
 const MARGEN_DER_REL = 57 / 612 // margen derecho del documento (2 cm)
@@ -105,7 +107,21 @@ export function calcularRectFirma(
   const bordeIzq = Math.round(COL_X_REL[0] * page.w)
   const bordeDer = Math.round((1 - MARGEN_DER_REL) * page.w)
   const ancho = Math.min(Math.round(COL_W_REL * page.w * (escala / 100)), bordeDer - bordeIzq)
-  const llx = Math.min(Math.round(COL_X_REL[col % 3] * page.w), bordeDer - ancho)
+
+  // Cada columna se ancla a lo que su nombre promete, calculado a partir del
+  // ancho REAL del sello: izquierda al margen izquierdo, derecha al derecho y
+  // centro al eje de la página.
+  //
+  // Antes las tres partían de una X fija (71/233/395) pensada para un sello de
+  // 160pt. Al agrandarlo el sello crecía solo hacia la derecha, así que "centro"
+  // dejaba de estar centrado: con el tamaño 130 que usa la municipalidad, el
+  // sello quedaba más de 1 cm a la derecha del bloque de firma del documento.
+  const columna = ((col % 3) + 3) % 3
+  const llx = columna === 0
+    ? bordeIzq
+    : columna === 1
+      ? Math.round((page.w - ancho) / 2)
+      : bordeDer - ancho
 
   return {
     llx,
