@@ -60,7 +60,8 @@ import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmandoOverlay from '../../components/common/FirmandoOverlay'
 import FirmaPagePreview, {
-  calcularRectFirma, normalizarEscala, PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina,
+  calcularRectFirma, normalizarEscala, posicionSugerida, seSuperponen,
+  PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina, type RectFirma,
 } from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
 import {
@@ -193,6 +194,9 @@ const DocumentoDetail = () => {
   const [firmaPageMode, setFirmaPageMode] = useState<'LAST' | 'FIRST' | 'NUM'>('LAST')
   const [firmaPageNum, setFirmaPageNum] = useState(1)
   const [firmaCol, setFirmaCol] = useState(0)             // columna: 0=izq, 1=centro, 2=der
+  // Fila del sello: con el sello al 130% solo caben dos por línea, así que del
+  // tercer firmante en adelante el sello sube a una segunda fila.
+  const [firmaRow, setFirmaRow] = useState(0)
   // Tamaño real (pt) de la página que se previsualiza; la reporta FirmaPagePreview
   const [firmaPageSize, setFirmaPageSize] = useState<TamanoPagina>(PAGINA_CARTA)
   // Tamaño del sello: lo fija la administración, no el firmante.
@@ -269,7 +273,9 @@ const DocumentoDetail = () => {
   useEffect(() => {
     if (firmarDialogOpen) {
       const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
-      setFirmaCol(existingCount % 3)
+      const sugerida = posicionSugerida(existingCount)
+      setFirmaCol(sugerida.col)
+      setFirmaRow(sugerida.row)
     }
   }, [firmarDialogOpen, pdfUrl])
 
@@ -351,7 +357,7 @@ const DocumentoDetail = () => {
     try {
       // Coordenadas sobre la página REAL (un PDF subido puede ser A4, oficio o
       // un escaneo con caja mayor): así el sello queda donde muestra la vista previa.
-      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala)
+      const rect = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow)
       // FirmaGob solo acepta "LAST" o número de página (no "FIRST")
       const firmaPage = firmaPageMode === 'LAST' ? 'LAST' : firmaPageMode === 'FIRST' ? '1' : String(firmaPageNum)
       await documentosAPI.firmar(
@@ -1284,11 +1290,28 @@ const DocumentoDetail = () => {
               {(() => {
                 const existingFirmaPositions = (documento.firmas || [])
                   .filter(f => f.estado === 'firmado' && f.firma_gob_data)
-                  .map(f => ({
-                    col: (f.firma_gob_data as any)?.firma_col ?? 0,
-                    firmaY: (f.firma_gob_data as any)?.firma_y ?? 20,
-                    nombre: f.usuario?.nombre ?? '',
-                  }))
+                  .map(f => {
+                    // La caja exacta donde quedó el sello: es lo que se le mandó
+                    // a FirmaGob, e incluye los movimientos que hizo el firmante.
+                    const r = (f.firma_gob_data as any)?.firma_rect
+                    const rect: RectFirma | null = Array.isArray(r) && r.length === 4
+                      ? { llx: r[0], lly: r[1], urx: r[2], ury: r[3] }
+                      : null
+                    return {
+                      col: (f.firma_gob_data as any)?.firma_col ?? 0,
+                      firmaY: (f.firma_gob_data as any)?.firma_y ?? 20,
+                      nombre: f.usuario?.nombre ?? '',
+                      rect,
+                    }
+                  })
+
+                // Aviso en vivo: el sello elegido pisa a uno ya estampado. Con
+                // varias firmas es fácil elegir una columna ocupada y dejar los
+                // dos sellos montados en el documento definitivo.
+                const rectElegido = calcularRectFirma(firmaPageSize, firmaYPos, firmaCol, firmaEscala, firmaRow)
+                const pisaA = existingFirmaPositions.find(
+                  f => f.rect && seSuperponen(rectElegido, f.rect),
+                )
 
                 return (
                   <Box sx={{ mb: 2 }}>
@@ -1302,7 +1325,7 @@ const DocumentoDetail = () => {
                         pdfUrl={pdfUrl}
                         firmaYPos={firmaYPos}
                         existingFirmas={existingFirmaPositions}
-                        newRow={0}
+                        newRow={firmaRow}
                         newCol={firmaCol}
                         selloUrl={selloUrl}
                         previewPage={firmaPageMode === 'NUM' ? firmaPageNum : firmaPageMode === 'FIRST' ? 'first' : 'last'}
@@ -1376,6 +1399,35 @@ const DocumentoDetail = () => {
                             <ToggleButton value={1} sx={{ fontSize: 11, px: 1.5 }}>Centro</ToggleButton>
                             <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>Derecha</ToggleButton>
                           </ToggleButtonGroup>
+
+                          {/* Fila: con el sello a este tamaño solo caben dos por
+                              línea, así que del tercer firmante en adelante hay
+                              que subirlo. Se muestra solo cuando ya hace falta. */}
+                          {(firmaRow > 0 || existingFirmaPositions.length >= 2) && (
+                            <>
+                              <Typography variant="body2" fontWeight="medium" sx={{ mt: 2, mb: 0.5 }}>
+                                Fila
+                              </Typography>
+                              <ToggleButtonGroup
+                                value={firmaRow}
+                                exclusive
+                                onChange={(_, v) => v !== null && setFirmaRow(v)}
+                                size="small"
+                              >
+                                <ToggleButton value={0} sx={{ fontSize: 11, px: 1.5 }}>1ª (abajo)</ToggleButton>
+                                <ToggleButton value={1} sx={{ fontSize: 11, px: 1.5 }}>2ª</ToggleButton>
+                                <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>3ª</ToggleButton>
+                              </ToggleButtonGroup>
+                            </>
+                          )}
+
+                          {pisaA && (
+                            <Alert severity="warning" sx={{ mt: 2 }}>
+                              Este sello quedaría encima del de{' '}
+                              <strong>{pisaA.nombre || 'otro firmante'}</strong>. Mueve la
+                              posición o la fila para que no se pisen.
+                            </Alert>
+                          )}
                         </Box>
 
                         {/* Tipo de firma: solo si el usuario tiene la firma desatendida

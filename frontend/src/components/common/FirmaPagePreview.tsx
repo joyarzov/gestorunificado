@@ -22,6 +22,12 @@ export interface FirmaPagePreviewProps {
     col: number
     firmaY: number
     nombre: string
+    /**
+     * Caja real donde quedó ese sello (la que se le mandó a FirmaGob). Es la
+     * única fuente fiable: la columna teórica no dice dónde está un sello que
+     * el firmante movió a mano. Si falta —firmas antiguas— se cae a la columna.
+     */
+    rect?: RectFirma | null
   }>
   newRow: number
   newCol: number
@@ -55,10 +61,36 @@ const STAMP_H_REL = 70 / 792
 const COL_X_REL = [71 / 612, 233 / 612, 395 / 612]
 const COL_W_REL = 160 / 612
 const MARGEN_DER_REL = 57 / 612 // margen derecho del documento (2 cm)
-const ROW_OFFSET_REL = 80 / 792
+// Separación entre filas de sellos. NO es fija: se deriva del alto real del
+// sello, porque con el tamaño al 130% que usa la municipalidad el sello mide
+// 91pt y una separación fija de 80pt dejaba las dos filas montadas.
+const ROW_SEPARACION = 1.15 // 15% de aire sobre el alto del sello
+
+/** Sellos que caben lado a lado sin pisarse (izquierda y derecha). */
+export const SELLOS_POR_FILA = 2
 
 const PREVIEW_W_PX = 442 // +30%: más protagonismo al documento frente a los controles
 const PREVIEW_H_MAX_PX = Math.round(PAGINA_CARTA.h * (PREVIEW_W_PX / PAGINA_CARTA.w))
+
+/**
+ * Dónde poner el próximo sello, según cuántos ya estén estampados: dos por fila
+ * (izquierda y derecha, que son los que no se pisan) y los siguientes en filas
+ * hacia arriba. La columna del medio queda fuera del reparto automático porque
+ * con el sello al 130% invade a sus dos vecinas; sigue disponible para quien
+ * firma solo y la elige a mano.
+ */
+export function posicionSugerida(firmasPrevias: number): { col: number; row: number } {
+  const indice = Math.max(0, firmasPrevias)
+  return {
+    col: indice % SELLOS_POR_FILA === 0 ? 0 : 2,
+    row: Math.floor(indice / SELLOS_POR_FILA),
+  }
+}
+
+/** ¿Se pisan dos cajas de sello? Se comparan como rectángulos, no por columna. */
+export function seSuperponen(a: RectFirma, b: RectFirma): boolean {
+  return a.llx < b.urx && b.llx < a.urx && a.lly < b.ury && b.lly < a.ury
+}
 
 export interface RectFirma {
   /** Coordenada X izquierda del sello, en puntos de la página. */
@@ -99,8 +131,11 @@ export function calcularRectFirma(
   escala = ESCALA_POR_DEFECTO,
   row = 0,
 ): RectFirma {
+  const altoSello = STAMP_H_REL * page.h * (escala / 100)
+  // Las filas siguientes SUBEN, no bajan: hacia abajo está el bloque de nombre,
+  // RUT y cargo impresos, y el sello los taparía.
   const lly = Math.round(
-    (MARGEN_INF_REL + (firmaYPos / 100) * RANGO_Y_REL + row * ROW_OFFSET_REL) * page.h,
+    (MARGEN_INF_REL + (firmaYPos / 100) * RANGO_Y_REL) * page.h + row * altoSello * ROW_SEPARACION,
   )
   // El sello no puede pasarse de los márgenes del documento: si al agrandarlo se
   // sale por la derecha, se corre hacia la izquierda en vez de quedar cortado.
@@ -127,7 +162,7 @@ export function calcularRectFirma(
     llx,
     lly,
     urx: llx + ancho,
-    ury: Math.round(lly + STAMP_H_REL * page.h * (escala / 100)),
+    ury: Math.round(lly + altoSello),
   }
 }
 
@@ -269,10 +304,12 @@ export default function FirmaPagePreview({
               title={f.nombre}
               sx={{
                 position: 'absolute',
-                left: colXPx[f.col % 3],
-                top: llyToCssTop(f.firmaY),
-                width: stampW,
-                height: stampH,
+                left: f.rect ? Math.round(f.rect.llx * scale) : colXPx[f.col % 3],
+                top: f.rect
+                  ? llyToCssTop(f.rect.lly, Math.round((f.rect.ury - f.rect.lly) * scale))
+                  : llyToCssTop(f.firmaY),
+                width: f.rect ? Math.round((f.rect.urx - f.rect.llx) * scale) : stampW,
+                height: f.rect ? Math.round((f.rect.ury - f.rect.lly) * scale) : stampH,
                 bgcolor: 'rgba(100, 100, 100, 0.45)',
                 border: '1px solid rgba(80, 80, 80, 0.5)',
                 borderRadius: '2px',

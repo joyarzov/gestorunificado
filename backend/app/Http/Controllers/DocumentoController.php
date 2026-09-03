@@ -826,8 +826,14 @@ class DocumentoController extends Controller
         // en la previsualización, medida sobre la página REAL del PDF (que en un
         // documento subido puede no ser carta). Sin apilado automático por fila —
         // el usuario ve las firmas existentes en el preview y elige un hueco libre.
+        // Columna de respaldo (cliente antiguo que no manda caja): dos sellos por
+        // fila, izquierda y derecha. La del medio queda fuera del reparto
+        // automático porque con el sello al tamaño configurado invade a sus dos
+        // vecinas; sigue disponible si el firmante la elige a mano.
         $existingCount = $documento->firmas()->where('estado', 'firmado')->count();
-        $col = $request->has('firma_col') ? (int) $request->firma_col : $existingCount % 3;
+        $col = $request->has('firma_col')
+            ? (int) $request->firma_col
+            : ($existingCount % 2 === 0 ? 0 : 2);
         [$coords, $pageH] = FirmaGobService::rectDesdeParametros(
             $request->only(['firma_x', 'firma_y', 'firma_x2', 'firma_y2', 'firma_col', 'firma_page_h', 'firma_page_w']),
             $col
