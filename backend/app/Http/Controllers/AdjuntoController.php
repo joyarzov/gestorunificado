@@ -10,6 +10,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Entrega y administra los archivos adjuntos de dos mundos distintos: la ficha
+ * de correspondencia y los documentos de Cero Papel.
+ *
+ * Todo método debe comprobar el acceso al PADRE (la correspondencia o el
+ * documento) antes de tocar el archivo. Un adjunto no tiene permisos propios:
+ * los hereda de aquello a lo que está adjunto, y los tres métodos de la mitad
+ * "documento" no comprobaban nada — bastaba conocer el id para descargar,
+ * agregar o borrar adjuntos de un documento ajeno.
+ */
 class AdjuntoController extends Controller
 {
     /** Extensiones permitidas para adjuntos de la ficha de correspondencia. */
@@ -87,6 +97,10 @@ class AdjuntoController extends Controller
      */
     public function subirDocumento(Request $request, Documento $documento)
     {
+        if (!$documento->puedeGestionarAdjuntos(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
         if ($documento->estaFirmado()) {
             return $this->errorResponse('No se pueden modificar los adjuntos de un documento firmado', 400);
         }
@@ -123,7 +137,11 @@ class AdjuntoController extends Controller
 
     public function eliminarDocumento(DocumentoAdjunto $adjunto)
     {
-        if ($adjunto->documento && $adjunto->documento->estaFirmado()) {
+        if (!$adjunto->documento?->puedeGestionarAdjuntos(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
+        if ($adjunto->documento->estaFirmado()) {
             return $this->errorResponse('No se pueden modificar los adjuntos de un documento firmado', 400);
         }
 
@@ -136,6 +154,10 @@ class AdjuntoController extends Controller
 
     public function descargarDocumento(DocumentoAdjunto $adjunto)
     {
+        if (!$adjunto->documento?->esVisiblePara(Auth::user())) {
+            return $this->errorResponse('No tienes acceso a este documento', 403);
+        }
+
         if (!Storage::disk('public')->exists($adjunto->ruta_archivo)) {
             return $this->errorResponse('Archivo no encontrado', 404);
         }

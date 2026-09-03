@@ -340,18 +340,15 @@ class DocumentoController extends Controller
      *
      * Hasta agosto de 2026 no se comprobaba: cualquier funcionario abría y DESCARGABA
      * el borrador de otro por su id, y leía su trazabilidad completa.
+     *
+     * El criterio vive ahora en Documento::esVisiblePara para que lo comparta
+     * AdjuntoController, que entrega los mismos archivos por otra ruta.
      */
     private function puedeVerDocumento(Documento $documento): bool
     {
         $user = Auth::user();
-        if (!$user) {
-            return false;
-        }
-        if ($user->isAdmin() || $user->contexto()->puede_ver_repositorio) {
-            return true;
-        }
 
-        return Documento::query()->visiblesPara($user)->whereKey($documento->id)->exists();
+        return $user ? $documento->esVisiblePara($user) : false;
     }
 
     public function show(Documento $documento)

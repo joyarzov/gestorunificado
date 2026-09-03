@@ -607,6 +607,43 @@ class Documento extends Model
         });
     }
 
+    /**
+     * Puede LEER el documento: participa en él (ver scopeVisiblesPara) o mira
+     * desde una posición habilitada para todo el municipio (repositorio o
+     * administración).
+     *
+     * Vive en el modelo, no en un controlador, porque el criterio lo necesitan
+     * varios: DocumentoController lo tenía privado y AdjuntoController —que
+     * entrega los MISMOS archivos— no lo alcanzaba, así que descargaba sin
+     * comprobar nada. Un criterio de acceso que solo un controlador puede leer
+     * termina, tarde o temprano, sin aplicarse en el de al lado.
+     */
+    public function esVisiblePara(User $user): bool
+    {
+        if ($user->isAdmin() || $user->contexto()->puede_ver_repositorio) {
+            return true;
+        }
+
+        return static::query()->visiblesPara($user)->whereKey($this->id)->exists();
+    }
+
+    /**
+     * Puede AGREGAR o QUITAR adjuntos del documento.
+     *
+     * Más estricto que esVisiblePara a propósito: el permiso de repositorio
+     * habilita a leer todo el municipio, no a escribir en el borrador ajeno.
+     * Acá se exige participación real (autor, firmante, destinatario de un
+     * envío, expediente propio) o ser administrador.
+     */
+    public function puedeGestionarAdjuntos(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return static::query()->visiblesPara($user)->whereKey($this->id)->exists();
+    }
+
     // Helpers
     public function estaFirmado(): bool
     {
