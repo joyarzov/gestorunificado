@@ -448,6 +448,19 @@ class DocumentoController extends Controller
             $documento->expedientes()->sync($request->expedientes_ids);
         }
 
+        // El PDF que había en disco corresponde al contenido ANTERIOR: si se deja,
+        // el documento se sigue viendo y descargando como estaba antes de editarlo
+        // —el firmante revisa un PDF viejo y termina firmando otro contenido—.
+        // Se descarta para que se regenere del contenido nuevo al primer acceso.
+        // Solo aplica a los documentos que genera la plataforma: en uno subido,
+        // el archivo ES el documento y no se toca.
+        if ($documento->plantilla_id
+            && $documento->origen_carga !== Documento::ORIGEN_SUBIDO
+            && $documento->archivo_pdf) {
+            Storage::disk('public')->delete($documento->archivo_pdf);
+            $documento->update(['archivo_pdf' => null]);
+        }
+
         DocumentoTrazabilidad::registrar($documento->id, 'editado', 'Documento editado', [
             'campos_modificados' => $camposModificados,
         ]);
