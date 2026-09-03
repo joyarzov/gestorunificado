@@ -194,10 +194,28 @@ interface SortableDocItemProps {
    * Vínculo de rectificación con otra pieza del mismo expediente: leer el
    * expediente sin saber que un documento fue corregido lleva a usar el errado.
    */
-  vinculo?: { texto: string; anulado: boolean } | null
+  vinculo?: {
+    /** Lo que le pasó ("Dejado sin efecto por"), sin el número. */
+    prefijo: string
+    /** El número del otro documento: es el enlace. */
+    referencia: string
+    /** Coletilla tras el número, si la hay. */
+    sufijo?: string
+    /** Id del documento del otro extremo, para poder saltar a él. */
+    docId?: number
+    motivo?: string | null
+    /**
+     * Advertencia (a este documento le pasó algo) vs referencia (este es el que
+     * corrige a otro). Solo lo primero merece color de alarma.
+     */
+    advertencia: boolean
+    anulado: boolean
+  } | null
+  /** Saltar al documento del otro extremo del vínculo. */
+  onIrADocumento?: (id: number) => void
 }
 
-const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar, vinculo }: SortableDocItemProps) => {
+const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar, vinculo, onIrADocumento }: SortableDocItemProps) => {
   const {
     attributes,
     listeners,
@@ -236,12 +254,30 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar, vincul
       >
         <DragIcon fontSize="small" color="action" />
       </ListItemIcon>
-      <ListItemIcon onClick={onClick}>
+      <ListItemIcon onClick={onClick} sx={{ opacity: doc.estado === 'anulado' ? 0.4 : 1 }}>
         <DocIcon />
       </ListItemIcon>
       <ListItemText
         onClick={onClick}
-        primary={doc.titulo}
+        primary={
+          <>
+            {doc.titulo}
+            {doc.numero && (
+              <Box
+                component="span"
+                sx={{
+                  ml: 1,
+                  // En un anulado hereda el gris tachado del título; si no, gris suave.
+                  color: doc.estado === 'anulado' ? 'inherit' : 'text.secondary',
+                  fontWeight: 400,
+                  fontSize: '0.85em',
+                }}
+              >
+                N° {doc.numero}
+              </Box>
+            )}
+          </>
+        }
         primaryTypographyProps={
           // Un documento anulado sigue en el expediente —la historia no se borra—
           // pero no puede leerse como una pieza vigente más.
@@ -267,11 +303,38 @@ const SortableDocItem = ({ doc, onClick, onFirmar, onQuitar, onDescargar, vincul
                 sx={{
                   display: 'block',
                   mt: 0.25,
-                  fontWeight: 600,
-                  color: vinculo.anulado ? 'error.main' : 'warning.main',
+                  fontSize: '0.92em',
+                  // Alarma solo para el documento afectado; el que corrige se limita
+                  // a informar, y en gris no compite con la advertencia de al lado.
+                  fontWeight: vinculo.advertencia ? 600 : 400,
+                  color: vinculo.advertencia
+                    ? (vinculo.anulado ? 'error.main' : 'warning.dark')
+                    : 'text.secondary',
                 }}
               >
-                {vinculo.texto}
+                {vinculo.prefijo}{' '}
+                {vinculo.docId ? (
+                  <Box
+                    component="span"
+                    onClick={(e) => { e.stopPropagation(); onIrADocumento?.(vinculo.docId!) }}
+                    sx={{
+                      fontWeight: 600,
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.75 },
+                    }}
+                  >
+                    {vinculo.referencia}
+                  </Box>
+                ) : (
+                  vinculo.referencia
+                )}
+                {vinculo.sufijo ? ` ${vinculo.sufijo}` : ''}
+                {vinculo.motivo && (
+                  <Box component="span" sx={{ display: 'block', fontWeight: 400, color: 'text.secondary' }}>
+                    Motivo: «{vinculo.motivo}»
+                  </Box>
+                )}
               </Box>
             )}
           </>
@@ -409,8 +472,17 @@ const ExpedienteDetail = () => {
    * solo cuenta cuando el rectificatorio ya está firme (un borrador no rectifica nada).
    */
   const vinculosRectificacion = useMemo(() => {
-    const porDocumento = new Map<number, { texto: string; anulado: boolean }>()
-    const ref = (d: any) => d.numero || d.identificador || `#${d.id}`
+    type Vinculo = {
+      prefijo: string
+      referencia: string
+      sufijo?: string
+      docId?: number
+      motivo?: string | null
+      advertencia: boolean
+      anulado: boolean
+    }
+    const porDocumento = new Map<number, Vinculo>()
+    const ref = (d: any) => (d.numero ? `N° ${d.numero}` : d.identificador || `#${d.id}`)
 
     orderedDocs.forEach((d: any) => {
       if (!d.rectifica_a_id) return
@@ -418,17 +490,28 @@ const ExpedienteDetail = () => {
       const firme = d.estado === 'firmado' || d.estado === 'incorporado'
       const sinEfecto = d.tipo_rectificacion === 'deja_sin_efecto'
 
+      // En el documento corregido: advertencia, con el motivo a la vista. Es la
+      // línea que evita que alguien use una pieza superada creyéndola vigente.
       if (original) {
         porDocumento.set(original.id, {
-          texto: firme
-            ? `${sinEfecto ? 'Dejado sin efecto' : 'Rectificado'} por ${ref(d)}`
-            : `${sinEfecto ? 'Se dejará sin efecto' : 'En rectificación'} por ${ref(d)} (aún sin firmar)`,
+          prefijo: firme
+            ? `${sinEfecto ? 'Dejado sin efecto' : 'Rectificado'} por`
+            : `${sinEfecto ? 'Se dejará sin efecto' : 'En rectificación'} por`,
+          referencia: ref(d),
+          sufijo: firme ? undefined : '— aún sin firmar, sigue vigente',
+          docId: d.id,
+          motivo: d.motivo_rectificacion,
+          advertencia: true,
           anulado: firme && sinEfecto,
         })
       }
 
+      // En el que corrige: solo una referencia, sin color de alarma.
       porDocumento.set(d.id, {
-        texto: `${sinEfecto ? 'Deja sin efecto' : 'Rectifica'} a ${original ? ref(original) : 'otro documento'}`,
+        prefijo: `${sinEfecto ? 'Deja sin efecto' : 'Rectifica'} a`,
+        referencia: original ? ref(original) : 'otro documento',
+        docId: original?.id,
+        advertencia: false,
         anulado: false,
       })
     })
@@ -1124,6 +1207,7 @@ const ExpedienteDetail = () => {
                           onQuitar={puedeQuitarDocs ? () => setDocAQuitar(doc) : undefined}
                           onDescargar={() => handleDescargarDoc(doc)}
                           vinculo={vinculosRectificacion.get(doc.id) || null}
+                          onIrADocumento={(docId) => navigate(`/documentos/${docId}`)}
                         />
                       ))}
                     </List>
