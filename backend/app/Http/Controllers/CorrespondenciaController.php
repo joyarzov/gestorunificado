@@ -14,10 +14,14 @@ class CorrespondenciaController extends Controller
 {
     public function index(Request $request)
     {
-        // Visibilidad: admin/oficial ven todo; el resto solo donde participa.
+        // Visibilidad: admin/oficial y quien tiene el permiso de registro ven
+        // todo; el resto solo donde participa. El permiso NO puede quedar fuera
+        // acá: quien lo tiene ya lista las 401 en el Registro y abre cualquier
+        // detalle, pero la búsqueda avanzada —que corre por este mismo método—
+        // le devolvía solo aquellas en las que participa (2 de 401 en el caso
+        // medido), o sea que buscar encontraba muchísimo menos que navegar.
         // Este listado es de ENTRADAS; las salidas tienen su propio módulo.
-        $query = Correspondencia::visiblesPara(Auth::user())
-            ->entradas()
+        $query = $this->entradasVisibles(Auth::user())
             ->with([
                 'departamento', 'usuario', 'adjuntos',
                 'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion',
@@ -271,6 +275,10 @@ class CorrespondenciaController extends Controller
     /**
      * Entradas que el usuario puede ver, con el MISMO criterio que gobierna el
      * acceso al detalle (Correspondencia::esVisiblePara).
+     *
+     * Lo usan el listado, la búsqueda avanzada, el seguimiento y el feed de
+     * movimientos: cualquier vista que liste entradas debe entrar por acá, o
+     * termina mostrando menos de lo que el usuario puede abrir a mano.
      *
      * El scope `visiblesPara` se queda corto acá: no contempla el permiso de
      * registro/repositorio, que sí abre el detalle. Usarlo tal cual haría que

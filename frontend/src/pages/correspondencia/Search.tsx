@@ -41,6 +41,9 @@ const CorrespondenciaSearch = () => {
   const [results, setResults] = useState<Correspondencia[]>([])
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Lo último que se buscó de verdad, para que el "no hay resultados" nombre el
+  // término consultado y no lo que se está tipeando recién.
+  const [terminoBuscado, setTerminoBuscado] = useState('')
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [lastPage, setLastPage] = useState(1)
@@ -58,11 +61,13 @@ const CorrespondenciaSearch = () => {
   const aDiaLocal = (d: Date | null) => (d ? format(d, 'yyyy-MM-dd') : undefined)
 
   const buscar = async (pagina = 1) => {
+    const termino = filters.search.trim()
     setLoading(true)
     setSearched(true)
     setError(null)
+    setTerminoBuscado(termino)
     try {
-      const response = await correspondenciaAPI.search(filters.search.trim(), {
+      const response = await correspondenciaAPI.search(termino, {
         estado: filters.estado || undefined,
         fecha_desde: aDiaLocal(filters.fecha_desde),
         fecha_hasta: aDiaLocal(filters.fecha_hasta),
@@ -192,8 +197,16 @@ const CorrespondenciaSearch = () => {
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
-                        No se encontraron resultados
+                        {terminoBuscado
+                          ? <>No se encontraron resultados para <strong>«{terminoBuscado}»</strong></>
+                          : 'No se encontraron resultados'}
                       </Typography>
+                      {terminoBuscado && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                          Se busca en folio, remitente, N° de documento y materia. Revisa los
+                          filtros de estado y fecha, que también acotan.
+                        </Typography>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
