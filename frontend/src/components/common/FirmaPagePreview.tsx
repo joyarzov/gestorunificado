@@ -89,6 +89,23 @@ export function posicionSugerida(firmasPrevias: number): { col: number; row: num
   }
 }
 
+/**
+ * Conversión inversa: de la coordenada donde quedó un sello (lly, en puntos de
+ * la página) al valor 0-100 del deslizador de altura. Sirve para que quien firma
+ * después arranque exactamente a la altura del que firmó antes, en vez de tener
+ * que cazarla a pulso con el deslizador.
+ */
+export function yPosDesdeLly(
+  page: TamanoPagina,
+  lly: number,
+  row = 0,
+  escala = ESCALA_POR_DEFECTO,
+): number {
+  const altoSello = STAMP_H_REL * page.h * (escala / 100)
+  const rel = (lly - row * altoSello * ROW_SEPARACION) / page.h - MARGEN_INF_REL
+  return Math.min(100, Math.max(0, (rel / RANGO_Y_REL) * 100))
+}
+
 /** ¿Se pisan dos cajas de sello? Se comparan como rectángulos, no por columna. */
 export function seSuperponen(a: RectFirma, b: RectFirma): boolean {
   return a.llx < b.urx && b.llx < a.urx && a.lly < b.ury && b.lly < a.ury

@@ -60,7 +60,7 @@ import api from '../../api/axios'
 import PdfViewer from '../../components/common/PdfViewer'
 import FirmandoOverlay from '../../components/common/FirmandoOverlay'
 import FirmaPagePreview, {
-  calcularRectFirma, normalizarEscala, posicionSugerida, seSuperponen,
+  calcularRectFirma, normalizarEscala, posicionSugerida, seSuperponen, yPosDesdeLly,
   PAGINA_CARTA, ESCALA_POR_DEFECTO, type TamanoPagina, type RectFirma,
 } from '../../components/common/FirmaPagePreview'
 import { usersAPI } from '../../api/common'
@@ -282,10 +282,28 @@ const DocumentoDetail = () => {
   // Auto-select next available column when firma dialog opens
   useEffect(() => {
     if (firmarDialogOpen) {
-      const existingCount = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data).length
-      const sugerida = posicionSugerida(existingCount)
+      const previas = (documento?.firmas || []).filter(f => f.estado === 'firmado' && f.firma_gob_data)
+      const sugerida = posicionSugerida(previas.length)
       setFirmaCol(sugerida.col)
       setFirmaRow(sugerida.row)
+
+      // Alinear con quien firmó antes. La altura la elige el primero a pulso con
+      // el deslizador, y el segundo no tiene cómo adivinar el valor exacto: se
+      // hereda de la PRIMERA firma, que es la que fija la línea del documento.
+      const primera = previas[0]?.firma_gob_data as any
+      const rectPrimera = primera?.firma_rect
+      if (Array.isArray(rectPrimera) && rectPrimera.length === 4) {
+        const alto = primera?.firma_page_h ?? PAGINA_CARTA.h
+        setFirmaYPos(yPosDesdeLly({ w: firmaPageSize.w, h: alto }, rectPrimera[1], 0, firmaEscala))
+      }
+      // Y la misma página: de nada sirve la altura si el sello cae en otra hoja.
+      const paginaPrimera = primera?.firma_page
+      if (paginaPrimera === 'FIRST' || paginaPrimera === 'LAST') {
+        setFirmaPageMode(paginaPrimera)
+      } else if (paginaPrimera && !Number.isNaN(Number(paginaPrimera))) {
+        setFirmaPageMode('NUM')
+        setFirmaPageNum(Number(paginaPrimera))
+      }
     }
   }, [firmarDialogOpen, pdfUrl])
 
@@ -1323,6 +1341,19 @@ const DocumentoDetail = () => {
                   f => f.rect && seSuperponen(rectElegido, f.rect),
                 )
 
+                // Alturas que ya usaron otras firmas, en unidades del deslizador.
+                // Sirven para que el control ENCAJE en ellas: alinear a ojo un
+                // control continuo de 0 a 100 es imposible, y basta una décima de
+                // diferencia para que los dos sellos queden desparejos.
+                const alturasUsadas = existingFirmaPositions
+                  .filter(f => f.rect)
+                  .map(f => ({
+                    nombre: f.nombre,
+                    y: yPosDesdeLly(firmaPageSize, f.rect!.lly, 0, firmaEscala),
+                  }))
+                const IMAN = 1.2 // margen del deslizador dentro del cual se pega
+                const alineadaCon = alturasUsadas.find(a => Math.abs(a.y - firmaYPos) < 0.05)
+
                 return (
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" fontWeight="medium" sx={{ mb: 1.5 }}>
@@ -1382,7 +1413,13 @@ const DocumentoDetail = () => {
                           <Box sx={{ px: 1 }}>
                             <Slider
                               value={firmaYPos}
-                              onChange={(_, v) => setFirmaYPos(v as number)}
+                              onChange={(_, v) => {
+                                const valor = v as number
+                                // Encaje: cerca de la altura de otra firma, se pega
+                                // a ella para que los sellos queden a la misma línea.
+                                const cerca = alturasUsadas.find(a => Math.abs(a.y - valor) < IMAN)
+                                setFirmaYPos(cerca ? cerca.y : valor)
+                              }}
                               min={0}
                               max={100}
                               size="small"
@@ -1430,6 +1467,13 @@ const DocumentoDetail = () => {
                                 <ToggleButton value={2} sx={{ fontSize: 11, px: 1.5 }}>3ª</ToggleButton>
                               </ToggleButtonGroup>
                             </>
+                          )}
+
+                          {alineadaCon && !pisaA && (
+                            <Alert severity="success" sx={{ mt: 2, py: 0.5 }}>
+                              A la misma altura que la firma de{' '}
+                              <strong>{alineadaCon.nombre || 'el firmante anterior'}</strong>.
+                            </Alert>
                           )}
 
                           {pisaA && (
