@@ -591,6 +591,55 @@ const CorrespondenciaDetail = () => {
     }
   }
 
+  /**
+   * Documento oficial de una SALIDA. No vive en la tabla de adjuntos sino en la
+   * propia correspondencia (documento_ruta), así que hasta ahora el detalle decía
+   * "Sin adjuntos" aunque el oficio despachado estuviera ahí: había que ir a
+   * buscarlo a la pantalla de Salidas.
+   */
+  const handleVerDocumentoSalida = async () => {
+    if (!correspondencia) return
+    setViewerLoading(true)
+    setViewerName(correspondencia.documento_nombre || `${correspondencia.folio}.pdf`)
+    setViewerOpen(true)
+    try {
+      const blob = await correspondenciaAPI.salidaDescargarDocumento(correspondencia.id)
+      setViewerUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' })))
+    } catch (err: any) {
+      // Sin permiso el visor quedaría girando para siempre: se cierra y se dice
+      // por qué. Puede pasar a quien llega por el repositorio sin participar.
+      setViewerOpen(false)
+      setSnackbar({
+        open: true,
+        message: err?.response?.status === 403
+          ? 'No tienes permiso para abrir el documento de esta salida.'
+          : 'No se pudo abrir el documento de la salida.',
+      })
+    } finally {
+      setViewerLoading(false)
+    }
+  }
+
+  const handleDescargarDocumentoSalida = async () => {
+    if (!correspondencia) return
+    try {
+      const blob = await correspondenciaAPI.salidaDescargarDocumento(correspondencia.id)
+      const url = URL.createObjectURL(new Blob([blob]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = correspondencia.documento_nombre || `${correspondencia.folio}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err?.response?.status === 403
+          ? 'No tienes permiso para descargar el documento de esta salida.'
+          : 'No se pudo descargar el documento de la salida.',
+      })
+    }
+  }
+
   const handleDescargarAdjunto = async (adjunto: Adjunto) => {
     try {
       const blob = await correspondenciaAPI.descargarAdjunto(adjunto.id)
@@ -958,6 +1007,43 @@ const CorrespondenciaDetail = () => {
                   </>
                 )}
               </Box>
+              {/* El oficio que efectivamente salió: es la pieza principal de una
+                  salida y hasta ahora no se veía aquí. Va primero, separado de
+                  los adjuntos de respaldo. */}
+              {correspondencia.direccion === 'salida' && correspondencia.documento_nombre && (
+                <List dense>
+                  <ListItem
+                    disablePadding
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        title="Descargar"
+                        onClick={handleDescargarDocumentoSalida}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemButton onClick={handleVerDocumentoSalida}>
+                      <ListItemIcon>
+                        <PdfIcon color="error" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={correspondencia.documento_nombre}
+                        secondary={
+                          correspondencia.estado === 'despachada'
+                            ? 'Documento despachado'
+                            : 'Documento de la salida'
+                        }
+                        primaryTypographyProps={{ fontWeight: 500 }}
+                      />
+                      <ViewIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+                    </ListItemButton>
+                  </ListItem>
+                </List>
+              )}
+
               {correspondencia.adjuntos && correspondencia.adjuntos.length > 0 ? (
                 <List dense>
                   {correspondencia.adjuntos.map((adj) => (
@@ -988,13 +1074,13 @@ const CorrespondenciaDetail = () => {
                     </ListItem>
                   ))}
                 </List>
-              ) : (
+              ) : !(correspondencia.direccion === 'salida' && correspondencia.documento_nombre) ? (
                 <Typography variant="body2" color="text.secondary">
                   Sin adjuntos
                   {(isAdmin() || isOficial()) && correspondencia.estado !== 'archivado'
                     && ' — usa "Subir" para agregar el documento recibido.'}
                 </Typography>
-              )}
+              ) : null}
             </CardContent>
           </Card>
 
