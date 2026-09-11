@@ -397,6 +397,7 @@ const ExpedienteDetail = () => {
   const [expediente, setExpediente] = useState<Expediente | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [errorDetalle, setErrorDetalle] = useState('')
 
   // Menu "Agregar Documento"
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -556,8 +557,23 @@ const ExpedienteDetail = () => {
         const hr = await expedientesAPI.hojaRuta(expId)
         setHojaRuta(hr.data || [])
       } catch { /* la hoja de ruta es secundaria; no bloquea la vista */ }
-    } catch (err) {
-      setError('Error al cargar el expediente')
+    } catch (err: any) {
+      // Un 403 no es una falla: el backend explica por qué no se puede ver
+      // (no es creador, ni responsable, ni destinatario de una derivación).
+      // Mostrar el motivo real evita que se lea como "error del sistema".
+      const status = err?.response?.status
+      const msgBackend = err?.response?.data?.message
+      if (status === 403) {
+        setError(msgBackend || 'No tienes acceso a este expediente')
+        setErrorDetalle(
+          'Solo pueden verlo quien lo creó, quien lo tiene en su poder y a quienes se les derivó. ' +
+          'Si te enviaron un documento de este expediente, puedes verlo desde tu bandeja de documentos.'
+        )
+      } else if (status === 404) {
+        setError('Expediente no encontrado')
+      } else {
+        setError('Error al cargar el expediente')
+      }
       console.error(err)
     } finally {
       setLoading(false)
@@ -896,7 +912,14 @@ const ExpedienteDetail = () => {
         <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           Volver
         </Button>
-        <Alert severity="error">{error || 'Expediente no encontrado'}</Alert>
+        <Alert severity={errorDetalle ? 'warning' : 'error'}>
+          <Typography variant="body2" fontWeight={errorDetalle ? 'medium' : undefined}>
+            {error || 'Expediente no encontrado'}
+          </Typography>
+          {errorDetalle && (
+            <Typography variant="body2" sx={{ mt: 0.5 }}>{errorDetalle}</Typography>
+          )}
+        </Alert>
       </Box>
     )
   }
