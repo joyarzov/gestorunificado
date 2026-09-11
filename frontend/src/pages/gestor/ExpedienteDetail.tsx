@@ -398,6 +398,7 @@ const ExpedienteDetail = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [errorDetalle, setErrorDetalle] = useState('')
+  const [sinAcceso, setSinAcceso] = useState(false)
 
   // Menu "Agregar Documento"
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -564,6 +565,7 @@ const ExpedienteDetail = () => {
       const status = err?.response?.status
       const msgBackend = err?.response?.data?.message
       if (status === 403) {
+        setSinAcceso(true)
         setError(msgBackend || 'No tienes acceso a este expediente')
         setErrorDetalle(
           'Solo pueden verlo quien lo creó, quien lo tiene en su poder y a quienes se les derivó. ' +
@@ -572,7 +574,14 @@ const ExpedienteDetail = () => {
       } else if (status === 404) {
         setError('Expediente no encontrado')
       } else {
+        // Cualquier otra falla: dejar a la vista el motivo y el código HTTP para
+        // que el reporte del funcionario permita diagnosticar sin adivinar.
         setError('Error al cargar el expediente')
+        setErrorDetalle(
+          status
+            ? `${msgBackend || 'El servidor respondió con un error'} (HTTP ${status}).`
+            : 'No hubo respuesta del servidor. Revisa tu conexión e intenta de nuevo.'
+        )
       }
       console.error(err)
     } finally {
@@ -912,8 +921,8 @@ const ExpedienteDetail = () => {
         <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           Volver
         </Button>
-        <Alert severity={errorDetalle ? 'warning' : 'error'}>
-          <Typography variant="body2" fontWeight={errorDetalle ? 'medium' : undefined}>
+        <Alert severity={sinAcceso ? 'warning' : 'error'}>
+          <Typography variant="body2" fontWeight="medium">
             {error || 'Expediente no encontrado'}
           </Typography>
           {errorDetalle && (
