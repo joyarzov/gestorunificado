@@ -562,6 +562,13 @@ class CorrespondenciaController extends Controller
         ]);
         $correspondencia->append('resumen_gestion');
 
+        // ¿Mostrar la acción "Incorporar funcionario"? Solo si el usuario tiene la
+        // facultad Y la pieza está en circulación (no 'pendiente' ni archivada):
+        // incorporar suma a una derivación existente, no inicia la circulación.
+        $correspondencia->puede_incorporar = $user->puedeIncorporarCorrespondencia()
+            && !$correspondencia->estaArchivada()
+            && $correspondencia->estado !== 'pendiente';
+
         return $this->successResponse($correspondencia);
     }
 

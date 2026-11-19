@@ -373,6 +373,167 @@ class DerivacionController extends Controller
     }
 
     /**
+     * INCORPORAR funcionarios a una correspondencia ya en circulación: suma a uno
+     * o varios a la bandeja SIN quitársela a quien la tiene hoy. Es el gemelo, para
+     * correspondencia, de ExpedienteController::agregarDestinatarios.
+     *
+     * A diferencia de store() del alcalde: NO genera providencia firmada (es una
+     * derivación simple), NO cierra las derivaciones vigentes y lo puede ejecutar
+     * quien tenga la facultad `puedeIncorporarCorrespondencia()` (alcalde, admin,
+     * jefaturas o designados por el admin), aunque NO sea tenedor de la pieza.
+     */
+    public function agregarDestinatarios(Request $request, Correspondencia $correspondencia)
+    {
+        $request->validate([
+            'usuario_destino_ids' => 'nullable|array',
+            'usuario_destino_ids.*' => 'integer|exists:users,id',
+            'usuario_destino_id' => 'nullable|integer|exists:users,id',
+            'departamento_destino_ids' => 'nullable|array',
+            'departamento_destino_ids.*' => 'integer|exists:departamentos,id',
+            'departamento_destino_id' => 'nullable|integer|exists:departamentos,id',
+            'observaciones' => 'nullable|string',
+            'acciones_para' => 'nullable|array',
+            'acciones_para.*' => 'string',
+        ]);
+
+        $user = Auth::user();
+        $ctx = $user->contexto();
+
+        if (!$correspondencia->esVisiblePara($user)) {
+            return $this->errorResponse('No tienes acceso a esta correspondencia.', 403);
+        }
+        if ($correspondencia->estaArchivada()) {
+            return $this->errorResponse(
+                'El proceso está cerrado (archivada por el Alcalde): no admite nuevas incorporaciones.',
+                422
+            );
+        }
+        if (!$user->puedeIncorporarCorrespondencia()) {
+            return $this->errorResponse('No tienes la facultad de incorporar funcionarios a la correspondencia.', 403);
+        }
+
+        // Debe estar en circulación: si aún está 'pendiente' (sin pasar por oficina
+        // de partes) no hay a quién sumarse — eso es derivar, no incorporar.
+        $activas = $correspondencia->derivaciones()
+            ->whereIn('estado', ['pendiente', 'recibido'])
+            ->get();
+        if ($activas->isEmpty()) {
+            return $this->errorResponse(
+                'Esta correspondencia todavía no está en circulación: debe derivarse primero.',
+                422
+            );
+        }
+
+        [$destinatarios, $departamentosDestino] = $this->resolverDestinos($request);
+
+        // Quien ya la tiene no se suma de nuevo: una segunda derivación al mismo
+        // destinatario le pediría acusar recibo dos veces de la misma pieza.
+        $destinatarios = $destinatarios->reject(
+            fn ($u) => $activas->contains(fn ($d) => (int) $d->usuario_destino_id === (int) $u->id)
+        );
+        $departamentosDestino = $departamentosDestino->reject(
+            fn ($dep) => $activas->contains(
+                fn ($d) => is_null($d->usuario_destino_id)
+                    && (int) $d->departamento_destino_id === (int) $dep->id
+            )
+        );
+
+        if ($destinatarios->isEmpty() && $departamentosDestino->isEmpty()) {
+            return $this->errorResponse(
+                'Indica al menos un destino nuevo: los que elegiste ya tienen la correspondencia.',
+                422
+            );
+        }
+
+        $base = [
+            'correspondencia_id' => $correspondencia->id,
+            'departamento_origen_id' => $ctx->departamento_id,
+            'usuario_origen_id' => $user->id,
+            'actuando_como_user_id' => $user->getActuandoComo()?->id,
+            'observaciones' => $request->observaciones,
+            'acciones_para' => $request->acciones_para,
+            'estado' => 'pendiente',
+        ];
+
+        $creadas = collect();
+        foreach ($destinatarios as $dest) {
+            $creadas->push(Derivacion::create($base + [
+                'usuario_destino_id' => $dest->id,
+                'departamento_destino_id' => $dest->departamento_id ?? $ctx->departamento_id,
+            ]));
+        }
+        foreach ($departamentosDestino as $depto) {
+            $creadas->push(Derivacion::create($base + [
+                'usuario_destino_id' => null,
+                'departamento_destino_id' => $depto->id,
+            ]));
+        }
+
+        // Si todos habían acusado recibo (completada), sumar a alguien reabre la
+        // gestión: vuelve a haber un acuse pendiente. Los demás estados en
+        // circulación no cambian — las derivaciones vigentes siguen intactas.
+        if ($correspondencia->estado === 'completada') {
+            $correspondencia->update(['estado' => 'en_proceso']);
+        }
+
+        $nombresDestino = $destinatarios->pluck('nombre')
+            ->merge($departamentosDestino->pluck('nombre'))
+            ->filter()
+            ->values();
+        $correspondencia->registrarActividad(
+            $ctx->id,
+            'derivacion',
+            'incorporó a ' . ($nombresDestino->isNotEmpty()
+                ? $nombresDestino->join(', ', ' y ')
+                : 'un funcionario')
+                . ($request->observaciones ? ": {$request->observaciones}" : ''),
+            $user->id
+        );
+
+        // Avisar a los nuevos destinatarios (y a los funcionarios de cada
+        // departamento sumado). Quien ya fue notificado como destinatario directo
+        // no se vuelve a notificar por su departamento.
+        $yaNotificados = $destinatarios->pluck('id')->all();
+        if ($destinatarios->isNotEmpty()) {
+            NotificacionService::enviar(
+                $destinatarios,
+                'correspondencia',
+                'correspondencia_recibida',
+                'Te incorporaron a una correspondencia',
+                "{$user->nombre} te incorporó a la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\"."
+                    . ($request->observaciones ? " Observaciones: {$request->observaciones}." : ''),
+                ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
+            );
+        }
+        foreach ($departamentosDestino as $depto) {
+            $usuariosDestino = User::where('departamento_id', $depto->id)
+                ->where('activo', true)
+                ->get()
+                ->reject(fn ($u) => in_array($u->id, $yaNotificados, true))
+                ->values();
+            if ($usuariosDestino->isEmpty()) {
+                continue;
+            }
+            $yaNotificados = array_merge($yaNotificados, $usuariosDestino->pluck('id')->all());
+            NotificacionService::enviar(
+                $usuariosDestino,
+                'correspondencia',
+                'correspondencia_recibida',
+                'Te incorporaron a una correspondencia',
+                "{$user->nombre} incorporó la correspondencia {$correspondencia->folio} de \"{$correspondencia->remitente}\" a {$depto->nombre}.",
+                ['correspondencia_id' => $correspondencia->id, 'url' => '/correspondencia/' . $correspondencia->id]
+            );
+        }
+
+        $resumen = $nombresDestino->join(', ', ' y ');
+
+        return $this->successResponse(
+            $creadas->first()?->load(['departamentoDestino', 'usuarioDestino']),
+            "Se incorporó a {$resumen} a la correspondencia"
+        );
+    }
+
+    /**
      * Descarga el PDF asociado a una derivación (providencia o acuse de recibo).
      */
     public function pdf(Derivacion $derivacion)

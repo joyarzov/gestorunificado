@@ -61,3 +61,10 @@ backend/_t_export.php
 
 # Symlink de storage:link (se regenera con artisan storage:link)
 backend/public/storage
+
+# Entornos virtuales de Python (nunca versionar; contiene binarios enormes)
+.propuesta-venv/
+*-venv/
+venv/
+.venv/
+__pycache__/

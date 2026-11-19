@@ -41,6 +41,7 @@ import {
   Archive as ArchivarIcon,
   Unarchive as DesarchivarIcon,
   UploadFile as UploadIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { documentosAPI } from '../../api/gestor'
@@ -49,6 +50,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 import DerivacionDialog from '../../components/correspondencia/DerivacionDialog'
+import IncorporarDialog from '../../components/correspondencia/IncorporarDialog'
 import ConversacionHilo from '../../components/correspondencia/ConversacionHilo'
 import FirmaGobModal, { FirmaParams } from '../../components/correspondencia/FirmaGobModal'
 import ResumenGestion from '../../components/correspondencia/ResumenGestion'
@@ -80,6 +82,7 @@ const CorrespondenciaDetail = () => {
   const [derivDialogOpen, setDerivDialogOpen] = useState(false)
   const [derivDialogReadOnly, setDerivDialogReadOnly] = useState(false)
   const [derivDialogMode, setDerivDialogMode] = useState<'alcalde' | 'funcionario'>('alcalde')
+  const [incorporarDialogOpen, setIncorporarDialogOpen] = useState(false)
   const [alcaldeInfo, setAlcaldeInfo] = useState<AlcaldeInfo | null>(null)
   const [snackbar, setSnackbar] = useState({ open: false, message: '' })
 
@@ -415,6 +418,11 @@ const CorrespondenciaDetail = () => {
 
   const handleDerivacionSuccess = () => {
     setSnackbar({ open: true, message: 'Derivación realizada correctamente' })
+    if (id) loadCorrespondencia(parseInt(id))
+  }
+
+  const handleIncorporarSuccess = () => {
+    setSnackbar({ open: true, message: 'Funcionario incorporado a la correspondencia' })
     if (id) loadCorrespondencia(parseInt(id))
   }
 
@@ -763,6 +771,18 @@ const CorrespondenciaDetail = () => {
               {correspondencia?.estado === 'derivada_alcaldia'
                 ? 'Derivar a Funcionario'
                 : 'Derivar a otro funcionario'}
+            </Button>
+          )}
+          {/* Incorporar funcionario: facultad de jefaturas/designados (el backend
+              decide con puede_incorporar). SUMA a la bandeja sin quitársela a
+              quien la gestiona; no genera providencia. */}
+          {correspondencia?.puede_incorporar && (
+            <Button
+              variant="outlined"
+              startIcon={<PersonAddIcon />}
+              onClick={() => setIncorporarDialogOpen(true)}
+            >
+              Incorporar funcionario
             </Button>
           )}
           {isAlcalde() && correspondencia?.estado === 'derivada_alcaldia' && derivacionPendienteParaAlcalde && (
@@ -1354,6 +1374,14 @@ const CorrespondenciaDetail = () => {
         mode={derivDialogMode}
         derivacionesActuales={correspondencia.derivaciones}
         onSuccess={handleDerivacionSuccess}
+      />
+
+      <IncorporarDialog
+        open={incorporarDialogOpen}
+        onClose={() => setIncorporarDialogOpen(false)}
+        correspondenciaId={correspondencia.id}
+        derivacionesActuales={correspondencia.derivaciones}
+        onSuccess={handleIncorporarSuccess}
       />
 
       <Snackbar

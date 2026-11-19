@@ -220,6 +220,9 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         // Hilo de conversación (timeline unificado: derivaciones + mensajes)
         Route::get('/{correspondencia}/hilo', [CorrespondenciaMensajeController::class, 'hilo']);
         Route::post('/{correspondencia}/mensajes', [CorrespondenciaMensajeController::class, 'store']);
+        // Incorporar funcionarios a una correspondencia en circulación (suma a la
+        // bandeja sin quitársela a quien la gestiona). Facultad de jefaturas/designados.
+        Route::post('/{correspondencia}/agregar-destinatarios', [DerivacionController::class, 'agregarDestinatarios']);
     });
     Route::get('correspondencia-mensajes/adjunto/{adjunto}/descargar', [CorrespondenciaMensajeController::class, 'descargarAdjunto']);
     Route::apiResource('correspondencia', CorrespondenciaController::class)

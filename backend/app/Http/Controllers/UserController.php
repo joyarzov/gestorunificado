@@ -76,6 +76,7 @@ class UserController extends Controller
             'visador' => 'sometimes|boolean',
             'puede_ver_registro_correspondencia' => 'sometimes|boolean',
             'puede_ver_repositorio' => 'sometimes|boolean',
+            'puede_incorporar_correspondencia' => 'sometimes|boolean',
             'firma_desatendida_habilitada' => 'sometimes|boolean',
         ]);
 
@@ -93,6 +94,7 @@ class UserController extends Controller
             'visador' => $request->boolean('visador'),
             'puede_ver_registro_correspondencia' => $request->boolean('puede_ver_registro_correspondencia'),
             'puede_ver_repositorio' => $request->boolean('puede_ver_repositorio'),
+            'puede_incorporar_correspondencia' => $request->boolean('puede_incorporar_correspondencia'),
             'firma_desatendida_habilitada' => $request->boolean('firma_desatendida_habilitada'),
             'activo' => true,
         ]);
@@ -122,6 +124,7 @@ class UserController extends Controller
             'visador' => 'sometimes|boolean',
             'puede_ver_registro_correspondencia' => 'sometimes|boolean',
             'puede_ver_repositorio' => 'sometimes|boolean',
+            'puede_incorporar_correspondencia' => 'sometimes|boolean',
             'firma_desatendida_habilitada' => 'sometimes|boolean',
         ]);
 
@@ -135,6 +138,7 @@ class UserController extends Controller
             'visador',
             'puede_ver_registro_correspondencia',
             'puede_ver_repositorio',
+            'puede_incorporar_correspondencia',
             'firma_desatendida_habilitada',
         ]);
 

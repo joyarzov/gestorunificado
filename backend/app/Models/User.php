@@ -28,6 +28,7 @@ class User extends Authenticatable
         'visador',
         'puede_ver_registro_correspondencia',
         'puede_ver_repositorio',
+        'puede_incorporar_correspondencia',
         'firma_desatendida_habilitada',
         'firma_modo_preferido',
         'debe_cambiar_password',
@@ -49,6 +50,7 @@ class User extends Authenticatable
         'visador' => 'boolean',
         'puede_ver_registro_correspondencia' => 'boolean',
         'puede_ver_repositorio' => 'boolean',
+        'puede_incorporar_correspondencia' => 'boolean',
         'firma_desatendida_habilitada' => 'boolean',
         'debe_cambiar_password' => 'boolean',
         'ultimo_acceso' => 'datetime',
@@ -274,6 +276,32 @@ class User extends Authenticatable
     public function isVisador(): bool
     {
         return $this->visador;
+    }
+
+    /**
+     * ¿Puede INCORPORAR funcionarios a una correspondencia ya en circulación?
+     * (sumar a alguien a la bandeja sin quitársela a quien la gestiona). Es una
+     * facultad del módulo de correspondencia, distinta de derivar: no exige ser
+     * tenedor de la correspondencia.
+     *
+     * La tienen las jefaturas (quien encabeza algún departamento del organigrama,
+     * `departamentos.jefe_id`) y cualquiera a quien el admin le haya marcado el
+     * permiso explícito `puede_incorporar_correspondencia` ("algunas personas"
+     * que el alcalde designe). El admin la conserva como respaldo técnico.
+     *
+     * El ALCALDE queda EXCLUIDO a propósito: ya suma a quien se le olvidó con su
+     * propio "Derivar a otro funcionario" (ver alcaldePuedeDerivar), que además
+     * genera la providencia firmada. Darle también este botón sería redundante.
+     */
+    public function puedeIncorporarCorrespondencia(): bool
+    {
+        if ($this->isAlcalde()) {
+            return false;
+        }
+
+        return $this->isAdmin()
+            || (bool) $this->puede_incorporar_correspondencia
+            || $this->jefaturas()->exists();
     }
 
     /**

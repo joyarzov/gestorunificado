@@ -26,6 +26,8 @@ export interface SubrogadoActivo {
   puede_ver_registro_correspondencia?: boolean
   /** Repositorios (documental y de expedientes): consulta de todo el municipio. */
   puede_ver_repositorio?: boolean
+  /** Puede incorporar funcionarios a una correspondencia en circulación. */
+  puede_incorporar_correspondencia?: boolean
 }
 
 // Tipos de usuario
@@ -52,6 +54,8 @@ export interface User {
   puede_ver_registro_correspondencia?: boolean
   /** Repositorios (documental y de expedientes): consulta de todo el municipio. */
   puede_ver_repositorio?: boolean
+  /** Puede incorporar funcionarios a una correspondencia en circulación. */
+  puede_incorporar_correspondencia?: boolean
   firma_desatendida_habilitada?: boolean
   firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean
@@ -127,6 +131,9 @@ export interface Correspondencia {
   ultima_actividad_at?: string | null
   // En los listados: la correspondencia tiene acciones nuevas sin leer
   tiene_novedades?: boolean
+  // Solo en el detalle: el usuario puede "Incorporar funcionario" (jefatura/
+  // designado) y la pieza está en circulación (no pendiente ni archivada).
+  puede_incorporar?: boolean
   // En los listados: el usuario la marcó con estrella para seguirla
   en_seguimiento?: boolean
   // Solo en la lista de seguimiento

@@ -487,6 +487,24 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  // Incorporar funcionarios a una correspondencia en circulación: los SUMA a la
+  // bandeja sin quitársela a quien la gestiona hoy. Facultad de jefaturas/designados.
+  incorporarFuncionarios: async (
+    correspondenciaId: number,
+    data: {
+      usuario_destino_ids?: number[]
+      departamento_destino_ids?: number[]
+      observaciones?: string
+      acciones_para?: string[]
+    },
+  ) => {
+    const response = await api.post<ApiResponse<Derivacion>>(
+      `/correspondencia/${correspondenciaId}/agregar-destinatarios`,
+      data,
+    )
+    return response.data
+  },
+
   derivacionesPendientes: async (params?: { tab?: 'pendientes' | 'recibidas' | 'archivadas'; page?: number; per_page?: number }) => {
     const response = await api.get<ApiResponse<BandejaResponse>>('/derivaciones/pendientes', { params })
     return response.data

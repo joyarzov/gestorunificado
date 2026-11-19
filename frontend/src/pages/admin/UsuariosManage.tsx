@@ -106,6 +106,7 @@ const UsuariosManage = () => {
     visador: false,
     puede_ver_registro_correspondencia: false,
     puede_ver_repositorio: false,
+    puede_incorporar_correspondencia: false,
     firma_desatendida_habilitada: false,
   })
 
@@ -145,6 +146,7 @@ const UsuariosManage = () => {
         visador: user.visador,
         puede_ver_repositorio: user.puede_ver_repositorio || false,
         puede_ver_registro_correspondencia: user.puede_ver_registro_correspondencia ?? false,
+        puede_incorporar_correspondencia: user.puede_incorporar_correspondencia ?? false,
         firma_desatendida_habilitada: user.firma_desatendida_habilitada ?? false,
       })
     } else {
@@ -160,6 +162,7 @@ const UsuariosManage = () => {
         visador: false,
         puede_ver_registro_correspondencia: false,
     puede_ver_repositorio: false,
+        puede_incorporar_correspondencia: false,
         firma_desatendida_habilitada: false,
       })
     }
@@ -681,6 +684,17 @@ const UsuariosManage = () => {
                   />
                 }
                 label="Puede ver los repositorios de Cero Papel (solo lectura: todos los documentos y expedientes del municipio)"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.puede_incorporar_correspondencia}
+                    onChange={(e) => handleChange('puede_incorporar_correspondencia', e.target.checked)}
+                  />
+                }
+                label="Puede incorporar funcionarios a una correspondencia en circulación (además del alcalde y las jefaturas)"
               />
             </Grid>
             <Grid item xs={12}>
