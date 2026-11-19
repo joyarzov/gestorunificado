@@ -77,6 +77,8 @@ const DerivacionDialog = ({
   const [selectedDeptos, setSelectedDeptos] = useState<Departamento[]>([])
   const [observaciones, setObservaciones] = useState('')
   const [accionesPara, setAccionesPara] = useState<string[]>([])
+  // Plazo de respuesta opcional (solo modo alcalde): alimenta el semáforo.
+  const [fechaLimite, setFechaLimite] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -175,6 +177,7 @@ const DerivacionDialog = ({
       ...buildDestino(),
       observaciones: observaciones || undefined,
       acciones_para: esModoFuncionario && accionesPara.length > 0 ? accionesPara : undefined,
+      fecha_limite_respuesta: esModoFuncionario && fechaLimite ? fechaLimite : undefined,
     }
 
     if (esModoFuncionario) {
@@ -263,6 +266,7 @@ const DerivacionDialog = ({
     setTipoDestino('especificos')
     setObservaciones('')
     setAccionesPara([])
+    setFechaLimite('')
     setShowSuccess(false)
     setProvidenciaCorrespondenciaId(null)
     setShowFirmaModal(false)
@@ -607,6 +611,22 @@ const DerivacionDialog = ({
                   ))}
                 </FormGroup>
               </Box>
+            )}
+
+            {esModoFuncionario && !readOnly && (
+              <TextField
+                label="Fecha límite para responder (opcional)"
+                type="date"
+                value={fechaLimite}
+                onChange={(e) => setFechaLimite(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+                helperText={
+                  fechaLimite
+                    ? 'El funcionario verá un semáforo de plazo en su bandeja; tú la seguirás automáticamente.'
+                    : 'Déjala vacía si no quieres fijar un plazo.'
+                }
+              />
             )}
 
             <TextField

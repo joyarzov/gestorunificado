@@ -373,7 +373,7 @@ class CorrespondenciaController extends Controller
             ->whereIn('id', $notas->keys())
             ->with([
                 'departamento', 'usuario',
-                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion,fecha_limite_respuesta',
                 'derivaciones.usuarioDestino:id,nombre',
                 'mensajes:id,correspondencia_id,usuario_id',
             ])
@@ -384,12 +384,32 @@ class CorrespondenciaController extends Controller
         $items = $paginador->getCollection();
         $items->each(fn ($c) => $c->append('resumen_gestion'));
         $this->marcarBanderas($items, $ctxId);
-        $items->each(function ($c) use ($notas) {
+        $severidad = ['verde' => 1, 'amarillo' => 2, 'rojo' => 3];
+        $items->each(function ($c) use ($notas, $ctxId, $severidad) {
             $c->nota_seguimiento   = $notas[$c->id] ?? null;
             $c->dias_sin_movimiento = $c->diasSinMovimiento();
             $c->estancada = !$c->estaArchivada()
                 && $c->dias_sin_movimiento !== null
                 && $c->dias_sin_movimiento >= self::DIAS_ESTANCADA;
+
+            // Semáforo del plazo que ESTE usuario puso (es quien sigue la pieza):
+            // entre sus derivaciones con plazo, se queda con la más urgente.
+            $c->semaforo = null;
+            $c->fecha_limite_respuesta = null;
+            foreach ($c->derivaciones as $d) {
+                if (!$d->fecha_limite_respuesta || (int) $d->titularOrigenId() !== (int) $ctxId) {
+                    continue;
+                }
+                $d->setRelation('correspondencia', $c);
+                $sem = $d->semaforo();
+                if ($sem === null) {
+                    continue;
+                }
+                if ($c->semaforo === null || $severidad[$sem] > $severidad[$c->semaforo]) {
+                    $c->semaforo = $sem;
+                    $c->fecha_limite_respuesta = $d->fecha_limite_respuesta->format('Y-m-d');
+                }
+            }
         });
 
         return $this->successResponse([

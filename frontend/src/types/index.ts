@@ -140,6 +140,9 @@ export interface Correspondencia {
   nota_seguimiento?: string | null
   dias_sin_movimiento?: number | null
   estancada?: boolean
+  // Solo en la lista de seguimiento: semáforo del plazo de respuesta que puso el usuario
+  semaforo?: 'verde' | 'amarillo' | 'rojo' | null
+  fecha_limite_respuesta?: string | null
   created_at: string
   updated_at: string
 }
@@ -169,6 +172,8 @@ export interface Derivacion {
   pdf_ruta?: string
   observaciones?: string
   acciones_para?: string[]
+  // Plazo de respuesta opcional que fijó el alcalde al derivar (YYYY-MM-DD).
+  fecha_limite_respuesta?: string | null
   folio?: string
   estado: 'pendiente' | 'recibido' | 'archivado' | 'derivado'
   fecha_recepcion?: string
@@ -179,6 +184,8 @@ export interface Derivacion {
   tiene_novedades?: boolean
   // Solo en la bandeja: el usuario marcó la correspondencia con estrella
   en_seguimiento?: boolean
+  // Solo en la bandeja: semáforo del plazo de respuesta (null si no hay o ya se cumplió)
+  semaforo?: 'verde' | 'amarillo' | 'rojo' | null
 }
 
 // Tipos OIRS

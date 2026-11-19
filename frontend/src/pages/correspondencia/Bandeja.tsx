@@ -28,6 +28,7 @@ import { correspondenciaAPI } from '../../api/correspondencia'
 import { Correspondencia, Derivacion } from '../../types'
 import ResumenGestion from '../../components/correspondencia/ResumenGestion'
 import EstrellaSeguimiento from '../../components/correspondencia/EstrellaSeguimiento'
+import SemaforoPlazo from '../../components/correspondencia/SemaforoPlazo'
 import { estadoCorrespondencia } from '../../utils/estadoCorrespondencia'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -210,6 +211,7 @@ const BandejaEntrada = () => {
                             color={estadoCorrespondencia(c.estado).color}
                             size="small"
                           />
+                          <SemaforoPlazo nivel={c.semaforo} fecha={c.fecha_limite_respuesta} />
                           <ResumenGestion correspondencia={c} variant="lista" />
                         </Box>
                       </TableCell>
@@ -336,6 +338,7 @@ const BandejaEntrada = () => {
                             size="small"
                           />
                         )}
+                        {tab !== 2 && <SemaforoPlazo nivel={der.semaforo} fecha={der.fecha_limite_respuesta} />}
                         {der.correspondencia && (
                           <ResumenGestion correspondencia={der.correspondencia} variant="lista" />
                         )}

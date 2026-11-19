@@ -30,6 +30,8 @@ export interface CreateDerivacionData {
   derivar_a_todos?: boolean
   observaciones?: string
   acciones_para?: string[]
+  /** Plazo de respuesta opcional (YYYY-MM-DD); lo fija el alcalde. */
+  fecha_limite_respuesta?: string
   otp?: string
   firma_desatendida?: boolean
   firma_y?: number

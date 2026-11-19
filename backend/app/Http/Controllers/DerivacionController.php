@@ -65,6 +65,7 @@ class DerivacionController extends Controller
             'observaciones' => 'nullable|string',
             'acciones_para' => 'nullable|array',
             'acciones_para.*' => 'string',
+            'fecha_limite_respuesta' => 'nullable|date',
             'otp'        => 'nullable|string',
             'firma_desatendida' => 'nullable|boolean',
             'firma_y'    => 'nullable|integer|min:0|max:20000',
@@ -126,6 +127,8 @@ class DerivacionController extends Controller
             'actuando_como_user_id' => $user->getActuandoComo()?->id,
             'observaciones' => $request->observaciones,
             'acciones_para' => $request->acciones_para,
+            // Plazo opcional de respuesta (lo fija el alcalde): alimenta el semáforo.
+            'fecha_limite_respuesta' => $request->input('fecha_limite_respuesta') ?: null,
             'estado' => 'pendiente',
         ];
 
@@ -275,9 +278,21 @@ class DerivacionController extends Controller
             'derivacion',
             'derivó a ' . ($nombresDestino->isNotEmpty()
                 ? $nombresDestino->join(', ', ' y ')
-                : 'su destinatario'),
+                : 'su destinatario')
+                . ($request->filled('fecha_limite_respuesta')
+                    ? ' (plazo de respuesta: ' . \Illuminate\Support\Carbon::parse($request->input('fecha_limite_respuesta'))->format('d/m/Y') . ')'
+                    : ''),
             $user->id
         );
+
+        // Auto-seguir: si el alcalde fijó un plazo, la correspondencia queda en su
+        // lista de seguimiento, donde verá el semáforo del plazo que puso.
+        if ($esAlcaldeDerivando && $request->filled('fecha_limite_respuesta') && !$user->estaAuditando()) {
+            \App\Models\CorrespondenciaSeguimiento::firstOrCreate([
+                'usuario_id'         => $ctx->id,
+                'correspondencia_id' => $correspondencia->id,
+            ]);
+        }
 
         $derivacion->load([
             'correspondencia',
@@ -905,6 +920,9 @@ class DerivacionController extends Controller
             $leido = $lecturas[$d->correspondencia_id] ?? null;
             $d->tiene_novedades = $act && (!$leido || $act->gt($leido));
             $d->en_seguimiento = $seguidas->has($d->correspondencia_id);
+            // Semáforo del plazo de respuesta (null si no hay plazo o ya se cumplió).
+            // fecha_limite_respuesta ya se serializa por estar en la fila.
+            $d->semaforo = $d->semaforo();
             // Resumen de gestión (acuses / respondieron) para mostrarlo en la bandeja.
             $d->correspondencia?->append('resumen_gestion');
             return $d;

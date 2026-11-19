@@ -23,6 +23,7 @@ class Derivacion extends Model
         'pdf_ruta',
         'observaciones',
         'acciones_para',
+        'fecha_limite_respuesta',
         'folio',
         'codigo_verificacion',
         'estado',
@@ -31,6 +32,7 @@ class Derivacion extends Model
 
     protected $casts = [
         'fecha_recepcion' => 'datetime',
+        'fecha_limite_respuesta' => 'date',
         'acciones_para' => 'array',
     ];
 
@@ -102,6 +104,45 @@ class Derivacion extends Model
     public function titularOrigenId(): ?int
     {
         return $this->actuando_como_user_id ?: $this->usuario_origen_id;
+    }
+
+    /**
+     * Semáforo del plazo de respuesta para esta derivación, para la bandeja y la
+     * lista de seguimiento. Devuelve null cuando no aplica (sin plazo, o el plazo
+     * ya se cumplió porque la correspondencia se respondió o se cerró), o
+     * 'verde' | 'amarillo' | 'rojo' según los días que falten para la fecha límite.
+     *
+     * Umbrales acordados: 🟢 faltan más de 2 días · 🟡 quedan 2 días o menos
+     * (incluye hoy y mañana) · 🔴 ya venció. "Responder" es más que "acusar
+     * recibo": recibir NO apaga el semáforo, solo responder o cerrar el proceso.
+     *
+     * El "hoy" se calcula en la zona horaria de la app (America/Punta_Arenas),
+     * no en UTC del contenedor — ver timezone_utc_vs_punta_arenas.
+     */
+    public function semaforo(): ?string
+    {
+        if (!$this->fecha_limite_respuesta) {
+            return null;
+        }
+
+        $correspondencia = $this->correspondencia;
+        if ($correspondencia
+            && ($correspondencia->respondida_at !== null || $correspondencia->estado === 'archivado')) {
+            return null; // plazo cumplido: respondida o cerrada
+        }
+
+        $hoy = \Illuminate\Support\Carbon::today();
+        $limite = $this->fecha_limite_respuesta->copy()->startOfDay();
+        $diasRestantes = $hoy->diffInDays($limite, false);
+
+        if ($diasRestantes < 0) {
+            return 'rojo';      // vencido
+        }
+        if ($diasRestantes <= 2) {
+            return 'amarillo';  // hoy, mañana o pasado mañana
+        }
+
+        return 'verde';
     }
 
     public function scopePendientes($query)
