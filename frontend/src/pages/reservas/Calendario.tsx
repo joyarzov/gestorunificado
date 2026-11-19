@@ -4,7 +4,8 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import esLocale from '@fullcalendar/core/locales/es'
-import type { EventClickArg, DateSelectArg, EventInput } from '@fullcalendar/core'
+import type { EventClickArg, DateSelectArg, EventDropArg, EventInput } from '@fullcalendar/core'
+import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import {
   Box,
   Card,
@@ -53,11 +54,15 @@ const ReservasCalendario = () => {
   // Diálogo crear/solicitar
   const [dialogOpen, setDialogOpen] = useState(false)
   const [prefill, setPrefill] = useState<{ inicio?: string; fin?: string }>({})
+  const [editando, setEditando] = useState<Reserva | null>(null)
   // Detalle de una reserva
   const [detalle, setDetalle] = useState<Reserva | null>(null)
   const [accionLoading, setAccionLoading] = useState(false)
 
   const espacioSel = espacios.find((e) => e.id === espacioId) || null
+
+  // Solo directores/jefaturas (o admins del espacio) pueden crear/solicitar.
+  const puedeCrear = !!espacioSel?.es_administrador || !!user?.puede_solicitar_reserva
 
   useEffect(() => {
     reservasAPI.espaciosListar()
@@ -119,8 +124,51 @@ const ReservasCalendario = () => {
   }
 
   const handleNueva = () => {
+    setEditando(null)
     setPrefill({})
     setDialogOpen(true)
+  }
+
+  const handleEditar = (r: Reserva) => {
+    setEditando(r)
+    setPrefill({})
+    setDetalle(null)
+    setDialogOpen(true)
+  }
+
+  // Mover (drag & drop) o estirar una reserva: solo admins del espacio.
+  const handleMover = async (
+    r: Reserva,
+    inicio: string,
+    fin: string,
+    revert: () => void,
+  ) => {
+    try {
+      await reservasAPI.reservaActualizar(r.id, {
+        titulo: r.titulo,
+        descripcion: r.descripcion ?? undefined,
+        inicio,
+        fin,
+        asistente_ids: (r.asistentes ?? []).map((a) => a.id),
+      })
+      cargarReservas()
+    } catch (e: any) {
+      revert()
+      setError(e?.response?.data?.message || 'No se pudo mover la reserva.')
+    }
+  }
+
+  const handleEventDrop = (arg: EventDropArg) => {
+    const r = arg.event.extendedProps.reserva as Reserva | undefined
+    if (!r || !arg.event.start) return
+    const fin = arg.event.end ?? new Date(arg.event.start.getTime() + 60 * 60 * 1000)
+    handleMover(r, toLocalInput(arg.event.start), toLocalInput(fin), arg.revert)
+  }
+
+  const handleEventResize = (arg: EventResizeDoneArg) => {
+    const r = arg.event.extendedProps.reserva as Reserva | undefined
+    if (!r || !arg.event.start || !arg.event.end) return
+    handleMover(r, toLocalInput(arg.event.start), toLocalInput(arg.event.end), arg.revert)
   }
 
   const puedeCancelar = (r: Reserva) =>
@@ -168,9 +216,11 @@ const ReservasCalendario = () => {
               ))}
             </Select>
           </FormControl>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleNueva} disabled={!espacioSel}>
-            {espacioSel?.es_administrador ? 'Nueva reserva' : 'Solicitar hora'}
-          </Button>
+          {puedeCrear && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleNueva} disabled={!espacioSel}>
+              {espacioSel?.es_administrador ? 'Nueva reserva' : 'Solicitar hora'}
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -193,10 +243,13 @@ const ReservasCalendario = () => {
               right: 'dayGridMonth,timeGridWeek,timeGridDay',
             }}
             events={eventos}
-            selectable={!!espacioSel}
+            selectable={puedeCrear}
+            editable={!!espacioSel?.es_administrador}
             selectMirror
             select={handleSelect}
             eventClick={handleEventClick}
+            eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
             datesSet={(arg) => {
               rango.current = { desde: arg.startStr, hasta: arg.endStr }
               cargarReservas()
@@ -210,12 +263,13 @@ const ReservasCalendario = () => {
         </CardContent>
       </Card>
 
-      {/* Diálogo crear/solicitar */}
+      {/* Diálogo crear/solicitar/editar */}
       {espacioSel && (
         <ReservaDialog
           open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
+          onClose={() => { setDialogOpen(false); setEditando(null) }}
           espacio={espacioSel}
+          reserva={editando}
           prefillInicio={prefill.inicio}
           prefillFin={prefill.fin}
           onSuccess={cargarReservas}
@@ -266,6 +320,12 @@ const ReservasCalendario = () => {
             </DialogContent>
             <Divider />
             <DialogActions>
+              {(espacioSel?.es_administrador || (detalle.solicitante_id === user?.id && detalle.estado === 'solicitada'))
+                && detalle.estado !== 'cancelada' && detalle.estado !== 'rechazada' && (
+                <Button color="primary" disabled={accionLoading} onClick={() => handleEditar(detalle)}>
+                  Editar / Mover
+                </Button>
+              )}
               {detalle.estado === 'solicitada' && espacioSel?.es_administrador && (
                 <Button color="success" variant="contained" disabled={accionLoading} onClick={() => handleAprobar(detalle)}>
                   Aprobar

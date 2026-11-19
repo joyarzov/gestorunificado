@@ -64,6 +64,10 @@ class ReservaController extends Controller
         $espacio = Espacio::findOrFail($data['espacio_id']);
 
         $esAdminEspacio = $espacio->esAdministrador($user);
+        // Solo directores/jefaturas pueden solicitar; los demás solo ven el calendario.
+        if (!$esAdminEspacio && !$user->puedeSolicitarReserva()) {
+            return $this->errorResponse('Solo las jefaturas pueden solicitar horas. Consulta con tu director o jefe de área.', 403);
+        }
         // Admin del espacio → reserva directa (aprobada). Funcionario → solicitud.
         $estado = $esAdminEspacio ? Reserva::ESTADO_APROBADA : Reserva::ESTADO_SOLICITADA;
 
@@ -120,6 +124,10 @@ class ReservaController extends Controller
             return $this->errorResponse('Ese horario choca con otra reserva ya aprobada del espacio.', 422);
         }
 
+        // ¿Se movió (cambió inicio o fin)? Si es así, hay que avisar el nuevo horario.
+        $cambioHorario = $reserva->inicio->neq(Carbon::parse($data['inicio']))
+            || $reserva->fin->neq(Carbon::parse($data['fin']));
+
         $reserva->update([
             'titulo' => $data['titulo'],
             'descripcion' => $data['descripcion'] ?? null,
@@ -127,6 +135,19 @@ class ReservaController extends Controller
             'fin' => $data['fin'],
         ]);
         $this->sincronizarAsistentes($reserva, $request);
+
+        if ($cambioHorario) {
+            // Asistentes: solo de reservas ya aprobadas (una solicitud pendiente
+            // aún no fue anunciada a nadie).
+            if ($reserva->estado === Reserva::ESTADO_APROBADA) {
+                $this->avisarAsistentes($reserva, 'Se reprogramó una reserva', 'reprogramada');
+            }
+            // Si la movió el administrador, el solicitante (si no fue él) se entera.
+            if ($esAdmin && $reserva->solicitante_id !== $user->id) {
+                $this->avisarSolicitante($reserva, 'Se movió tu reserva',
+                    "Tu reserva de \"{$reserva->espacio->nombre}\" quedó para {$this->rango($reserva)}.");
+            }
+        }
 
         $reserva->load(['solicitante:id,nombre', 'asistentes:id,nombre', 'espacio:id,nombre']);
 
@@ -288,10 +309,12 @@ class ReservaController extends Controller
             return;
         }
 
-        $cuerpoBase = $situacion === 'cancelada'
-            ? "Se canceló la reserva \"{$reserva->titulo}\" en {$reserva->espacio->nombre} ({$this->rango($reserva)})."
-            : "{$reserva->solicitante->nombre} te convocó a \"{$reserva->titulo}\" en {$reserva->espacio->nombre} el {$this->rango($reserva)}."
-                . ($reserva->descripcion ? " {$reserva->descripcion}" : '');
+        $cuerpoBase = match ($situacion) {
+            'cancelada' => "Se canceló la reserva \"{$reserva->titulo}\" en {$reserva->espacio->nombre} ({$this->rango($reserva)}).",
+            'reprogramada' => "Se reprogramó la reserva \"{$reserva->titulo}\" en {$reserva->espacio->nombre}. Nuevo horario: {$this->rango($reserva)}.",
+            default => "{$reserva->solicitante->nombre} te convocó a \"{$reserva->titulo}\" en {$reserva->espacio->nombre} el {$this->rango($reserva)}."
+                . ($reserva->descripcion ? " {$reserva->descripcion}" : ''),
+        };
 
         // Solo se adjunta .ics cuando la cita está vigente (no al cancelar).
         $ics = $situacion === 'cancelada' ? null : IcsBuilder::forReserva($reserva);
@@ -305,7 +328,7 @@ class ReservaController extends Controller
             $notif = Notificacion::create([
                 'user_id' => $asistente->id,
                 'modulo' => 'reservas',
-                'tipo' => $situacion === 'cancelada' ? 'reserva_cancelada' : 'reserva_confirmada',
+                'tipo' => $situacion === 'cancelada' ? 'reserva_cancelada' : ($situacion === 'reprogramada' ? 'reserva_reprogramada' : 'reserva_confirmada'),
                 'titulo' => $titulo,
                 'mensaje' => $cuerpoBase,
                 'data' => $data,

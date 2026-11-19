@@ -146,6 +146,20 @@ class User extends Authenticatable
     }
 
     /**
+     * ¿Puede SOLICITAR una hora de un espacio (reserva pendiente de aprobación)?
+     * Solo directores y jefaturas: quien encabeza algún departamento del
+     * organigrama (`departamentos.jefe_id`), más el alcalde y el admin de
+     * plataforma. Los administradores del espacio no pasan por acá: crean
+     * reservas directas ya aprobadas.
+     */
+    public function puedeSolicitarReserva(): bool
+    {
+        return $this->isAdmin()
+            || $this->isAlcalde()
+            || $this->jefaturas()->exists();
+    }
+
+    /**
      * Usuario al que este User está "subrogando" en la request actual.
      * Lo setea el middleware ActuandoComo cuando el cliente envía
      * X-Actuando-Como con un subrogado válido.

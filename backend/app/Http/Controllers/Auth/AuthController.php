@@ -312,6 +312,8 @@ class AuthController extends Controller
             // Administra al menos un espacio reservable (o es admin): habilita las
             // opciones de gestión del módulo de reservas en el menú.
             'administra_espacios' => $user->puedeGestionarEspacios(),
+            // Directores/jefaturas (y alcalde/admin): pueden "Solicitar hora".
+            'puede_solicitar_reserva' => $user->puedeSolicitarReserva(),
             'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
             'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
             'debe_cambiar_password' => (bool) $user->debe_cambiar_password,

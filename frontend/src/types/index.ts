@@ -58,6 +58,8 @@ export interface User {
   puede_incorporar_correspondencia?: boolean
   /** Administra al menos un espacio reservable (habilita gestión en el módulo de reservas). */
   administra_espacios?: boolean
+  /** Directores/jefaturas (y alcalde/admin): pueden "Solicitar hora" en el módulo de reservas. */
+  puede_solicitar_reserva?: boolean
   firma_desatendida_habilitada?: boolean
   firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean
