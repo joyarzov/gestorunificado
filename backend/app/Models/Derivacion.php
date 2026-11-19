@@ -123,6 +123,19 @@ class Derivacion extends Model
      */
     public function semaforo(): ?string
     {
+        return $this->semaforoPara($this->correspondencia);
+    }
+
+    /**
+     * Igual que semaforo() pero recibe la correspondencia como parámetro, para no
+     * tener que mutar la relación `correspondencia` del modelo. Esto es CLAVE
+     * cuando la derivación ya vive dentro de `$correspondencia->derivaciones`:
+     * hacer `setRelation('correspondencia', $c)` crearía una referencia circular
+     * ($c → derivaciones → $d → correspondencia → $c) que, al serializar la
+     * respuesta a JSON, recursa infinito y mata el proceso.
+     */
+    public function semaforoPara(?Correspondencia $correspondencia): ?string
+    {
         if (!$this->fecha_limite_respuesta) {
             return null;
         }
@@ -133,7 +146,6 @@ class Derivacion extends Model
             return null;
         }
 
-        $correspondencia = $this->correspondencia;
         if ($correspondencia
             && ($correspondencia->respondida_at !== null || $correspondencia->estado === 'archivado')) {
             return null; // plazo cumplido: respondida o cerrada

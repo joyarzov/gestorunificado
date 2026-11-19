@@ -373,7 +373,7 @@ class CorrespondenciaController extends Controller
             ->whereIn('id', $notas->keys())
             ->with([
                 'departamento', 'usuario',
-                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion,fecha_limite_respuesta',
+                'derivaciones:id,correspondencia_id,usuario_origen_id,actuando_como_user_id,usuario_destino_id,estado,fecha_recepcion,fecha_limite_respuesta,cumplida_at',
                 'derivaciones.usuarioDestino:id,nombre',
                 'mensajes:id,correspondencia_id,usuario_id',
             ])
@@ -408,8 +408,10 @@ class CorrespondenciaController extends Controller
                 if ($d->cumplida_at !== null) {
                     $cumplidas++;
                 }
-                $d->setRelation('correspondencia', $c);
-                $sem = $d->semaforo();
+                // semaforoPara (NO setRelation): evita la referencia circular
+                // $c → derivaciones → $d → correspondencia → $c, que al serializar
+                // a JSON recursa infinito y mata el proceso.
+                $sem = $d->semaforoPara($c);
                 if ($sem !== null && ($c->semaforo === null || $severidad[$sem] > $severidad[$c->semaforo])) {
                     $c->semaforo = $sem;
                     $c->fecha_limite_respuesta = $d->fecha_limite_respuesta->format('Y-m-d');
