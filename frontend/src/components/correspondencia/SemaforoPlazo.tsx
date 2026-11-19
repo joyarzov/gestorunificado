@@ -8,6 +8,8 @@ interface SemaforoPlazoProps {
   nivel: Nivel
   /** Fecha límite en formato YYYY-MM-DD. */
   fecha?: string | null
+  /** Si true, se muestra ✅ "Cumplida" en vez del semáforo (todas las entregas con plazo cumplidas). */
+  cumplido?: boolean
 }
 
 const CONFIG: Record<'verde' | 'amarillo' | 'rojo', { color: 'success' | 'warning' | 'error'; emoji: string }> = {
@@ -20,7 +22,15 @@ const CONFIG: Record<'verde' | 'amarillo' | 'rojo', { color: 'success' | 'warnin
  * Chip-semáforo del plazo de respuesta. No renderiza nada si no hay plazo o ya se
  * cumplió (nivel null). 🟢 holgado · 🟡 por vencer (≤2 días) · 🔴 vencido.
  */
-const SemaforoPlazo = ({ nivel, fecha }: SemaforoPlazoProps) => {
+const SemaforoPlazo = ({ nivel, fecha, cumplido }: SemaforoPlazoProps) => {
+  if (cumplido) {
+    return (
+      <Tooltip title="Todos los funcionarios con plazo marcaron su entrega como cumplida">
+        <Chip label="✅ Cumplida" color="success" size="small" variant="filled" />
+      </Tooltip>
+    )
+  }
+
   if (!nivel) return null
 
   const { color, emoji } = CONFIG[nivel]

@@ -507,6 +507,13 @@ export const correspondenciaAPI = {
     return response.data
   },
 
+  // Marca como cumplida (individual) la entrega del funcionario en una derivación
+  // con plazo, tras haber acusado recibo. Apaga su semáforo.
+  marcarCumplida: async (derivacionId: number) => {
+    const response = await api.post<ApiResponse<Derivacion>>(`/derivaciones/${derivacionId}/cumplir`)
+    return response.data
+  },
+
   derivacionesPendientes: async (params?: { tab?: 'pendientes' | 'recibidas' | 'archivadas'; page?: number; per_page?: number }) => {
     const response = await api.get<ApiResponse<BandejaResponse>>('/derivaciones/pendientes', { params })
     return response.data

@@ -24,6 +24,7 @@ class Derivacion extends Model
         'observaciones',
         'acciones_para',
         'fecha_limite_respuesta',
+        'cumplida_at',
         'folio',
         'codigo_verificacion',
         'estado',
@@ -33,6 +34,7 @@ class Derivacion extends Model
     protected $casts = [
         'fecha_recepcion' => 'datetime',
         'fecha_limite_respuesta' => 'date',
+        'cumplida_at' => 'datetime',
         'acciones_para' => 'array',
     ];
 
@@ -125,6 +127,12 @@ class Derivacion extends Model
             return null;
         }
 
+        // Este funcionario ya marcó su entrega como cumplida: su semáforo se apaga
+        // de forma individual, sin esperar a los demás.
+        if ($this->cumplida_at !== null) {
+            return null;
+        }
+
         $correspondencia = $this->correspondencia;
         if ($correspondencia
             && ($correspondencia->respondida_at !== null || $correspondencia->estado === 'archivado')) {
@@ -143,6 +151,29 @@ class Derivacion extends Model
         }
 
         return 'verde';
+    }
+
+    /**
+     * ¿El usuario puede marcar como CUMPLIDA su entrega en esta derivación?
+     * Solo tiene sentido en derivaciones con plazo: requiere ser el destinatario,
+     * haber ACUSADO RECIBO ya (estado 'recibido'), no haberla cumplido todavía, y
+     * que la correspondencia siga activa (no respondida por partes ni cerrada).
+     */
+    public function puedeMarcarCumplida(User $user): bool
+    {
+        if (!$this->fecha_limite_respuesta || $this->cumplida_at !== null) {
+            return false;
+        }
+        if ($this->estado !== 'recibido') {
+            return false;
+        }
+        $correspondencia = $this->correspondencia;
+        if ($correspondencia
+            && ($correspondencia->respondida_at !== null || $correspondencia->estado === 'archivado')) {
+            return false;
+        }
+
+        return $this->esDestinatario($user);
     }
 
     public function scopePendientes($query)

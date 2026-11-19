@@ -921,8 +921,11 @@ class DerivacionController extends Controller
             $d->tiene_novedades = $act && (!$leido || $act->gt($leido));
             $d->en_seguimiento = $seguidas->has($d->correspondencia_id);
             // Semáforo del plazo de respuesta (null si no hay plazo o ya se cumplió).
-            // fecha_limite_respuesta ya se serializa por estar en la fila.
+            // fecha_limite_respuesta y cumplida_at ya se serializan por estar en la fila.
             $d->semaforo = $d->semaforo();
+            // ¿Mostrar el botón "Marcar como cumplida"? (destinatario + acusó recibo
+            // + con plazo vigente, aún sin cumplir).
+            $d->puede_marcar_cumplida = $d->puedeMarcarCumplida($user);
             // Resumen de gestión (acuses / respondieron) para mostrarlo en la bandeja.
             $d->correspondencia?->append('resumen_gestion');
             return $d;
@@ -936,6 +939,36 @@ class DerivacionController extends Controller
             'per_page'  => $derivaciones->perPage(),
             'counts'    => $counts,
         ]);
+    }
+
+    /**
+     * Marca como CUMPLIDA la entrega de ESTE funcionario en una derivación con
+     * plazo (tras haber acusado recibo). Apaga su semáforo de forma individual,
+     * sin depender de una respuesta por partes ni de los demás destinatarios.
+     */
+    public function cumplir(Derivacion $derivacion)
+    {
+        $user = Auth::user();
+        if (!$derivacion->puedeMarcarCumplida($user)) {
+            return $this->errorResponse(
+                'No puedes marcar esta derivación como cumplida (debes ser el destinatario, haber acusado recibo y tener un plazo vigente).',
+                403
+            );
+        }
+
+        $derivacion->update(['cumplida_at' => now()]);
+
+        $ctx = $user->contexto();
+        $derivacion->correspondencia?->registrarActividad(
+            $ctx->id,
+            'derivacion',
+            'marcó como cumplida su parte dentro del plazo',
+            $user->id
+        );
+
+        $derivacion->load(['correspondencia', 'usuarioDestino:id,nombre']);
+
+        return $this->successResponse($derivacion, 'Marcada como cumplida');
     }
 
     public function recibir(Request $request, Derivacion $derivacion)

@@ -393,23 +393,30 @@ class CorrespondenciaController extends Controller
                 && $c->dias_sin_movimiento >= self::DIAS_ESTANCADA;
 
             // Semáforo del plazo que ESTE usuario puso (es quien sigue la pieza):
-            // entre sus derivaciones con plazo, se queda con la más urgente.
+            // entre sus derivaciones con plazo, el más urgente de las AÚN NO
+            // cumplidas. Si todas las entregas con plazo ya se cumplieron, ✅.
             $c->semaforo = null;
             $c->fecha_limite_respuesta = null;
+            $c->plazo_cumplido = false;
+            $conPlazo = 0;
+            $cumplidas = 0;
             foreach ($c->derivaciones as $d) {
                 if (!$d->fecha_limite_respuesta || (int) $d->titularOrigenId() !== (int) $ctxId) {
                     continue;
                 }
+                $conPlazo++;
+                if ($d->cumplida_at !== null) {
+                    $cumplidas++;
+                }
                 $d->setRelation('correspondencia', $c);
                 $sem = $d->semaforo();
-                if ($sem === null) {
-                    continue;
-                }
-                if ($c->semaforo === null || $severidad[$sem] > $severidad[$c->semaforo]) {
+                if ($sem !== null && ($c->semaforo === null || $severidad[$sem] > $severidad[$c->semaforo])) {
                     $c->semaforo = $sem;
                     $c->fecha_limite_respuesta = $d->fecha_limite_respuesta->format('Y-m-d');
                 }
             }
+            // Todas las entregas con plazo cumplidas → OK (y ya no hay semáforo pendiente).
+            $c->plazo_cumplido = $conPlazo > 0 && $cumplidas === $conPlazo;
         });
 
         return $this->successResponse([

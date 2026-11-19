@@ -23,6 +23,7 @@ import {
   Visibility as ViewIcon,
   CheckCircle as RecibirIcon,
   Archive as ArchivarIcon,
+  TaskAlt as CumplidaIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI } from '../../api/correspondencia'
 import { Correspondencia, Derivacion } from '../../types'
@@ -107,6 +108,15 @@ const BandejaEntrada = () => {
       loadBandeja()
     } catch (err) {
       console.error('Error al archivar:', err)
+    }
+  }
+
+  const handleMarcarCumplida = async (id: number) => {
+    try {
+      await correspondenciaAPI.marcarCumplida(id)
+      loadBandeja()
+    } catch (err) {
+      console.error('Error al marcar como cumplida:', err)
     }
   }
 
@@ -211,7 +221,7 @@ const BandejaEntrada = () => {
                             color={estadoCorrespondencia(c.estado).color}
                             size="small"
                           />
-                          <SemaforoPlazo nivel={c.semaforo} fecha={c.fecha_limite_respuesta} />
+                          <SemaforoPlazo nivel={c.semaforo} fecha={c.fecha_limite_respuesta} cumplido={c.plazo_cumplido} />
                           <ResumenGestion correspondencia={c} variant="lista" />
                         </Box>
                       </TableCell>
@@ -338,7 +348,11 @@ const BandejaEntrada = () => {
                             size="small"
                           />
                         )}
-                        {tab !== 2 && <SemaforoPlazo nivel={der.semaforo} fecha={der.fecha_limite_respuesta} />}
+                        {tab !== 2 && der.fecha_limite_respuesta && (
+                          der.cumplida_at
+                            ? <Chip label="✅ Cumplida" color="success" size="small" variant="outlined" />
+                            : <SemaforoPlazo nivel={der.semaforo} fecha={der.fecha_limite_respuesta} />
+                        )}
                         {der.correspondencia && (
                           <ResumenGestion correspondencia={der.correspondencia} variant="lista" />
                         )}
@@ -363,6 +377,16 @@ const BandejaEntrada = () => {
                           title="Marcar como recibido"
                         >
                           <RecibirIcon />
+                        </IconButton>
+                      )}
+                      {tab !== 2 && der.puede_marcar_cumplida && (
+                        <IconButton
+                          size="small"
+                          color="success"
+                          onClick={() => handleMarcarCumplida(der.id)}
+                          title="Marcar como cumplida (entregué lo solicitado)"
+                        >
+                          <CumplidaIcon />
                         </IconButton>
                       )}
                       {tab !== 2 && der.estado === 'recibido' && der.puede_actuar && (

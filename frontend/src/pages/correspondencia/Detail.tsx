@@ -42,6 +42,7 @@ import {
   Unarchive as DesarchivarIcon,
   UploadFile as UploadIcon,
   PersonAdd as PersonAddIcon,
+  TaskAlt as CumplidaIcon,
 } from '@mui/icons-material'
 import { correspondenciaAPI, AlcaldeInfo } from '../../api/correspondencia'
 import { documentosAPI } from '../../api/gestor'
@@ -458,6 +459,16 @@ const CorrespondenciaDetail = () => {
   const puedoDesarchivarMiDerivacion = isFuncionario && miDerivacion?.estado === 'archivado'
     && correspondencia?.estado !== 'archivado'
 
+  // Marcar como cumplida: solo en derivaciones CON plazo, tras acusar recibo y
+  // mientras la correspondencia siga activa. Es individual de este funcionario.
+  const puedoMarcarCumplida = isFuncionario
+    && miDerivacion?.estado === 'recibido'
+    && !!miDerivacion?.fecha_limite_respuesta
+    && !miDerivacion?.cumplida_at
+    && correspondencia?.estado !== 'archivado'
+    && !correspondencia?.respondida_at
+  const miDerivacionCumplida = isFuncionario && !!miDerivacion?.cumplida_at
+
   // Derivación pendiente para el alcalde (cuando recibe desde Oficina de Partes)
   const derivacionPendienteParaAlcalde = isAlcalde() && correspondencia?.estado === 'derivada_alcaldia'
     ? correspondencia.derivaciones?.find(esMiDerivacionPendiente)
@@ -489,6 +500,20 @@ const CorrespondenciaDetail = () => {
       if (id) loadCorrespondencia(parseInt(id))
     } catch (err: any) {
       setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo devolver a la bandeja' })
+    } finally {
+      setArchivoPersonalLoading(false)
+    }
+  }
+
+  const handleMarcarCumplida = async () => {
+    if (!miDerivacion) return
+    setArchivoPersonalLoading(true)
+    try {
+      const res = await correspondenciaAPI.marcarCumplida(miDerivacion.id)
+      setSnackbar({ open: true, message: res.message || 'Marcada como cumplida' })
+      if (id) loadCorrespondencia(parseInt(id))
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'No se pudo marcar como cumplida' })
     } finally {
       setArchivoPersonalLoading(false)
     }
@@ -815,6 +840,27 @@ const CorrespondenciaDetail = () => {
             >
               {recibirLoading ? 'Procesando...' : 'Marcar como Recibida'}
             </Button>
+          )}
+          {/* Marcar como cumplida: aparece tras acusar recibo en una correspondencia
+              con plazo. Apaga el semáforo de este funcionario (su entrega está lista). */}
+          {puedoMarcarCumplida && (
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={archivoPersonalLoading ? <CircularProgress size={18} color="inherit" /> : <CumplidaIcon />}
+              onClick={handleMarcarCumplida}
+              disabled={archivoPersonalLoading}
+            >
+              Marcar como cumplida
+            </Button>
+          )}
+          {miDerivacionCumplida && (
+            <Chip
+              icon={<CumplidaIcon />}
+              label="Cumplida"
+              color="success"
+              variant="outlined"
+            />
           )}
           {/* Archivo PERSONAL del funcionario, pedido por quienes reciben
               derivaciones: tras acusar recibo tenían que volver a la Bandeja

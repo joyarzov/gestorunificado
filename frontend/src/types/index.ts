@@ -143,6 +143,8 @@ export interface Correspondencia {
   // Solo en la lista de seguimiento: semáforo del plazo de respuesta que puso el usuario
   semaforo?: 'verde' | 'amarillo' | 'rojo' | null
   fecha_limite_respuesta?: string | null
+  // Solo en la lista de seguimiento: todas las entregas con plazo ya se cumplieron (✅)
+  plazo_cumplido?: boolean
   created_at: string
   updated_at: string
 }
@@ -174,6 +176,8 @@ export interface Derivacion {
   acciones_para?: string[]
   // Plazo de respuesta opcional que fijó el alcalde al derivar (YYYY-MM-DD).
   fecha_limite_respuesta?: string | null
+  // Este funcionario marcó su entrega como cumplida (timestamp) o null.
+  cumplida_at?: string | null
   folio?: string
   estado: 'pendiente' | 'recibido' | 'archivado' | 'derivado'
   fecha_recepcion?: string
@@ -186,6 +190,8 @@ export interface Derivacion {
   en_seguimiento?: boolean
   // Solo en la bandeja: semáforo del plazo de respuesta (null si no hay o ya se cumplió)
   semaforo?: 'verde' | 'amarillo' | 'rojo' | null
+  // Solo en la bandeja: el funcionario puede marcar su entrega como cumplida
+  puede_marcar_cumplida?: boolean
 }
 
 // Tipos OIRS
