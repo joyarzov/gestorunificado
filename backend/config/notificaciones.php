@@ -19,6 +19,10 @@ return [
             'label' => 'OIRS',
             'color' => '#EB1B78',
         ],
+        'reservas' => [
+            'label' => 'Reserva de Espacios',
+            'color' => '#6A1B9A',
+        ],
         // 'fondos' => ['label' => 'Fondos Concursables', 'color' => '#8AC53E'],
     ],
 

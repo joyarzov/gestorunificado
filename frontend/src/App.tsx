@@ -61,6 +61,11 @@ import PostulacionEvaluar from './pages/fondos/PostulacionEvaluar'
 
 // Admin
 import Administracion from './pages/admin/Administracion'
+
+// Reserva de Espacios
+import ReservasCalendario from './pages/reservas/Calendario'
+import ReservasSolicitudes from './pages/reservas/Solicitudes'
+import EspaciosAdmin from './pages/reservas/EspaciosAdmin'
 import UsuariosManage from './pages/admin/UsuariosManage'
 import DepartamentosManage from './pages/admin/DepartamentosManage'
 import FirmaSellosPage from './pages/admin/FirmaSellosPage'
@@ -152,6 +157,11 @@ function App() {
             <Route path="/fondos-concursables/:id" element={<PostulacionesList />} />
             <Route path="/postulaciones/:id" element={<PostulacionDetail />} />
             <Route path="/postulaciones/:id/evaluar" element={<PostulacionEvaluar />} />
+
+            {/* Reserva de Espacios */}
+            <Route path="/reservas" element={<ReservasCalendario />} />
+            <Route path="/reservas/solicitudes" element={<ReservasSolicitudes />} />
+            <Route path="/reservas/espacios" element={<EspaciosAdmin />} />
 
             {/* Administración */}
             <Route path="/administracion" element={<Administracion />} />

@@ -18,6 +18,7 @@ import {
   Forum as OirsIcon,
   Settings as AdminIcon,
   Storefront as FomentoIcon,
+  CalendarMonth as ReservasIcon,
   Refresh as RefreshIcon,
   AccessTime as TimeIcon,
   ExitToApp as LogoutIcon,
@@ -108,6 +109,15 @@ const Portal = () => {
       color: '#EB1B78',
       ruta: '/fomento-productivo',
       visible: hasAplicacion('fomento_productivo'),
+    },
+    {
+      id: 'reservas',
+      nombre: 'Reserva de Espacios',
+      descripcion: 'Agenda de la sala de concejo y otros espacios municipales',
+      icono: <ReservasIcon sx={{ fontSize: 40 }} />,
+      color: '#6A1B9A',
+      ruta: '/reservas',
+      visible: hasAplicacion('reservas'),
     },
     {
       id: 'administracion',

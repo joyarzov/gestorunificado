@@ -56,6 +56,8 @@ export interface User {
   puede_ver_repositorio?: boolean
   /** Puede incorporar funcionarios a una correspondencia en circulación. */
   puede_incorporar_correspondencia?: boolean
+  /** Administra al menos un espacio reservable (habilita gestión en el módulo de reservas). */
+  administra_espacios?: boolean
   firma_desatendida_habilitada?: boolean
   firma_modo_preferido?: 'atendido' | 'desatendido'
   debe_cambiar_password?: boolean
@@ -192,6 +194,40 @@ export interface Derivacion {
   semaforo?: 'verde' | 'amarillo' | 'rojo' | null
   // Solo en la bandeja: el funcionario puede marcar su entrega como cumplida
   puede_marcar_cumplida?: boolean
+}
+
+// Tipos del módulo de Reserva de Espacios
+export interface Espacio {
+  id: number
+  nombre: string
+  descripcion?: string | null
+  ubicacion?: string | null
+  capacidad?: number | null
+  color: string
+  activo: boolean
+  administradores?: Array<{ id: number; nombre: string; cargo?: string | null }>
+  es_administrador?: boolean
+}
+
+export type ReservaEstado = 'solicitada' | 'aprobada' | 'rechazada' | 'cancelada'
+
+export interface Reserva {
+  id: number
+  espacio_id: number
+  espacio?: Espacio
+  titulo: string
+  descripcion?: string | null
+  inicio: string
+  fin: string
+  estado: ReservaEstado
+  solicitante_id: number
+  solicitante?: { id: number; nombre: string; cargo?: string | null }
+  aprobada_por_id?: number | null
+  aprobada_por?: { id: number; nombre: string } | null
+  aprobada_at?: string | null
+  motivo_rechazo?: string | null
+  asistentes?: Array<{ id: number; nombre: string; cargo?: string | null }>
+  puede_gestionar?: boolean
 }
 
 // Tipos OIRS

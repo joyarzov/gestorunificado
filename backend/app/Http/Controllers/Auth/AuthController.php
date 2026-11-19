@@ -309,6 +309,9 @@ class AuthController extends Controller
             'visador' => $user->visador,
             'puede_ver_registro_correspondencia' => (bool) $user->puede_ver_registro_correspondencia,
             'puede_ver_repositorio' => (bool) $user->puede_ver_repositorio,
+            // Administra al menos un espacio reservable (o es admin): habilita las
+            // opciones de gestión del módulo de reservas en el menú.
+            'administra_espacios' => $user->puedeGestionarEspacios(),
             'firma_desatendida_habilitada' => (bool) $user->firma_desatendida_habilitada,
             'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
             'debe_cambiar_password' => (bool) $user->debe_cambiar_password,

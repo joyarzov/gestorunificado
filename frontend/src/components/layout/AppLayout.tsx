@@ -159,6 +159,7 @@ const AppLayout = () => {
         canViewAllCorrespondence: canViewAllCorrespondence(),
         canViewRegistroCorrespondence: canViewRegistroCorrespondence(),
         canViewRepositorio: canViewRepositorio(),
+        administraEspacios: isAdmin() || !!user?.administra_espacios,
       })
     : []
 

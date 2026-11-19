@@ -24,6 +24,9 @@ import {
   Outbox as SalidaIcon,
   SmartToy as FuncionarioIaIcon,
   Category as TipoDocIcon,
+  CalendarMonth as ReservasIcon,
+  EventAvailable as SolicitudesIcon,
+  MeetingRoom as EspaciosIcon,
 } from '@mui/icons-material'
 import { ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -33,6 +36,7 @@ export type ModuleId =
   | 'gestor_documental'
   | 'oirs'
   | 'fomento_productivo'
+  | 'reservas'
   | 'administracion'
   | 'perfil'
 
@@ -98,6 +102,15 @@ export const MODULES: ModuleDefinition[] = [
     icono: FomentoIcon,
     rootPath: '/fomento-productivo',
     urlPrefixes: ['/fomento-productivo', '/fondos-concursables', '/postulaciones'],
+  },
+  {
+    id: 'reservas',
+    nombre: 'Reserva de Espacios',
+    descripcion: 'Agenda de la sala de concejo y otros espacios municipales',
+    color: '#6A1B9A',
+    icono: ReservasIcon,
+    rootPath: '/reservas',
+    urlPrefixes: ['/reservas'],
   },
   {
     id: 'administracion',
@@ -178,6 +191,7 @@ interface SidebarContext {
   canViewAllCorrespondence: boolean
   canViewRegistroCorrespondence: boolean
   canViewRepositorio: boolean
+  administraEspacios: boolean
 }
 
 export const getSidebarItems = (
@@ -259,6 +273,18 @@ export const getSidebarItems = (
       return [
         { text: 'Dashboard', path: '/fomento-productivo', icon: DashboardIcon },
       ]
+
+    case 'reservas': {
+      const items: SidebarNavItem[] = [
+        { text: 'Calendario', path: '/reservas', icon: ReservasIcon },
+      ]
+      // Solo para quien administra algún espacio (o es admin de plataforma).
+      if (ctx.administraEspacios) {
+        items.push({ text: 'Solicitudes', path: '/reservas/solicitudes', icon: SolicitudesIcon })
+        items.push({ text: 'Espacios', path: '/reservas/espacios', icon: EspaciosIcon })
+      }
+      return items
+    }
 
     case 'administracion':
       return [

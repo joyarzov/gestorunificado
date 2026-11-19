@@ -27,6 +27,8 @@ use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\OrganigramaController;
 use App\Http\Controllers\DocumentoPlantillaAdminController;
 use App\Http\Controllers\DelegacionEmisionController;
+use App\Http\Controllers\EspacioController;
+use App\Http\Controllers\ReservaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -240,6 +242,27 @@ Route::middleware(['auth:sanctum', 'actuando.como', 'perfil.activo', 'solo.lectu
         Route::post('/{derivacion}/desarchivar', [DerivacionController::class, 'desarchivar']);
     });
     Route::apiResource('derivaciones', DerivacionController::class)->only(['index', 'store', 'show']);
+
+    // Módulo "Reserva de Espacios": calendario de solo lectura para todos;
+    // administradores de cada espacio crean/aprueban. Autorización fina en los
+    // controladores (no por rol global).
+    Route::prefix('espacios')->group(function () {
+        Route::get('/', [EspacioController::class, 'index']);
+        Route::post('/', [EspacioController::class, 'store']);
+        Route::get('/{espacio}', [EspacioController::class, 'show']);
+        Route::put('/{espacio}', [EspacioController::class, 'update']);
+        Route::delete('/{espacio}', [EspacioController::class, 'destroy']);
+    });
+    Route::prefix('reservas')->group(function () {
+        Route::get('/', [ReservaController::class, 'index']); // ?espacio_id=&desde=&hasta=
+        Route::get('/pendientes', [ReservaController::class, 'pendientes']);
+        Route::post('/', [ReservaController::class, 'store']);
+        Route::get('/{reserva}', [ReservaController::class, 'show']);
+        Route::put('/{reserva}', [ReservaController::class, 'update']);
+        Route::post('/{reserva}/aprobar', [ReservaController::class, 'aprobar']);
+        Route::post('/{reserva}/rechazar', [ReservaController::class, 'rechazar']);
+        Route::post('/{reserva}/cancelar', [ReservaController::class, 'cancelar']);
+    });
 
     // Adjuntos
     Route::prefix('adjuntos')->group(function () {

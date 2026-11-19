@@ -128,6 +128,23 @@ class User extends Authenticatable
         return $this->hasMany(Departamento::class, 'jefe_id');
     }
 
+    /** Espacios municipales que este usuario administra (módulo de reservas). */
+    public function espaciosQueAdministra()
+    {
+        return $this->belongsToMany(Espacio::class, 'espacio_administradores', 'user_id', 'espacio_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * ¿Puede CREAR espacios y nombrar administradores? El admin de plataforma y
+     * cualquier administrador de un espacio existente (decisión: la gestión de
+     * espacios es descentralizada). El primer espacio lo crea el admin / seeder.
+     */
+    public function puedeGestionarEspacios(): bool
+    {
+        return $this->isAdmin() || $this->espaciosQueAdministra()->exists();
+    }
+
     /**
      * Usuario al que este User está "subrogando" en la request actual.
      * Lo setea el middleware ActuandoComo cuando el cliente envía

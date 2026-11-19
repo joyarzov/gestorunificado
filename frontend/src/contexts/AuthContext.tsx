@@ -305,6 +305,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   const hasAplicacion = (app: string) => {
+    // El módulo de reservas de espacios es visible para TODOS los funcionarios
+    // (calendario de solo lectura); la gestión se controla aparte por espacio.
+    if (app === 'reservas') return true
     const defaultsByRole: Record<string, string[]> = {
       oficial: ['correspondencia'],
       oirs: ['oirs'],
