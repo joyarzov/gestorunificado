@@ -94,6 +94,10 @@ class AuthController extends Controller
                 'firma_modo_preferido' => $user->firma_modo_preferido ?? 'atendido',
                 'debe_cambiar_password' => (bool) $user->debe_cambiar_password,
                 'subrogados_activos' => $this->subrogadosActivos($user),
+                // Igual que en me(): el frontend usa estos flags tras el login
+                // (sin recargar la página) para habilitar el módulo de reservas.
+                'administra_espacios' => $user->puedeGestionarEspacios(),
+                'puede_solicitar_reserva' => $user->puedeSolicitarReserva(),
             ],
         ], 'Login exitoso');
     }
